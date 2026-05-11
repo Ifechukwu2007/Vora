@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vora | Overview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { display: none !important; }
+  body.authorized { display: flex !important; }
+</style>
+</head>
+
+<body class="flex h-screen bg-gray-100 overflow-hidden">
+
+<!-- SIDEBAR -->
+<aside class="w-64 bg-white border-r flex flex-col">
+  <div class="p-4 font-bold border-b">🔥 Vora Console</div>
+
+  <nav class="flex-1 p-2 space-y-1 overflow-y-auto">
+    <a href="admin.html" class="block p-2 bg-gray-100 rounded">overview</a>
+    <a href="admin-users.html" class="block p-2 hover:bg-gray-100 rounded">users</a>
+    <a href="admin-requests.html" class="block p-2 hover:bg-gray-100 rounded">requests</a>
+    <a href="admin-offers.html" class="block p-2 hover:bg-gray-100 rounded">offers</a>
+    <a href="admin-services.html" class="block p-2 hover:bg-gray-100 rounded">services</a>
+    <a href="admin-bookings.html" class="block p-2 hover:bg-gray-100 rounded">bookings</a>
+    <a href="admin-messages.html" class="block p-2 hover:bg-gray-100 rounded">messages</a>
+    <a href="admin-payments.html" class="block p-2 hover:bg-gray-100 rounded">payments</a>
+    <a href="admin-chats.html" class="block p-2 hover:bg-gray-100 rounded">chats</a>
+    <a href="admin-payouts.html" class="block p-2 hover:bg-gray-100 rounded">payouts</a>
+    <a href="admin-reviews.html" class="block p-2 hover:bg-gray-100 rounded">reviews</a>
+    <a href="admin-settings.html" class="block p-2 hover:bg-gray-100 rounded">settings</a>
+  </nav>
+
+  <a href="home.html" class="p-4 border-t text-sm">← Back</a>
+</aside>
+
+<!-- MAIN -->
+<div class="flex-1 flex flex-col">
+
+<!-- TOP BAR -->
+<header class="bg-white border-b px-6 py-3 flex justify-between items-center">
+    <a href="admin-reviews.html" class="block p-2 hover:bg-gray-100 rounded">reviews</a>
+  <h1 class="font-semibold">Overview</h1>
+</header>
+
+<!-- CONTENT -->
+<div class="p-6 space-y-6 overflow-auto">
+
+  <!-- STATS -->
+  <div class="grid md:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-xl">
+      <p class="text-gray-500 text-sm">Users</p>
+      <h2 id="totalUsers" class="text-xl font-bold">0</h2>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl">
+      <p class="text-gray-500 text-sm">Services</p>
+      <h2 id="totalServices" class="text-xl font-bold">0</h2>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl">
+      <p class="text-gray-500 text-sm">Bookings</p>
+      <h2 id="totalBookings" class="text-xl font-bold">0</h2>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl">
+      <p class="text-gray-500 text-sm">Revenue</p>
+      <h2 id="totalRevenue" class="text-xl font-bold">NGN0</h2>
+    </div>
+  </div>
+
+  <!-- RECENT BOOKINGS -->
+  <div class="bg-white p-6 rounded-xl">
+    <h3 class="font-semibold mb-4">Recent Bookings</h3>
+
+    <div id="recentBookings" class="space-y-3 text-sm text-gray-600">
+      No bookings yet
+    </div>
+  </div>
+
+  <!-- ACTIVITY -->
+  <div class="bg-white p-6 rounded-xl">
+    <h3 class="font-semibold mb-4">Activity</h3>
+
+    <div id="activityFeed" class="space-y-2 text-sm text-gray-600">
+      No activity yet
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script src="firebase-config.js"></script> <!-- MUST come first -->
+<script src="./admin.js" type="module"></script>
+
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Pool | Vora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-white">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Browse
+          </a>
+
+          <a href="browse-pool.html"
+            class="block font-semibold text-black-800">
+            Request Pool
+          </a>
+
+          <a href="add-service.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
+        </a>
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="home.html"
+      class="block font-semibold text-black-800">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-semibold text-black-800">
+      Browse
+    </a>
+
+    <a href="browse-pool.html"
+      class="block font-semibold text-black-800">
+      Request Pool
+    </a>
+
+    <a href="add-service.html"
+      class="block font-semibold text-black-800">
+      Become a Provider
+    </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+    <!-- Main -->
+    <main class="pt-24">
+
+        <!-- Hero Section -->
+        <section class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16 px-4">
+            <div class="max-w-6xl mx-auto text-center">
+                <h1 class="text-5xl font-extrabold mb-4">🔄 Request Pool System</h1>
+                <p class="text-xl text-blue-100">The easiest way to get services done or earn by helping others</p>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="py-16 px-4 bg-gray-50">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-4xl font-bold text-center mb-12">How It Works</h2>
+
+                <div class="grid md:grid-cols-2 gap-12 mb-12">
+                    <!-- For Buyers -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-6">👤 For Service Seekers</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-blue-600 text-white font-bold">1</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Post Your Request</h4>
+                                    <p class="text-gray-600 mt-1">Tell providers what you need - service type, location, date, and budget</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-blue-600 text-white font-bold">2</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Receive Multiple Offers</h4>
+                                    <p class="text-gray-600 mt-1">Providers review your request and submit competitive bids with their prices and availability</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-blue-600 text-white font-bold">3</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Compare & Choose</h4>
+                                    <p class="text-gray-600 mt-1">Review offers side by side - price, availability, ratings, and provider message</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-blue-600 text-white font-bold">4</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Book & Complete</h4>
+                                    <p class="text-gray-600 mt-1">Accept an offer and your booking is created immediately</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="post-request.html" class="mt-8 block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                            📝 Post a Request
+                        </a>
+                    </div>
+
+                    <!-- For Providers -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-purple-600 mb-6">🧑‍🔧 For Service Providers</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-purple-600 text-white font-bold">1</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Browse Requests</h4>
+                                    <p class="text-gray-600 mt-1">View new service requests matching your skills - search by category, location, and budget</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-purple-600 text-white font-bold">2</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Send Your Offer</h4>
+                                    <p class="text-gray-600 mt-1">Submit your bid with your price, message, and availability - show why you're the best choice</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-purple-600 text-white font-bold">3</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Win & Earn</h4>
+                                    <p class="text-gray-600 mt-1">When a client selects your offer, booking is confirmed and you start earning</p>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-10 w-10 rounded-md bg-purple-600 text-white font-bold">4</div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-900">Build Your Reputation</h4>
+                                    <p class="text-gray-600 mt-1">Increase your success rate and rating with each completed booking</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="browse-pool.html" class="mt-8 block w-full bg-purple-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                            🏆 Browse Request Pool
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Features -->
+        <section class="py-16 px-4">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-4xl font-bold text-center mb-12">Why Use Request Pool?</h2>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">⚡</div>
+                        <h3 class="font-bold text-xl mb-2">Quick & Efficient</h3>
+                        <p class="text-gray-600">Get multiple offers quickly. No long search, just competitive bids</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">💰</div>
+                        <h3 class="font-bold text-xl mb-2">Best Prices</h3>
+                        <p class="text-gray-600">Providers compete on price, so you get the best rates available</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">⭐</div>
+                        <h3 class="font-bold text-xl mb-2">Quality & Trust</h3>
+                        <p class="text-gray-600">Verified providers with ratings and reviews you can rely on</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">🔐</div>
+                        <h3 class="font-bold text-xl mb-2">Safe & Secure</h3>
+                        <p class="text-gray-600">All transactions are secured on Vora. Your money is protected</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">💬</div>
+                        <h3 class="font-bold text-xl mb-2">Direct Communication</h3>
+                        <p class="text-gray-600">Message providers directly before booking to clarify details</p>
+                    </div>
+
+                    <div class="text-center">
+                        <div class="text-5xl mb-4">📊</div>
+                        <h3 class="font-bold text-xl mb-2">Track Everything</h3>
+                        <p class="text-gray-600">Monitor your requests, offers, and completed bookings in one place</p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Example Scenario -->
+        <section class="py-16 px-4 bg-blue-50">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-4xl font-bold text-center mb-12">Real Example</h2>
+
+                <div class="bg-white rounded-lg shadow-lg p-8 max-w-3xl mx-auto">
+                    <div class="mb-6">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4">💇 "I need a barber at 6pm today"</h3>
+                        <div class="bg-gray-50 p-4 rounded mb-4">
+                            <p class="text-gray-700"><span class="font-semibold">Sarah's Request:</span></p>
+                            <ul class="text-gray-600 mt-2 space-y-1">
+                                <li>• Service: Barber</li>
+                                <li>• Location: Lagos, Ikoyi</li>
+                                <li>• Date & Time: Today, 6pm</li>
+                                <li>• Budget: ₦3,000 - ₦5,000</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="border-t-2 border-gray-200 pt-6 mb-6">
+                        <p class="text-center text-gray-600 font-semibold mb-4">↓ Providers Submit Offers ↓</p>
+                    </div>
+
+                    <div class="space-y-3 mb-6">
+                        <div class="border-l-4 border-green-500 bg-green-50 p-4 rounded">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-semibold text-gray-900">Barber Kingsley ⭐⭐⭐⭐⭐</p>
+                                    <p class="text-sm text-gray-600">5 years experience, 250+ reviews</p>
+                                </div>
+                                <p class="font-bold text-green-600 text-lg">₦3,500</p>
+                            </div>
+                            <p class="text-sm text-gray-700">"I can be there by 5:45pm. Expert barber with modern cuts. Fast service guaranteed!"</p>
+                        </div>
+
+                        <div class="border-l-4 border-blue-500 bg-blue-50 p-4 rounded">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-semibold text-gray-900">Premium Cuts Salon ⭐⭐⭐⭐</p>
+                                    <p class="text-sm text-gray-600">3 years experience, 180+ reviews</p>
+                                </div>
+                                <p class="font-bold text-blue-600 text-lg">₦4,000</p>
+                            </div>
+                            <p class="text-sm text-gray-700">"Available at 6pm sharp. Professional team with latest tools. Satisfaction guaranteed!"</p>
+                        </div>
+
+                        <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="font-semibold text-gray-900">Quick Barber Services ⭐⭐⭐</p>
+                                    <p class="text-sm text-gray-600">1 year experience, 45+ reviews</p>
+                                </div>
+                                <p class="font-bold text-yellow-600 text-lg">₦3,000</p>
+                            </div>
+                            <p class="text-sm text-gray-700">"Can start at 6pm. Budget-friendly service. Come with styles in mind."</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t-2 border-gray-200 pt-6">
+                        <p class="text-center text-gray-700"><span class="font-semibold">Sarah chooses:</span> Barber Kingsley for ₦3,500 (best rating + good price + early arrival)</p>
+                        <p class="text-center text-sm text-gray-600 mt-2">✅ Booking confirmed. Payment secured. Service completed. 5-star review left.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-16 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+            <div class="max-w-4xl mx-auto text-center">
+                <h2 class="text-4xl font-bold mb-4">Ready to Get Started?</h2>
+                <p class="text-xl mb-8 text-blue-100">Join thousands of users getting amazing services at fair prices</p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="post-request.html" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-bold text-lg hover:bg-blue-50 transition">
+                        📝 Post a Request
+                    </a>
+                    <a href="browse-pool.html" class="bg-blue-800 text-white px-8 py-3 rounded-lg font-bold text-lg hover:bg-blue-900 transition border border-white">
+                        🏆 Browse Requests
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="py-16 px-4">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-center mb-8">Frequently Asked Questions</h2>
+
+                <div class="space-y-4">
+                    <details class="bg-gray-50 p-4 rounded-lg cursor-pointer group">
+                        <summary class="font-semibold text-gray-900 flex items-center justify-between">
+                            Is it free to post a request?
+                            <span class="group-open:rotate-180 transition">▼</span>
+                        </summary>
+                        <p class="text-gray-600 mt-3">Yes! Posting a request is completely free. You only pay when you accept an offer and the service is completed.</p>
+                    </details>
+
+                    <details class="bg-gray-50 p-4 rounded-lg cursor-pointer group">
+                        <summary class="font-semibold text-gray-900 flex items-center justify-between">
+                            How do I know if a provider is reliable?
+                            <span class="group-open:rotate-180 transition">▼</span>
+                        </summary>
+                        <p class="text-gray-600 mt-3">Each provider has a rating, review count, and experience level displayed. You can also message them before booking to ask questions.</p>
+                    </details>
+
+                    <details class="bg-gray-50 p-4 rounded-lg cursor-pointer group">
+                        <summary class="font-semibold text-gray-900 flex items-center justify-between">
+                            What if I'm not satisfied with the service?
+                            <span class="group-open:rotate-180 transition">▼</span>
+                        </summary>
+                        <p class="text-gray-600 mt-3">Contact our support team immediately. We have a dispute resolution process to protect both buyers and providers fairly.</p>
+                    </details>
+
+                    <details class="bg-gray-50 p-4 rounded-lg cursor-pointer group">
+                        <summary class="font-semibold text-gray-900 flex items-center justify-between">
+                            How do providers earn money?
+                            <span class="group-open:rotate-180 transition">▼</span>
+                        </summary>
+                        <p class="text-gray-600 mt-3">Providers earn the price they quote when their offer is accepted. Earnings are paid securely through Vora after service completion.</p>
+                    </details>
+
+                    <details class="bg-gray-50 p-4 rounded-lg cursor-pointer group">
+                        <summary class="font-semibold text-gray-900 flex items-center justify-between">
+                            Can I cancel a request?
+                            <span class="group-open:rotate-180 transition">▼</span>
+                        </summary>
+                        <p class="text-gray-600 mt-3">Yes, you can cancel an open request anytime before accepting an offer. Once you accept an offer, you may have cancellation terms depending on the provider.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script src="./firebase-config.js" type="module"></script>
+<script src="./auth.js" type="module"></script>
+<script src="./main.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./request-pool-manager.js" type="module"></script>
+
+    <!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

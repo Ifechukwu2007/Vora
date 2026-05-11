@@ -1,0 +1,336 @@
+import { LoadingSpinner } from './loading-utils.js';
+import { db, auth } from "./firebase-config.js";
+
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+import {
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+// ================= STATE =================
+let user = null;
+let offers = [];
+let bookings = [];
+let selectedOffer = null;
+
+
+// ================= DOM =================
+const providerName = document.getElementById("providerName");
+
+const totalOffersEl = document.getElementById("totalOffers");
+const totalWinsEl = document.getElementById("totalWins");
+const successRateEl = document.getElementById("successRate");
+const totalCompletedEl = document.getElementById("totalCompleted");
+
+const activeOffersList = document.getElementById("activeOffersList");
+const activityList = document.getElementById("activityList");
+
+const winRateBar = document.getElementById("winRateBar");
+
+const modal = document.getElementById("offerDetailsModal");
+const modalContent = document.getElementById("offerDetailsContent");
+const closeModalBtn = document.getElementById("closeOfferModal");
+
+
+// ================= STATUS CONSTANTS =================
+const STATUS = {
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  CANCELLED: "cancelled",
+  AWAITING_PAYMENT: "awaiting_payment",
+  COMPLETED: "completed"
+};
+
+
+// ================= AUTH =================
+onAuthStateChanged(auth, async (u) => {
+  if (!u) {
+    LoadingSpinner.navigateTo('login.html');
+    return;
+  }
+
+  user = u;
+  providerName.textContent = u.displayName || "Provider";
+
+  await loadAll();
+});
+
+
+// ================= LOAD DATA =================
+async function loadAll() {
+  await loadOffers();
+  await loadBookings();
+  renderAll();
+}
+
+
+// ================= OFFERS =================
+async function loadOffers() {
+  const q = query(
+    collection(db, "offers"),
+    where("providerId", "==", user.uid)
+  );
+
+  const snap = await getDocs(q);
+
+  offers = [];
+  snap.forEach(d => {
+    offers.push({ id: d.id, ...d.data() });
+  });
+}
+
+
+// ================= BOOKINGS =================
+async function loadBookings() {
+  const q = query(
+    collection(db, "bookings"),
+    where("providerId", "==", user.uid)
+  );
+
+  const snap = await getDocs(q);
+
+  bookings = [];
+  snap.forEach(d => {
+    bookings.push({ id: d.id, ...d.data() });
+  });
+}
+
+
+// ================= RENDER =================
+function renderAll() {
+  renderStats();
+  renderOffers();
+  renderActivity();
+}
+
+
+// ================= STATS =================
+function renderStats() {
+  const totalOffers = offers.length;
+
+  const wins = offers.filter(o =>
+    o.status === STATUS.ACCEPTED ||
+    o.status === STATUS.AWAITING_PAYMENT ||
+    o.status === STATUS.COMPLETED
+  ).length;
+
+  const completed = offers.filter(o =>
+    o.status === STATUS.COMPLETED
+  ).length;
+
+  const successRate = totalOffers
+    ? Math.round((wins / totalOffers) * 100)
+    : 0;
+
+  totalOffersEl.textContent = totalOffers;
+  totalWinsEl.textContent = wins;
+  totalCompletedEl.textContent = completed;
+  successRateEl.textContent = successRate + "%";
+
+  winRateBar.style.width = successRate + "%";
+}
+
+
+// ================= ACTIVE OFFERS =================
+function renderOffers() {
+  const active = offers.filter(o =>
+    o.status !== STATUS.COMPLETED &&
+    o.status !== STATUS.REJECTED &&
+    o.status !== STATUS.CANCELLED
+  );
+
+  if (!active.length) {
+    activeOffersList.innerHTML = `<p class="text-gray-500">No active offers</p>`;
+    return;
+  }
+
+  activeOffersList.innerHTML = active.map(o => `
+    <div class="border p-3 rounded mb-2 bg-white">
+
+      <p class="font-bold">₦${o.price}</p>
+      <p class="text-sm text-gray-500">${o.message || ""}</p>
+      <p class="text-xs mt-1">Status: <b>${o.status}</b></p>
+
+      <div class="flex gap-2 mt-2 flex-wrap">
+
+        <button onclick="openOffer('${o.id}')"
+          class="px-3 py-1 bg-gray-100 rounded text-sm">
+          View
+        </button>
+
+        ${o.status === STATUS.PENDING ? `
+          <button onclick="acceptOffer('${o.id}')"
+            class="px-3 py-1 bg-green-500 text-white rounded text-sm">
+            Accept
+          </button>
+
+          <button onclick="rejectOffer('${o.id}')"
+            class="px-3 py-1 bg-red-500 text-white rounded text-sm">
+            Reject
+          </button>
+        ` : ""}
+
+        ${o.status === STATUS.ACCEPTED ? `
+          <button onclick="markAwaitingPayment('${o.id}')"
+            class="px-3 py-1 bg-yellow-500 text-white rounded text-sm">
+            Payment Received
+          </button>
+        ` : ""}
+
+        ${o.status === STATUS.AWAITING_PAYMENT ? `
+          <button onclick="markCompleted('${o.id}')"
+            class="px-3 py-1 bg-blue-600 text-white rounded text-sm">
+            Mark Completed
+          </button>
+        ` : ""}
+
+        <button onclick="cancelOffer('${o.id}')"
+          class="px-3 py-1 bg-gray-500 text-white rounded text-sm">
+          Cancel
+        </button>
+
+      </div>
+
+    </div>
+  `).join("");
+}
+
+
+// ================= ACTIVITY =================
+function renderActivity() {
+  const combined = [...offers, ...bookings]
+    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+    .slice(0, 6);
+
+  if (!combined.length) {
+    activityList.innerHTML = `<p class="text-gray-500">No activity yet</p>`;
+    return;
+  }
+
+  activityList.innerHTML = combined.map(i => `
+    <div class="border-b py-2 text-sm">
+      ${i.price ? "₦" + i.price : "Booking"} • ${i.status}
+    </div>
+  `).join("");
+}
+
+
+// ================= FIRESTORE UPDATE =================
+async function updateOffer(id, data) {
+  await updateDoc(doc(db, "offers", id), data);
+}
+
+
+// ================= ACTIONS =================
+window.acceptOffer = async (id) => {
+  await updateOffer(id, { status: STATUS.ACCEPTED });
+  await loadAll();
+};
+
+window.rejectOffer = async (id) => {
+  await updateOffer(id, { status: STATUS.REJECTED });
+  await loadAll();
+};
+
+window.cancelOffer = async (id) => {
+  await updateOffer(id, { status: STATUS.CANCELLED });
+  await loadAll();
+};
+
+window.markAwaitingPayment = async (id) => {
+  await updateOffer(id, {
+    status: STATUS.AWAITING_PAYMENT,
+    paymentReceivedAt: serverTimestamp()
+  });
+
+  await loadAll();
+};
+
+
+// ================= STRICT COMPLETION RULE =================
+window.markCompleted = async function (id) {
+  const offer = offers.find(o => o.id === id);
+  if (!offer) return;
+
+  if (offer.status !== STATUS.AWAITING_PAYMENT) {
+    alert("You must confirm payment first before completing this job.");
+    return;
+  }
+
+  await updateOffer(id, {
+    status: STATUS.COMPLETED,
+    completedAt: serverTimestamp()
+  });
+
+  modal.classList.add("hidden");
+  await loadAll();
+};
+
+
+// ================= MODAL =================
+window.openOffer = function (id) {
+  const offer = offers.find(o => o.id === id);
+  if (!offer) return;
+
+  selectedOffer = offer;
+
+  modalContent.innerHTML = `
+    <h2 class="text-xl font-bold mb-2">Offer Details</h2>
+
+    <p><strong>Price:</strong> ₦${offer.price}</p>
+    <p><strong>Status:</strong> ${offer.status}</p>
+    <p><strong>Message:</strong> ${offer.message || "-"}</p>
+
+    <div class="mt-4 space-y-2">
+
+      ${offer.status === STATUS.ACCEPTED ? `
+        <button onclick="markAwaitingPayment('${offer.id}')"
+          class="w-full bg-yellow-500 text-white py-2 rounded">
+          Confirm Payment Received
+        </button>
+      ` : ""}
+
+      ${offer.status === STATUS.AWAITING_PAYMENT ? `
+        <button onclick="markCompleted('${offer.id}')"
+          class="w-full bg-green-600 text-white py-2 rounded">
+          Mark as Completed
+        </button>
+      ` : ""}
+
+      <button onclick="cancelOffer('${offer.id}')"
+        class="w-full bg-red-500 text-white py-2 rounded">
+        Cancel
+      </button>
+
+    </div>
+  `;
+
+  modal.classList.remove("hidden");
+};
+
+
+// ================= CLOSE MODAL =================
+closeModalBtn.addEventListener("click", () => {
+  modal.classList.add("hidden");
+});
+
+
+// ================= LOGOUT =================
+document.querySelectorAll("#logoutBtn")
+  .forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await signOut(auth);
+      LoadingSpinner.navigateTo('login.html');
+    });
+  });

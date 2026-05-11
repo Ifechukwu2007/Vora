@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Profile</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="block font-semibold text-black-800">
+            Browse
+          </a>
+
+          <a href="browse-pool.html"
+            class="block font-semibold text-black-800">
+            Request Pool
+          </a>
+
+          <a href="add-service.html"
+            class="block font-semibold text-black-800">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
+        </a>
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="home.html"
+      class="block font-semibold text-black-800">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-semibold text-black-800">
+      Browse
+    </a>
+
+    <a href="browse-pool.html"
+      class="block font-semibold text-black-800">
+      Request Pool
+    </a>
+
+    <a href="add-service.html"
+      class="block font-semibold text-black-800">
+      Become a Provider
+    </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="md:ml-72 pt-24 px-4 max-w-6xl mx-auto">
+
+  <!-- Profile Form -->
+  <div class="bg-white p-6 rounded-lg shadow">
+    <h2 class="text-2xl font-bold mb-4">Profile Information</h2>
+    <form id="profileForm">
+      <div class="mb-4">
+        <label for="name" class="block text-gray-700 font-semibold mb-2">Name</label>
+        <input type="text" id="name" class="w-full p-2 border rounded-md" placeholder="Business Name">
+      </div>
+      <div class="mb-4">
+        <label for="email" class="block text-gray-700 font-semibold mb-2">Email</label>
+        <input type="email" id="email" class="w-full p-2 border rounded-md" placeholder="Your Email" disabled>
+      </div>
+      <div class="mb-4">
+        <label for="phone" class="block text-gray-700 font-semibold mb-2">Phone</label>
+        <input type="tel" id="phone" class="w-full p-2 border rounded-md" placeholder="Your Phone Number">
+      </div>
+      <div class="mb-4">
+        <label for="location" class="block text-gray-700 font-semibold mb-2">Location</label>
+        <input type="text" id="location" class="w-full p-2 border rounded-md" placeholder="Your Location">
+      </div>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md">Update Profile</button>
+    </form>
+  </div>
+
+  <button data-action="add-service.html" class="w-full bg-black text-white py-2 rounded-lg">
+  Become a Provider
+</button>
+
+<a 
+  id="backToDashboardBtn" 
+  href="dashboard.html" 
+  class="hidden bg-black text-white px-4 py-2 rounded-lg inline-block mt-4"
+>
+  Back To Dashboard
+</a>
+
+</main>
+
+<footer class="bg-white shadow p-4 mt-12 text-center text-gray-500">
+  &copy; 2026 Vora. All rights reserved.
+</footer>
+
+<script src="./firebase-config.js" type="module"></script>
+<script src="./auth.js" type="module"></script>
+<script src="./profile.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./main.js" type="module"></script>
+<script src="./notification-badge.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+</body>
+</html>

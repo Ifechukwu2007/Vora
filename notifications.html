@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications | Vora</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50">
+
+<!-- HEADER -->
+<header class="fixed top-0 left-0 w-full bg-white shadow z-50">
+  <div class="flex items-center gap-3 p-4">
+
+    <!-- BACK BUTTON -->
+    <a href="javascript:history.back()"
+       class="text-3xl font-bold text-gray-800 hover:text-black">
+      ‹
+    </a>
+
+    <h1 class="text-xl font-bold">Notifications</h1>
+
+    <div class="ml-auto">
+      <button id="markAll" class="text-blue-600 text-sm font-medium hover:underline">
+        Mark all as read
+      </button>
+    </div>
+
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="pt-24 max-w-3xl mx-auto p-4">
+
+  <div class="mb-4">
+    <h2 class="font-bold text-lg">Your Updates</h2>
+    <p class="text-sm text-gray-500">Real-time activity from Vora</p>
+  </div>
+
+  <!-- LIST -->
+  <div id="list" class="space-y-3">
+
+    <!-- SAMPLE LOADING STATE -->
+    <div class="bg-white p-4 rounded-lg shadow">
+      <p class="text-gray-500">Loading notifications...</p>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- FIREBASE (optional but ready) -->
+<script type="module">
+import { db, auth } from "./firebase-config.js";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  updateDoc,
+  doc,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const list = document.getElementById("list");
+const markAllBtn = document.getElementById("markAll");
+
+let user = null;
+
+// ================= AUTH =================
+onAuthStateChanged(auth, (u) => {
+  if (!u) return (window.location.href = "login.html");
+  user = u;
+  listenNotifications();
+});
+
+// ================= REAL-TIME NOTIFICATIONS =================
+function listenNotifications() {
+  const q = query(
+    collection(db, "notifications"),
+    where("userId", "==", user.uid),
+    orderBy("createdAt", "desc")
+  );
+
+  onSnapshot(q, (snap) => {
+    if (snap.empty) {
+      list.innerHTML = `
+        <div class="bg-white p-4 rounded-lg shadow text-gray-500">
+          No notifications yet
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = "";
+
+    snap.forEach((docSnap) => {
+      const n = docSnap.data();
+
+      const el = document.createElement("div");
+      el.className =
+        "bg-white p-4 rounded-lg shadow flex justify-between items-start";
+
+      el.innerHTML = `
+        <div>
+          <p class="font-bold ${n.read ? "text-gray-500" : "text-black"}">
+            ${n.title || "Notification"}
+          </p>
+          <p class="text-sm text-gray-600">
+            ${n.message || ""}
+          </p>
+          <p class="text-xs text-gray-400 mt-1">
+            ${n.type || "update"}
+          </p>
+        </div>
+
+        <span class="text-xs px-2 py-1 rounded 
+          ${n.read ? "bg-gray-200 text-gray-600" : "bg-blue-100 text-blue-600"}">
+          ${n.read ? "Read" : "New"}
+        </span>
+      `;
+
+      // click = mark as read
+      el.addEventListener("click", async () => {
+        await updateDoc(doc(db, "notifications", docSnap.id), {
+          read: true
+        });
+      });
+
+      list.appendChild(el);
+    });
+  });
+}
+
+// ================= MARK ALL AS READ =================
+markAllBtn.addEventListener("click", async () => {
+  const q = query(
+    collection(db, "notifications"),
+    where("userId", "==", user.uid)
+  );
+
+  const snap = await (await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"))
+    .getDocs(q);
+
+  snap.forEach(async (d) => {
+    await updateDoc(doc(db, "notifications", d.id), {
+      read: true
+    });
+  });
+});
+</script>
+
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Home</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+
+<!-- Floating Header -->
+<header class="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between p-4">
+  <h1 class="text-xl font-bold">Vora</h1>
+  <button id="hamburger" class="md:hidden">☰</button>
+  <nav class="hidden md:flex space-x-4">
+    <a href="index.html">Home</a>
+    <a href="login.html">Login</a>
+    <a href="register.html">Register</a>
+  </nav>
+</header>
+
+<!-- Side Menu -->
+<div id="sideMenu" class="fixed top-0 left-0 h-full w-64 bg-white shadow transform -translate-x-full transition-transform z-50 lg:hidden">
+  <button id="closeMenu" class="p-4">✕</button>
+  <div id="menuContent" class="flex flex-col p-4 space-y-4">
+    <a href="index.html">Home</a>
+    <a href="login.html">Login</a>
+    <a href="register.html">Register</a>
+  </div>
+</div>
+<div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"></div>
+
+<!-- HERO -->
+<section class="pt-32 pb-20 px-6 text-center bg-white">
+  <h1 class="text-4xl md:text-5xl font-bold mb-4">
+    Find the Right Service, Fast
+  </h1>
+  <p class="text-gray-600 max-w-xl mx-auto mb-6">
+    Connect with trusted providers for any service you need — anytime, anywhere.
+  </p>
+
+  <!-- SEARCH -->
+  <div class="flex max-w-xl mx-auto">
+    <input type="text" placeholder="What service do you need?"
+      class="w-full p-4 border rounded-l-md focus:outline-none">
+
+    <button class="bg-black text-white px-6 rounded-r-md">
+      Search
+    </button>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<section class="px-6 py-12">
+  <h2 class="text-2xl font-bold mb-6 text-center">Popular Categories</h2>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+
+    <div class="bg-white p-6 rounded shadow text-center">
+      💇‍♂️
+      <p class="mt-2 font-semibold">Barbing</p>
+    </div>
+
+    <div class="bg-white p-6 rounded shadow text-center">
+      🧹
+      <p class="mt-2 font-semibold">Cleaning</p>
+    </div>
+
+    <div class="bg-white p-6 rounded shadow text-center">
+      💻
+      <p class="mt-2 font-semibold">Tech</p>
+    </div>
+
+    <div class="bg-white p-6 rounded shadow text-center">
+      🎨
+      <p class="mt-2 font-semibold">Design</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="bg-white py-12 px-6">
+  <h2 class="text-2xl font-bold text-center mb-10">How Vora Works</h2>
+
+  <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto text-center">
+
+    <div>
+      <div class="text-3xl mb-2">🔍</div>
+      <h3 class="font-semibold">Search</h3>
+      <p class="text-gray-600 text-sm">Find the service you need</p>
+    </div>
+
+    <div>
+      <div class="text-3xl mb-2">📅</div>
+      <h3 class="font-semibold">Book</h3>
+      <p class="text-gray-600 text-sm">Choose date and provider</p>
+    </div>
+
+    <div>
+      <div class="text-3xl mb-2">✅</div>
+      <h3 class="font-semibold">Get It Done</h3>
+      <p class="text-gray-600 text-sm">Service completed easily</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="bg-black text-white py-16 text-center px-6">
+  <h2 class="text-3xl font-bold mb-4">Start earning with Vora</h2>
+  <p class="mb-6 text-gray-300">
+    Become a provider and grow your business today
+  </p>
+
+  <a href="register.html" class="bg-white text-black px-6 py-3 rounded font-semibold">
+    Become a Provider
+  </a>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-white text-center text-gray-500 py-6">
+  &copy; 2026 Vora. All rights reserved.
+</footer>
+
+<script src="./firebase-config.js" type="module"></script>
+<script src="./main.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./index.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+</body>
+</html>>

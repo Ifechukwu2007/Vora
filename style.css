@@ -1,0 +1,26 @@
+/* Custom styles for Skeento */
+
+/* Performance bar width animation */
+.win-rate-bar {
+  width: 0%;
+  transition: width 0.5s ease-in-out;
+}
+
+/* Fee row display */
+.fee-row {
+  display: none;
+}
+
+/* Form element accessibility improvements */
+.form-input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: #3b82f6;
+}

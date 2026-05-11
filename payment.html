@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Booking | Vora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Browse
+          </a>
+
+          <a href="browse-pool.html"
+            class="block font-semibold text-black-800">
+            Request Pool
+          </a>
+
+          <a href="add-service.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
+        </a>
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="home.html"
+      class="block font-semibold text-black-800">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-semibold text-black-800">
+      Browse
+    </a>
+
+    <a href="browse-pool.html"
+      class="block font-semibold text-black-800">
+      Request Pool
+    </a>
+
+    <a href="add-service.html"
+      class="block font-semibold text-black-800">
+      Become a Provider
+    </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+    <main class="md:ml-72 pt-24 max-w-2xl mx-auto py-12 px-4">
+        <div class="mb-6 flex items-center gap-4">
+            <button id="backBtn" type="button" class="text-blue-600 hover:text-blue-800 font-semibold">← Back</button>
+            <h1 class="text-3xl font-extrabold text-gray-900">Complete Your Booking</h1>
+        </div>
+        <div id="booking-summary" class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Booking Summary</h2>
+            <div id="user-info" class="mb-4 text-sm text-gray-500"></div>
+            <div id="service-details" class="space-y-3">
+                <!-- Service details will be loaded here -->
+                <p class="text-gray-600"><strong class="font-medium text-gray-900">Service:</strong> <span id="service-title"></span></p>
+                <p class="text-gray-600"><strong class="font-medium text-gray-900">Provider:</strong> <span id="provider-name"></span></p>
+            </div>
+
+            <!-- Message Provider Button -->
+            <button id="messageProviderBtn" class="mt-4 w-full py-2 px-4 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors">
+                💬 Message Provider
+            </button>
+            
+            <!-- Price Breakdown -->
+            <div class="mt-6 pt-6 border-t space-y-2">
+                <div class="flex justify-between text-gray-700">
+                    <span>Service Price:</span>
+                    <span id="base-price">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-gray-700" id="fee-row" class="fee-row">
+                    <span>Service Fee:</span>
+                    <span id="service-fee">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold text-gray-900 pt-2">
+                    <span>Total Amount:</span>
+                    <span id="service-price" class="text-green-600">NGN 0</span>
+                </div>
+                <p class="text-xs text-gray-500 italic mt-2">Service fee helps support the platform</p>
+            </div>
+        </div>
+
+        <div id="payment-options" class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Select Payment Method</h2>
+            <div class="space-y-4">
+                <label class="flex items-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="radio" name="paymentMethod" value="paystack" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked>
+                    <span class="ml-3 text-lg font-medium text-gray-800">Pay with Paystack (Card, Bank Transfer)</span>
+                </label>
+                <label class="flex items-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="radio" name="paymentMethod" value="cash" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                    <span class="ml-3 text-lg font-medium text-gray-800">Pay with Cash</span>
+                </label>
+            </div>
+            <button id="confirm-booking-btn" class="w-full mt-6 py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Confirm & Pay
+            </button>
+        </div>
+    </main>
+
+    <script src="./firebase-config.js" type="module"></script>
+    <script src="./payment.js" type="module"></script>
+    <script src="./menu.js" type="module"></script>    <script src="./notification-badge.js" type="module"></script>    <script src="https://js.paystack.co/v1/inline.js"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Register</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex items-center justify-center relative">
+  <!-- Modal Overlay -->
+  <div class="fixed inset-0 bg-black bg-opacity-40 z-10"></div>
+
+  <!-- Modal Card -->
+  <main class="z-20 fixed inset-0 flex items-center justify-center overflow-auto">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-fadeIn my-8 overflow-y-auto max-h-[95vh]">
+      <!-- Logo/Header -->
+      <div class="flex flex-col items-center mb-6">
+        <img src="/favicon.ico" alt="Vora Logo" class="w-12 h-12 mb-2 rounded-full shadow" onerror="this.style.display='none'">
+        <h1 class="text-2xl font-bold text-gray-900 mb-1">Create your Vora account</h1>
+        <p class="text-gray-500 text-sm">Join Vora and start earning or booking services</p>
+      </div>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-2 mb-6">
+        <div class="flex-1 h-px bg-gray-200"></div>
+      </div>
+
+      <!-- Error Alert -->
+      <div id="errorAlert" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <p id="errorMessage" class="text-red-700 text-sm font-medium"></p>
+      </div>
+
+      <!-- Success Alert -->
+      <div id="successAlert" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <p id="successMessage" class="text-green-700 text-sm font-medium"></p>
+      </div>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="space-y-4">
+        <div>
+          <label for="fullname" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <input type="text" id="fullname" placeholder="John Doe" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+          <p id="fullnameError" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" id="email" placeholder="you@example.com" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+          <p id="emailError" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <div class="relative">
+            <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+            <button type="button" id="togglePassword" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700 focus:outline-none">👁️</button>
+          </div>
+          <p id="passwordError" class="text-red-500 text-xs mt-1 hidden"></p>
+          <!-- Password Strength Indicator -->
+          <div class="mt-2">
+            <div class="flex gap-1 h-1.5">
+              <div id="strength0" class="flex-1 bg-gray-200 rounded"></div>
+              <div id="strength1" class="flex-1 bg-gray-200 rounded"></div>
+              <div id="strength2" class="flex-1 bg-gray-200 rounded"></div>
+              <div id="strength3" class="flex-1 bg-gray-200 rounded"></div>
+            </div>
+            <p id="strengthText" class="text-xs text-gray-600 mt-1">Password strength</p>
+          </div>
+        </div>
+        <div>
+          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Repeat password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+          <p id="confirmPasswordError" class="text-red-500 text-xs mt-1 hidden"></p>
+        </div>
+        <div class="flex items-start">
+          <input type="checkbox" id="terms" class="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300" required>
+          <label for="terms" class="ml-2 text-xs text-gray-600">I agree to the <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Terms of Service</a> and <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Privacy Policy</a></label>
+        </div>
+        <p id="termsError" class="text-red-500 text-xs hidden"></p>
+        <button id="signupBtn" type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2" disabled>
+          <span id="buttonText">Create Account</span>
+          <span id="spinner" class="hidden">
+            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+        </button>
+      </form>
+      <div class="mt-6 text-center text-gray-600 text-sm">
+        Already have an account? <a href="login.html" class="text-blue-600 font-semibold hover:underline">Sign in</a>
+      </div>
+    </div>
+  </main>
+
+<script src="./loading-utils.js" type="module"></script>
+<script src="./firebase-config.js" type="module"></script>
+<script src="./auth.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+</body>
+</html>

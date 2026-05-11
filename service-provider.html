@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Service Provider</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white shadow-sm z-50">
+
+  <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-4">
+
+    <!-- LEFT -->
+    <div class="flex items-center gap-8">
+
+      <!-- Logo -->
+      <h1 class="text-2xl font-extrabold text-blue-600">
+        <a href="home.html">Vora</a>
+      </h1>
+
+      <!-- DESKTOP NAV -->
+      <nav class="hidden lg:flex items-center gap-6">
+
+        <a href="home.html"
+          class="block font-medium text-black-700 hover:text-blue-600">
+          Home
+        </a>
+
+        <a href="browse.html"
+          class="block font-medium text-black-700 hover:text-blue-600">
+          Browse
+        </a>
+
+        <a href="my-messages.html" 
+          class="block font-semibold text-black-600">
+          My Messages
+        </a>
+
+        <a href="add-service.html"
+          class="block font-medium text-black-700 hover:text-blue-600">
+          Become a Provider
+        </a>
+
+      </nav>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="flex items-center gap-4">
+
+      <!-- Notifications -->
+      <a href="notifications.html"
+        class="relative text-2xl hover:scale-110 transition">
+
+        🔔
+
+        <span id="notificationBadge"
+          class="hidden absolute -top-2 -right-2
+          bg-red-600 text-white text-xs
+          rounded-full w-5 h-5
+          flex items-center justify-center">
+          0
+        </span>
+
+      </a>
+
+      <!-- Profile -->
+      <a href="profile.html"
+        class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center hover:bg-gray-400 transition">
+        👤
+      </a>
+
+      <!-- MOBILE MENU BUTTON -->
+      <button class="hamburger-menu"
+        class="lg:hidden text-2xl">
+        ☰
+      </button>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div class="side-menu fixed top-0 left-0 w-72 h-full bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 lg:hidden">
+
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="font-bold text-xl">
+      Menu
+    </h2>
+
+    <button class="close-menu text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <div class="p-4 space-y-4">
+
+    <a href="home.html"
+      class="block font-medium text-black-700 hover:text-blue-600">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-medium text-black-700 hover:text-blue-600">
+      Browse
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="add-service.html"
+      class="block font-medium text-black-700 hover:text-blue-600">
+      Become a Provider
+    </a>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="overlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="pt-24 px-4 max-w-4xl mx-auto">
+        <div class="mb-6 flex items-center gap-4">
+            <button id="backBtn" type="button" class="text-blue-600 hover:text-blue-800 font-semibold">← Back</button>
+            <h1 class="text-3xl font-extrabold text-gray-900">Provider Profile</h1>
+        </div>
+
+  <div id="serviceProviderContainer" class="bg-white p-6 rounded-lg shadow-lg">
+    <!-- Service provider details will be loaded here -->
+  </div>
+
+  <!-- Booking Modal -->
+  <div id="bookingModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-4">Book Service</h2>
+      <div id="booking-step1">
+        <h3 class="text-lg font-semibold mb-2">Select Date & Time</h3>
+        <label for="bookingDateTime" class="block text-sm font-medium text-gray-700 mb-1">Date and Time</label>
+        <input type="datetime-local" id="bookingDateTime" class="w-full p-2 border rounded mb-4" placeholder="Select date and time">
+        <h3 class="text-lg font-semibold mb-2">Add Note</h3>
+        <textarea id="bookingNote" class="w-full p-2 border rounded" placeholder="Add a note for the provider..."></textarea>
+        <button id="sendRequestBtn" class="w-full bg-blue-500 text-white p-2 rounded mt-4">Send Request</button>
+      </div>
+      <div id="booking-step2" class="hidden text-center">
+        <p class="text-lg">⏳ Waiting for provider approval</p>
+      </div>
+      <div id="booking-step3" class="hidden">
+        <p class="text-lg font-semibold text-green-500">✅ Accepted</p>
+        <h3 class="text-lg font-semibold mt-4 mb-2">Choose payment:</h3>
+        <div class="space-y-2">
+          <label class="flex items-center">
+            <input type="radio" name="paymentMethod" value="paystack" class="mr-2">
+            Pay with Paystack
+          </label>
+          <label class="flex items-center">
+            <input type="radio" name="paymentMethod" value="cash" class="mr-2">
+            Pay with Cash
+          </label>
+        </div>
+        <button id="continuePaymentBtn" class="w-full bg-blue-500 text-white p-2 rounded mt-4">Continue</button>
+      </div>
+      <button id="closeBookingModal" class="absolute top-4 right-4 text-xl">✕</button>
+    </div>
+  </div>
+
+</main>
+
+<footer class="bg-white shadow p-4 mt-12 text-center text-gray-500">
+  &copy; 2026 KuJar
+</footer>
+
+<script src="./firebase-config.js" type="module"></script>
+<script src="./auth.js" type="module"></script>
+<script src="./service-provider.js" type="module"></script>
+<script src="./bookings.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

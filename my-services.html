@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Services | Vora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="provider-hub.html" 
+      class="block font-semibold text-black-600">
+      Provider Hub
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a>
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600">
+      Provider Bookings
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
+        </a>
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn-my-services" data-logout
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="provider-hub.html" 
+      class="block font-semibold text-black-600">
+      Provider Hub
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a>
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600">
+      Provider Bookings
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+    <button id="logoutBtn" 
+      class="text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+
+    <main class="pt-24 px-4 max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">My Services</h2>
+            <a href="add-service.html" class="bg-indigo-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-indigo-700">+ Add Service</a>
+        </div>
+
+        <div id="myServicesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Services will be dynamically loaded here -->
+        </div>
+    </main>
+
+    <script src="./firebase-config.js" type="module"></script>
+    <script src="./my-services.js" type="module"></script>
+    <script src="./menu.js" type="module"></script>
+    <script src="./notification-badge.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read any user profile (for service provider pages), but only write their own
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Services - read by anyone, write/delete by authenticated users
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write, delete: if request.auth != null;
+    }
+
+    // Bookings can be read/written by authenticated users
+    match /bookings/{bookingId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Reviews - allow all operations for admin
+    match /reviews/{reviewId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Payout settings - allow authenticated users (admin dashboard)
+    match /payout_settings/{userId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // ==================== REQUEST POOL RULES ====================
+
+    // Requests - anyone can read open requests, users can create/modify their own, admins can delete any
+    match /requests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                              (resource.data.userId == request.auth.uid ||
+                               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    // Provider Offers - track all provider offers for better querying
+    match /providerOffers/{offerId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+                       request.resource.data.providerId == request.auth.uid;
+      allow delete: if request.auth != null && 
+                       resource.data.providerId == request.auth.uid;
+    }
+
+    // Provider Stats - track provider performance metrics
+    match /providerStats/{statsId} {
+      allow read: if request.auth != null;
+      allow write, delete: if request.auth != null;
+    }
+
+    // Request Activity Log - track all activities on requests
+    match /requestActivity/{activityId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Bookings (enhanced for request pool)
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null && 
+                     (resource.data.buyerId == request.auth.uid || 
+                      resource.data.providerId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && 
+                       (resource.data.buyerId == request.auth.uid || 
+                        resource.data.providerId == request.auth.uid);
+    }
+
+    // Chats - allow authenticated users to read/write all chats
+    match /chats/{chatId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Messages subcollection - allow authenticated users
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Root-level messages collection for admin
+    match /messages/{messageId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Payments collection for admin
+    match /payments/{paymentId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Offer Payments collection
+    match /offerPayments/{paymentId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Settings collection for platform configuration
+    match /settings/{settingId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Request pools - allow authenticated users
+    match /requestPools/{poolId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Pool entries - allow authenticated users
+    match /poolEntries/{entryId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Offers - allow authenticated users
+    match /offers/{offerId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Participation history - allow authenticated users
+    match /participationHistory/{entryId} {
+      allow read, write, delete: if request.auth != null;
+    }
+
+    // Notifications - allow authenticated users to read/create their own
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && resource.data.recipientId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.recipientId == request.auth.uid;
+    }
+  }
+}

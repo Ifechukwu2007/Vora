@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookings | Vora</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Browse
+          </a>
+
+          <a href="add-service.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
+        </a>
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button class="hamburger-menu"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div class="side-menu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button class="close-menu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="home.html"
+      class="block font-semibold text-black-800">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-semibold text-black-800">
+      Browse
+    </a>
+
+    <a href="browse-pool.html"
+      class="block font-semibold text-black-800">
+      Request Pool
+    </a>
+
+    <a href="add-service.html"
+      class="block font-semibold text-black-800">
+      Become a Provider
+    </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<header class="bg-white p-4 shadow">
+  <h1 class="text-xl font-bold">My Bookings</h1>
+</header>
+
+<main class="max-w-5xl mx-auto p-4">
+
+  <div id="bookingsContainer" class="space-y-4">
+    <!-- bookings will load here -->
+  </div>
+
+  <!-- Review Modal -->
+  <div id="reviewModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+      <h2 class="text-2xl font-bold mb-4">Leave a Review</h2>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+        <div class="flex space-x-1">
+          <button class="star text-gray-300 text-2xl" data-rating="1">★</button>
+          <button class="star text-gray-300 text-2xl" data-rating="2">★</button>
+          <button class="star text-gray-300 text-2xl" data-rating="3">★</button>
+          <button class="star text-gray-300 text-2xl" data-rating="4">★</button>
+          <button class="star text-gray-300 text-2xl" data-rating="5">★</button>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label for="reviewComment" class="block text-sm font-medium text-gray-700 mb-2">Comment</label>
+        <textarea id="reviewComment" class="w-full p-2 border rounded" rows="4" placeholder="Share your experience..."></textarea>
+      </div>
+      <div class="flex justify-end space-x-2">
+        <button id="cancelReview" class="px-4 py-2 bg-gray-300 text-gray-700 rounded">Cancel</button>
+        <button id="submitReview" class="px-4 py-2 bg-blue-600 text-white rounded">Submit Review</button>
+      </div>
+      <button id="closeReviewModal" class="absolute top-4 right-4 text-xl">✕</button>
+    </div>
+  </div>
+
+</main>
+
+<script src="./firebase-config.js" type="module"></script>
+<script src="./auth.js" type="module"></script>
+<script src="./main.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./my-bookings.js" type="module"></script>
+<script src="./router.js" type="module"></script>
+<script src="./notification-badge.js" type="module"></script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+<script src="./loading-utils.js" type="module"></script>
+</body>
+</html>
