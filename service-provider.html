@@ -12,75 +12,94 @@
 <body class="bg-gray-100">
 
 <!-- ================= HEADER ================= -->
-<header class="fixed top-0 left-0 w-full bg-white shadow-sm z-50">
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
 
-  <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-4">
+  <div class="max-w-7xl mx-auto px-4">
 
-    <!-- LEFT -->
-    <div class="flex items-center gap-8">
+    <div class="flex items-center justify-between h-16">
 
-      <!-- Logo -->
-      <h1 class="text-2xl font-extrabold text-blue-600">
-        <a href="home.html">Vora</a>
-      </h1>
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
 
-      <!-- DESKTOP NAV -->
-      <nav class="hidden lg:flex items-center gap-6">
-
+        <!-- LOGO -->
         <a href="home.html"
-          class="block font-medium text-black-700 hover:text-blue-600">
-          Home
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
         </a>
 
-        <a href="browse.html"
-          class="block font-medium text-black-700 hover:text-blue-600">
-          Browse
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Browse
+          </a>
+
+              <a href="my-messages.html"
+      class="block font-semibold text-black-800">
+      My Messages
+    </a>
+
+    <a href="browse-pool.html"
+            class="block font-semibold text-black-800">
+            Request Pool
+          </a>
+
+          <a href="add-service.html"
+            class="font-medium text-gray-700 hover:text-black-600 transition">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- NOTIFICATIONS -->
+        <a href="notifications.html"
+          class="relative text-2xl hover:scale-110 transition">
+
+          🔔
+
+          <span id="notificationBadge"
+            class="hidden absolute -top-2 -right-2
+            bg-red-600 text-white text-xs rounded-full
+            w-5 h-5 flex items-center justify-center">
+            0
+          </span>
+
         </a>
 
-        <a href="my-messages.html" 
-          class="block font-semibold text-black-600">
-          My Messages
+        <!-- PROFILE -->
+        <a href="profile.html"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
         </a>
 
-        <a href="add-service.html"
-          class="block font-medium text-black-700 hover:text-blue-600">
-          Become a Provider
-        </a>
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
 
-      </nav>
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
 
-    </div>
-
-    <!-- RIGHT -->
-    <div class="flex items-center gap-4">
-
-      <!-- Notifications -->
-      <a href="notifications.html"
-        class="relative text-2xl hover:scale-110 transition">
-
-        🔔
-
-        <span id="notificationBadge"
-          class="hidden absolute -top-2 -right-2
-          bg-red-600 text-white text-xs
-          rounded-full w-5 h-5
-          flex items-center justify-center">
-          0
-        </span>
-
-      </a>
-
-      <!-- Profile -->
-      <a href="profile.html"
-        class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center hover:bg-gray-400 transition">
-        👤
-      </a>
-
-      <!-- MOBILE MENU BUTTON -->
-      <button class="hamburger-menu"
-        class="lg:hidden text-2xl">
-        ☰
-      </button>
+      </div>
 
     </div>
 
@@ -89,49 +108,62 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div class="side-menu fixed top-0 left-0 w-72 h-full bg-white shadow-lg z-50
-  transform -translate-x-full transition-transform duration-300 lg:hidden">
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
+  <!-- TOP -->
   <div class="flex items-center justify-between p-4 border-b">
 
-    <h2 class="font-bold text-xl">
+    <h2 class="text-xl font-bold">
       Menu
     </h2>
 
-    <button class="close-menu text-2xl">
+    <button id="closeMenu" class="text-2xl">
       ✕
     </button>
 
   </div>
 
-  <div class="p-4 space-y-4">
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
 
     <a href="home.html"
-      class="block font-medium text-black-700 hover:text-blue-600">
+      class="block font-semibold text-black-800">
       Home
     </a>
 
     <a href="browse.html"
-      class="block font-medium text-black-700 hover:text-blue-600">
+      class="block font-semibold text-black-800">
       Browse
     </a>
 
-    <a href="my-messages.html" 
-      class="block font-semibold text-black-600">
+        <a href="my-messages.html"
+      class="block font-semibold text-black-800">
       My Messages
     </a>
 
+    <a href="browse-pool.html"
+      class="block font-semibold text-black-800">
+      Request Pool
+    </a>
+
     <a href="add-service.html"
-      class="block font-medium text-black-700 hover:text-blue-600">
+      class="block font-semibold text-black-800">
       Become a Provider
     </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
 
   </div>
 
 </div>
 
 <!-- ================= OVERLAY ================= -->
-<div id="overlay"
+<div id="menuOverlay"
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 

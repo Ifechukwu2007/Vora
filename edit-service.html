@@ -11,68 +11,28 @@
 
 <body class="bg-gray-100">
 
-<!-- ================= HEADER ================= -->
-<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
-
-  <div class="max-w-7xl mx-auto px-4">
-
-    <div class="flex items-center justify-between h-16">
-
-      <!-- LEFT -->
-      <div class="flex items-center gap-10">
-
-        <!-- LOGO -->
-        <a href="home.html"
+    <header class="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between p-4">
+        <h1 class="text-xl font-bold">
+           <a href="home.html"
           class="text-2xl font-extrabold text-blue-600">
           Vora
         </a>
-
+        </h1>
+        <div class="md:hidden flex items-center gap-4">
+            <a href="notifications.html" class="relative w-8 h-8 hover:text-blue-600">
+              🔔
+              <span id="notificationBadgeMobile" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+            </a>
+            <a href="profile.html" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">👤</a>
+        </div>
+        <nav class="hidden md:flex space-x-4 items-center">
+            <a href="notifications.html" class="relative w-8 h-8 hover:text-blue-600">
+              🔔
+              <span id="notificationBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+            </a>
+            <a href="profile.html" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">👤</a>
         </nav>
-
-      </div>
-
-      <!-- RIGHT -->
-      <div class="flex items-center gap-4">
-
-        <!-- NOTIFICATIONS -->
-        <a href="notifications.html"
-          class="relative text-2xl hover:scale-110 transition">
-
-          🔔
-
-          <span id="notificationBadge"
-            class="hidden absolute -top-2 -right-2
-            bg-red-600 text-white text-xs rounded-full
-            w-5 h-5 flex items-center justify-center">
-            0
-          </span>
-
-        </a>
-
-        <!-- PROFILE -->
-        <a href="profile.html"
-          class="w-10 h-10 rounded-full bg-gray-300
-          flex items-center justify-center
-          hover:bg-gray-400 transition">
-
-          👤
-
-        </a>
-
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</header>
-
-<!-- ================= OVERLAY ================= -->
-<div id="menuOverlay"
-  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
-</div>
+    </header>
 
     <main class="pt-24 max-w-4xl mx-auto py-12 px-4">
         <div class="mb-6 flex items-center gap-4">
