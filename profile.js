@@ -310,7 +310,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data, error } = await supabase
                 .from("services")
                 .select("id")
-                .eq("user_id", currentUser.id);
+                .or(
+                    `provider_id.eq.${currentUser.id},user_id.eq.${currentUser.id},providerId.eq.${currentUser.id},userId.eq.${currentUser.id}`
+                );
 
             if (error) {
                 throw error;
@@ -320,6 +322,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (data && data.length > 0) {
 
                 backToDashboardBtn.classList.remove("hidden");
+                backToDashboardBtn.style.display = "block";
             }
 
         } catch (error) {
