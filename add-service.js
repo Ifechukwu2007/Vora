@@ -84,18 +84,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let providerName = 'Anonymous';
+            let providerEmail = user.email || 'provider@vora.com';
             try {
                 const { data: userData, error: userError } = await supabase
                     .from('users')
-                    .select('full_name')
+                    .select('full_name, email')
                     .eq('uid', user.id)
                     .single();
 
                 if (!userError && userData) {
                     providerName = userData.full_name || 'Anonymous';
+                    providerEmail = userData.email || user.email || 'provider@vora.com';
                 }
             } catch (error) {
                 console.warn('Could not fetch user data:', error);
+                // Fall back to auth user email
+                providerEmail = user.email || 'provider@vora.com';
             }
 
             let imageUrl = null;
@@ -127,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const serviceData = {
                 provider_id: user.id,
+                provider_email: providerEmail,
                 title: document.getElementById('service-title').value.trim(),
                 description: document.getElementById('service-description').value.trim(),
                 category: category,

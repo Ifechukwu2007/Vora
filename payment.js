@@ -96,19 +96,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // =========================
     // FETCH PROVIDER (SERVICE OWNER EMAIL)
     // =========================
-    const { data: provider, error: providerError } =
-      await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', providerId)
-        .maybeSingle();
+    let providerEmail = 'provider@vora.com';
 
-    if (providerError) {
-      console.error(providerError);
+    // First priority: get email from services table (stored when service was created)
+    if (serviceData?.provider_email) {
+      providerEmail = serviceData.provider_email;
+    } else {
+      // Fallback: try to get from profiles table
+      const { data: provider, error: providerError } =
+        await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', providerId)
+          .maybeSingle();
+
+      if (provider?.email) {
+        providerEmail = provider.email;
+      }
     }
-
-    const providerEmail =
-      provider?.email || 'provider@vora.com';
 
     if (providerNameEl) {
       providerNameEl.textContent = providerEmail;
