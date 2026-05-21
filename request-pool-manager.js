@@ -1,96 +1,168 @@
-import { LoadingSpinner } from './loading-utils.js';
-import { db, auth } from "./firebase-config.js";
+import { supabase } from "./supabase.js";
+import { LoadingSpinner } from "./loading-utils.js";
 
-import {
-  collection,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-// ---------------- STATE ----------------
 let currentUser = null;
 
-// ---------------- INIT ----------------
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    // Not logged in → still allow viewing (marketing page)
-    console.log("Guest mode");
-  } else {
-    currentUser = user;
-    console.log("Logged in:", user.uid);
-  }
+// =========================
+// INIT
+// =========================
+document.addEventListener("DOMContentLoaded", async () => {
 
-  await loadStats();
-  setupQuickActions();
-});
+    const logoutBtn = document.getElementById("logoutBtn");
+    const logoutBtnSideMenu = document.getElementById("logoutBtnSideMenu");
 
-// ---------------- LOAD GLOBAL STATS ----------------
-async function loadStats() {
-  try {
-    const requestsSnap = await getDocs(collection(db, "requests"));
-    const offersSnap = await getDocs(collection(db, "offers"));
+    console.log("Request Pool loaded...");
 
-    const totalRequests = requestsSnap.size;
-    const totalOffers = offersSnap.size;
+    // =========================
+    // AUTH CHECK
+    // =========================
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
 
-    // Inject stats into hero section (since you didn’t give IDs, we improvise)
-    const hero = document.querySelector("section.bg-gradient-to-r");
-
-    if (hero) {
-      const statsDiv = document.createElement("div");
-      statsDiv.className = "mt-6 text-sm text-blue-100";
-
-      statsDiv.innerHTML = `
-        <p>${totalRequests} requests posted • ${totalOffers} offers submitted</p>
-      `;
-
-      hero.appendChild(statsDiv);
+    if (userErr) {
+        console.error("Auth error:", userErr);
+        return;
     }
 
-  } catch (err) {
-    console.error("Stats error:", err);
-  }
+    currentUser = userData.user;
+
+    if (!currentUser) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    console.log("Logged in as:", currentUser.email);
+
+    // =========================
+    // LOAD DATA
+    // =========================
+    await loadRequests();
+
+    // =========================
+    // REALTIME LISTENER
+    // =========================
+    supabase
+        .channel("requests-channel")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "requests"
+            },
+            (payload) => {
+                console.log("Realtime update:", payload);
+                loadRequests();
+            }
+        )
+        .subscribe();
+
+    // =========================
+    // LOGOUT
+    // =========================
+    logoutBtn?.addEventListener("click", logout);
+    logoutBtnSideMenu?.addEventListener("click", logout);
+});
+
+// =========================
+// LOAD REQUESTS (FIXED)
+// =========================
+async function loadRequests() {
+
+    console.log("Fetching requests...");
+
+    const { data, error } = await supabase
+        .from("requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    console.log("Supabase response:", { data, error });
+
+    const container = document.getElementById("requestContainer");
+
+    if (error) {
+        console.error("Supabase error:", error);
+        container.innerHTML = `
+            <div class="text-red-500 text-center">
+                Failed to load requests: ${error.message}
+            </div>
+        `;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-500 py-10">
+                No requests yet. Be the first to post one!
+            </div>
+        `;
+        return;
+    }
+
+    renderRequests(data);
 }
 
-// ---------------- QUICK ACTIONS ----------------
-function setupQuickActions() {
-  document.querySelectorAll("[data-action]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const action = btn.dataset.action;
+// =========================
+// RENDER REQUESTS
+// =========================
+function renderRequests(requests) {
 
-      if (action === "browse") {
-        LoadingSpinner.navigateTo('browse-pool.html');
-      }
+    const container = document.getElementById("requestContainer");
 
-      if (action === "message") {
-        LoadingSpinner.navigateTo('my-messages.html');
-      }
+    container.innerHTML = "";
 
-      if (action === "provider") {
-        LoadingSpinner.navigateTo('add-service.html');
-      }
+    requests.forEach(req => {
+
+        const card = document.createElement("div");
+
+        card.className = `
+            bg-white
+            rounded-xl
+            shadow-md
+            p-5
+            border
+            hover:shadow-lg
+            transition
+            cursor-pointer
+        `;
+
+        card.innerHTML = `
+            <h3 class="text-xl font-bold text-gray-900">
+                ${req.title || "Untitled Request"}
+            </h3>
+
+            <p class="text-sm text-gray-500 mt-1">
+                ${req.category || "General"} • ${req.location || "No location"}
+            </p>
+
+            <p class="text-gray-700 mt-3">
+                ${req.description || ""}
+            </p>
+
+            <div class="flex justify-between items-center mt-4">
+
+                <span class="font-bold text-blue-600">
+                    ₦${Number(req.budget || 0).toLocaleString()}
+                </span>
+
+                <button class="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm">
+                    View Details
+                </button>
+
+            </div>
+        `;
+
+        card.onclick = () => {
+            window.location.href = `request-details.html?id=${req.id}`;
+        };
+
+        container.appendChild(card);
     });
-  });
 }
 
-// ---------------- CTA BUTTON ENHANCEMENT ----------------
-document.querySelectorAll("a[href]").forEach(link => {
-  link.addEventListener("click", () => {
-    // tiny UX: show loading cursor
-    document.body.style.cursor = "progress";
-  });
-});
-
-// ---------------- FAQ AUTO CLOSE (nice touch) ----------------
-document.querySelectorAll("details").forEach(detail => {
-  detail.addEventListener("toggle", () => {
-    if (detail.open) {
-      document.querySelectorAll("details").forEach(d => {
-        if (d !== detail) d.removeAttribute("open");
-      });
-    }
-  });
-});
+// =========================
+// LOGOUT
+// =========================
+async function logout() {
+    await supabase.auth.signOut();
+    window.location.href = "login.html";
+}

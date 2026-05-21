@@ -40,11 +40,6 @@
             Browse
           </a>
 
-          <a href="my-messages.html"
-            class="block font-semibold text-black-800">
-            My Messages
-          </a>
-
           <a href="browse-pool.html"
             class="block font-semibold text-black-800">
             Request Pool
@@ -136,11 +131,6 @@
     <a href="browse.html"
       class="block font-semibold text-black-800">
       Browse
-    </a>
-
-    <a href="my-messages.html"
-      class="block font-semibold text-black-800">
-      My Messages
     </a>
 
     <a href="browse-pool.html"
@@ -277,10 +267,6 @@
         📊 My Requests
       </a>
 
-      <a href="provider-hub.html" class="inline-block text-purple-600 font-semibold hover:text-purple-800 text-sm hidden" id="providerHubLinkPool"> 
-        📊 Go to Provider Hub 
-      </a>
-
     </div>
 
   </div>
@@ -407,15 +393,14 @@
 
 </footer>
 
-<!-- ================= FIREBASE ================= -->
-<script src="./firebase-config.js" type="module"></script>
-<script src="./auth.js" type="module"></script>
+<!-- ================= SCRIPTS ================= -->
 <script src="./home.js" type="module"></script>
 <script src="./main.js" type="module"></script>
 <script src="./menu.js" type="module"></script>
 <script src="./notifications.js" type="module"></script>
 <script src="./notification-service.js" type="module"></script>
 <script src="./notification-badge.js" type="module"></script>
+<script src="./supabase.js" type="module"></script>
 <script type="module">
   import { supabase } from './supabase.js'
 
@@ -448,4 +433,3 @@ s0.parentNode.insertBefore(s1,s0);
 
 </body>
 </html>
-

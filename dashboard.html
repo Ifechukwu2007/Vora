@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vora | Dashboard</title>
+<title>Vora | Provider Dashboard</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 
-<body class="bg-gray-100">
+<body class="bg-gray-50">
 
 <!-- ================= HEADER ================= -->
 <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
@@ -34,19 +35,9 @@
       Dashboard
     </a>
 
-    <a href="provider-hub.html" 
-      class="block font-semibold text-black-600">
-      Provider Hub
-    </a>
-
     <a href="browse.html" 
       class="block font-semibold text-black-600">
       Browse
-    </a>
-
-    <a href="my-messages.html" 
-      class="block font-semibold text-black-600">
-      My Messages
     </a>
 
     <a href="my-services.html" 
@@ -147,19 +138,9 @@
       Dashboard
     </a>
 
-    <a href="provider-hub.html" 
-      class="block font-semibold text-black-600">
-      Provider Hub
-    </a>
-
     <a href="browse.html" 
       class="block font-semibold text-black-600">
       Browse
-    </a>
-
-    <a href="my-messages.html" 
-      class="block font-semibold text-black-600">
-      My Messages
     </a>
 
     <a href="my-services.html" 
@@ -196,9 +177,9 @@
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 
-  <!-- MAIN CONTENT -->
-  <div class="flex-1 flex flex-col pt-20">
-    <main class="p-6 space-y-6 overflow-y-auto">
+<!-- MAIN CONTENT -->
+<main class="pt-20 pb-12 px-4 md:px-6">
+<div class="max-w-7xl mx-auto">
 
   <!-- NO SERVICE OVERLAY -->
   <div id="noServiceOverlay" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -206,139 +187,183 @@
       <h2 class="text-xl font-bold mb-2">No Service Yet</h2>
       <p class="text-gray-500 mb-4">You need to add a service before accessing your dashboard.</p>
       
-      <a href="add-service.html" class="bg-black text-white px-5 py-2 rounded-lg inline-block">
+      <a href="add-service.html" class="bg-blue-600 text-white px-5 py-2 rounded-lg inline-block hover:bg-blue-700">
         Add Service
       </a>
     </div>
   </div>
 
-  <!-- REST OF YOUR DASHBOARD CONTENT BELOW -->
-
-    <!-- TOP BAR -->
-    <header class="bg-white border-b px-6 py-4 flex justify-between items-center">
-      <h1 class="text-lg font-semibold">Dashboard</h1>
-
-      <div class="flex items-center gap-4">
-        <input 
-          placeholder="Search..." 
-          class="border px-3 py-2 rounded-lg text-sm focus:outline-none"
-        >
-     <a href="profile.html" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">👤</a>
-      </div>
-    </header>
-
-    <!-- CONTENT -->
-    <main class="p-6 space-y-6 overflow-y-auto">
-
-      <!-- STATS -->
-      <div class="grid md:grid-cols-3 gap-6">
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm">
-          <p class="text-sm text-gray-500">Total Bookings</p>
-          <h2 class="text-2xl font-bold mt-1">0</h2>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm">
-          <p class="text-sm text-gray-500">Revenue</p>
-          <h2 class="text-2xl font-bold mt-1">NGN0</h2>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm">
-          <p class="text-sm text-gray-500">Next Booking</p>
-          <h2 id="nextBooking" class="text-lg font-semibold mt-1">--</h2>
-        </div>
-
-      </div>
-
-<div class="bg-white p-6 rounded-2xl shadow-sm">
-  <h3 class="font-semibold mb-4">Add Booking</h3>
-
-  <div class="grid md:grid-cols-3 gap-3">
-    <div>
-      <label for="customerName" class="sr-only">Customer name</label>
-      <input id="customerName" placeholder="Customer name" class="border p-3 rounded-lg w-full" />
-    </div>
-    <div>
-      <label for="amount" class="sr-only">Amount</label>
-      <input id="amount" placeholder="Amount (NGN)" type="number" class="border p-3 rounded-lg w-full" />
-    </div>
-    <div>
-      <label for="date" class="sr-only">Booking date</label>
-      <input id="date" type="date" class="border p-3 rounded-lg w-full" />
-    </div>
+  <!-- PAGE HEADER -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-extrabold text-gray-900">Provider Dashboard</h1>
+    <p class="text-gray-600 mt-1">Welcome back, <span id="providerName" class="font-semibold">Provider</span></p>
   </div>
 
-  <button id="addBookingBtn" class="mt-4 bg-black text-white px-5 py-2 rounded-lg">
-    Add Booking
-  </button>
-</div>
+  <!-- STATS GRID -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
-<!-- TODAY BOOKINGS -->
-<div class="bg-white p-6 rounded-2xl shadow-sm">
-  <h3 class="font-semibold mb-4">Today’s Bookings</h3>
-
-  <div id="todayBookings" class="text-gray-500 text-sm">
-    No bookings yet
-  </div>
-</div>
-
-<!-- UPCOMING -->
-<div class="bg-white p-6 rounded-2xl shadow-sm">
-  <h3 class="font-semibold mb-4">Upcoming</h3>
-
-  <div id="upcomingBookings" class="text-gray-500 text-sm">
-    No upcoming bookings
-  </div>
-</div>
-
-</div>
-
-<!-- RIGHT PANEL -->
-<div class="space-y-6">
-
-  <!-- ACTIVITY -->
-  <div class="bg-white p-6 rounded-2xl shadow-sm">
-    <h3 class="font-semibold mb-4">Activity</h3>
-
-    <div id="activityFeed" class="text-gray-500 text-sm">
-      No activity yet
+    <!-- Total Bookings -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
+      <p class="text-sm text-gray-600 font-medium">Total Bookings</p>
+      <h2 id="totalBookings" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
     </div>
+
+    <!-- Total Revenue -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-green-500">
+      <p class="text-sm text-gray-600 font-medium">Total Revenue</p>
+      <h2 id="totalRevenue" class="text-3xl font-bold text-gray-900 mt-2">₦0</h2>
+    </div>
+
+    <!-- Active Services -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-purple-500">
+      <p class="text-sm text-gray-600 font-medium">Active Services</p>
+      <h2 id="activeServices" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
+
+    <!-- Success Rate -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-orange-500">
+      <p class="text-sm text-gray-600 font-medium">Success Rate</p>
+      <h2 id="successRate" class="text-3xl font-bold text-gray-900 mt-2">0%</h2>
+    </div>
+
   </div>
 
-          <!-- QUICK ACTIONS -->
-          <div class="bg-white p-6 rounded-2xl shadow-sm">
-            <h3 class="font-semibold mb-4">Quick Actions</h3>
+  <!-- OFFERS STATS (Second Row) -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
-            <div class="space-y-2">
-<button data-action="browse" class="w-full bg-gray-100 py-2 rounded-lg">
-  Browse Services
-</button>
+    <!-- Total Offers -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <p class="text-sm text-gray-600 font-medium">Total Offers</p>
+      <h2 id="totalOffers" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
 
-<button data-action="message" class="w-full bg-gray-100 py-2 rounded-lg">
-  Message
-</button>
+    <!-- Wins -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <p class="text-sm text-gray-600 font-medium">Wins</p>
+      <h2 id="totalWins" class="text-3xl font-bold text-green-600 mt-2">0</h2>
+    </div>
 
-<button data-action="provider" class="w-full bg-black text-white py-2 rounded-lg">
-  Become a Provider
-</button>
-            </div>
-          </div>
+    <!-- Completed Jobs -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <p class="text-sm text-gray-600 font-medium">Completed Jobs</p>
+      <h2 id="totalCompleted" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
 
+  </div>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT COLUMN -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- TODAY'S BOOKINGS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-900">Today's Bookings</h2>
+          <a href="provider-bookings.html" class="text-blue-600 text-sm font-medium hover:underline">View All</a>
         </div>
-
+        <div id="todayBookings" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No bookings scheduled for today</p>
+        </div>
       </div>
 
-    </main>
+      <!-- ACTIVE OFFERS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-900">🎯 Active Offers</h2>
+          <a href="browse-pool.html" class="text-blue-600 text-sm font-medium hover:underline">Browse More</a>
+        </div>
+        <div id="activeOffersList" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No active offers</p>
+        </div>
+      </div>
+
+      <!-- UPCOMING BOOKINGS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-900">Upcoming Bookings</h2>
+          <a href="provider-bookings.html" class="text-blue-600 text-sm font-medium hover:underline">View All</a>
+        </div>
+        <div id="upcomingBookings" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No upcoming bookings</p>
+        </div>
+      </div>
+
+      <!-- RECENT SERVICES -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-900">Your Services</h2>
+          <a href="my-services.html" class="text-blue-600 text-sm font-medium hover:underline">Manage</a>
+        </div>
+        <div id="recentServices" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No services added yet</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="space-y-6">
+
+      <!-- ACTIVITY FEED -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
+        <div id="activityFeed" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No recent activity</p>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+        <div class="space-y-2">
+          <a href="my-services.html" class="block w-full bg-blue-600 text-white py-2 rounded-lg text-center font-medium hover:bg-blue-700 transition">
+            My Services
+          </a>
+          <a href="browse-pool.html" class="block w-full bg-purple-600 text-white py-2 rounded-lg text-center font-medium hover:bg-purple-700 transition">
+            Browse Requests
+          </a>
+          <a href="provider-bookings.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Manage Bookings
+          </a>
+          <a href="payout-settings.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Payout Settings
+          </a>
+          <a href="profile.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Edit Profile
+          </a>
+        </div>
+      </div>
+
+      <!-- PERFORMANCE -->
+      <div class="bg-blue-600 text-white p-6 rounded-lg shadow-sm">
+        <h2 class="text-lg font-bold mb-3">📈 Performance</h2>
+        <p class="text-sm text-blue-100 mb-2">Win Rate</p>
+        <div class="bg-blue-400 h-3 rounded overflow-hidden">
+          <div id="winRateBar" class="bg-green-400 h-3 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p class="text-sm text-blue-100 mt-2"><span id="winRatePercent">0</span>% success</p>
+      </div>
+
+    </div>
 
   </div>
 
 </div>
+</main>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- OFFER DETAILS MODAL -->
+<div id="offerDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold">Offer Details</h2>
+            <button id="closeOfferModal" class="text-2xl text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+        <div id="offerDetailsContent"></div>
+    </div>
+</div>
 
-<script src="./firebase-config.js" type="module"></script>
 <script src="./auth.js" type="module"></script>
 <script src="./main.js" type="module"></script>
 <script src="./menu.js" type="module"></script>

@@ -1,0 +1,68 @@
+import { LoadingSpinner } from './loading-utils.js';
+import { supabase } from './supabase.js';
+
+let currentUser = null;
+
+async function initRequestPool() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  // Allow guest mode
+  if (user) {
+    currentUser = user;
+  }
+
+  await loadStats();
+  setupQuickActions();
+}
+
+async function loadStats() {
+  try {
+    const { count: totalRequests } = await supabase
+      .from('requests')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: totalOffers } = await supabase
+      .from('offers')
+      .select('*', { count: 'exact', head: true });
+
+    const hero = document.querySelector("section.bg-gradient-to-r");
+
+    if (hero) {
+      const statsDiv = document.createElement("div");
+      statsDiv.className = "mt-6 text-sm text-blue-100";
+
+      statsDiv.innerHTML = `
+        <p>${totalRequests || 0} requests posted • ${totalOffers || 0} offers submitted</p>
+      `;
+
+      hero.appendChild(statsDiv);
+    }
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+}
+
+function setupQuickActions() {
+  const postRequestBtn = document.querySelector('a[href="post-request.html"]');
+  const browseBtn = document.querySelector('a[href="browse-pool.html"]');
+
+  if (postRequestBtn) {
+    postRequestBtn.addEventListener('click', (e) => {
+      if (!currentUser) {
+        e.preventDefault();
+        LoadingSpinner.navigateTo('login.html?redirect=post-request.html');
+      }
+    });
+  }
+
+  if (browseBtn) {
+    browseBtn.addEventListener('click', (e) => {
+      if (!currentUser) {
+        e.preventDefault();
+        LoadingSpinner.navigateTo('login.html?redirect=browse-pool.html');
+      }
+    });
+  }
+}
+
+initRequestPool();

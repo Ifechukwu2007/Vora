@@ -110,7 +110,7 @@ function render() {
     <div class="grid grid-cols-6 border-b py-3 text-sm hover:bg-gray-50 cursor-pointer"
          onclick="openDoc('${r.id}')">
 
-      <div>${r.reviewerName || "-"}</div>
+      <div>${r.reviewerName || 'Unknown Reviewer'}</div>
       <div>${r.serviceName || "-"}</div>
       <div>
         <span class="text-yellow-500">★</span> ${r.rating || 0}/5

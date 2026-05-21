@@ -1,7 +1,4 @@
 import { LoadingSpinner } from './loading-utils.js';
-import { auth, db } from './firebase-config.js';
-import { signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { supabase } from './supabase.js';
 
 // Category emoji mapping

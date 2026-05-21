@@ -206,7 +206,7 @@ if (loginForm) {
 const registerForm = document.getElementById("registerForm");
 
 if (registerForm) {
-  const fullnameInput = document.getElementById("full_name");
+  const fullnameInput = document.getElementById("fullname");
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
   const confirmPasswordInput = document.getElementById("confirmPassword");
@@ -337,7 +337,7 @@ if (registerForm) {
       updateStrengthUI(0);
 
       setTimeout(() => {
-        window.location.href = "login.html";
+        window.location.href = "home.html";
       }, 2000);
 
     } catch (error) {

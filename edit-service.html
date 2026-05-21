@@ -36,7 +36,10 @@
 
     <main class="pt-24 max-w-4xl mx-auto py-12 px-4">
         <div class="mb-6 flex items-center gap-4">
-            <button id="backBtn" type="button" class="text-blue-600 hover:text-blue-800 font-semibold">← Back</button>
+        <button id="backBtn" type="button" onclick="window.history.back()"
+          class="text-blue-600 hover:text-blue-800 font-semibold">
+          ← Back
+        </button>
             <h1 class="text-3xl font-extrabold text-gray-900">Edit Service</h1>
         </div>
         <form id="add-service-form" class="bg-white p-8 rounded-lg shadow-lg space-y-6">
@@ -116,13 +119,24 @@
                 <input type="text" id="service-location" name="service-location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Lagos, NG">
             </div>
 
+            <div>
+                <label for="service-image" class="block text-sm font-medium text-gray-700">Service Image</label>
+                <div class="mt-1 flex flex-col">
+                    <input type="file" id="service-image" name="service-image" accept="image/*" class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or WebP. Max 10MB</p>
+                    <div id="image-preview" class="mt-4 hidden">
+                        <img id="preview-img" src="" alt="Preview" class="h-32 w-32 object-cover rounded-md border border-gray-300">
+                        <button type="button" id="remove-image-btn" class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">Remove Image</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="flex justify-end">
                 <button type="submit" class="py-3 px-8 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Add Service</button>
             </div>
         </form>
     </main>
 
-    <script src="./firebase-config.js" type="module"></script>
     <script src="./edit-service.js" type="module"></script>
     <script src="./menu.js" type="module"></script>
     <script src="./main.js" type="module"></script>

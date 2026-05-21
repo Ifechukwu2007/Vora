@@ -273,3 +273,5 @@ document.querySelectorAll("#logoutBtn")
       LoadingSpinner.navigateTo('login.html');
     });
   });
+
+initializeProviderHub();

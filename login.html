@@ -70,29 +70,9 @@
   </main>
 
 <script src="./loading-utils.js" type="module"></script>
-<script src="./firebase-config.js" type="module"></script>
-<script src="./auth.js" type="module"></script>
+<script type="module" src="./login.js"></script>
 <script src="./menu.js" type="module"></script>
-<script type="module">
-  import { supabase } from './supabase.js'
 
-  console.log(supabase)
-</script>
-<script>
-// PASSWORD TOGGLE
-const togglePassword = document.querySelector('#togglePassword');
-const password = document.querySelector('#password');
-
-if (togglePassword && password) {
-  togglePassword.addEventListener('click', function (e) {
-      // toggle the type attribute
-      const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
-      password.setAttribute('type', type);
-      // toggle the eye slash icon
-      this.textContent = this.textContent === '👁️' ? '🙈' : '👁️';
-  });
-}
-</script>
 
 <!--Start of Tawk.to Script-->
 <script type="text/javascript">
@@ -106,4 +86,6 @@ s1.setAttribute('crossorigin','*');
 s0.parentNode.insertBefore(s1,s0);
 })();
 </script>
-<!--End of>
+<!--End of tawk.to Script-->
+</body>
+</html>

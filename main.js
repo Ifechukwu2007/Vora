@@ -1,12 +1,10 @@
 import { testConnection, getRequests } from './db.js'
-import { initializeMenuToggle } from './menu.js'
 import { initializeRouter } from './router.js'
 
 // Run app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
 
   // UI setup
-  initializeMenuToggle()
   initializeRouter()
 
   // Test Supabase connection (debug only)

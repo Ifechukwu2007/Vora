@@ -1,0 +1,1 @@
+Backup of all chat and messages related files before deletion. Files: chat.js, chat.html, my-messages.js, my-messages.html, admin-chats.js, admin-chats.html, admin-messages.js, admin-messages.html.

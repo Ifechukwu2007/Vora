@@ -74,14 +74,14 @@ async function loadBookings(container) {
             card.className = "bg-white p-4 rounded shadow mb-4 border-l-4 border-blue-500";
 
             // ✅ DATA MAPPING (Matches your Firestore Screenshot)
-            const userEmail = booking.customerEmail || 'Unknown User';
+            const userName = booking.customerName || booking.customerEmail || 'Unknown Customer';
+            const userEmail = booking.customerEmail || '';
             
             const bookingDate = (booking.createdAt && typeof booking.createdAt.toDate === 'function')
                 ? booking.createdAt.toDate().toLocaleString()
                 : 'No date';
 
             const serviceTitle = booking.serviceTitle || 'Untitled Service';
-            const message = booking.message || 'None';
             const status = booking.status || 'pending';
 
             // ✅ NEW: PAYMENT & PRICE DATA
@@ -100,10 +100,10 @@ async function loadBookings(container) {
                 </div>
 
                 <div class="mt-2 text-sm text-gray-600 space-y-1">
-                    <p><strong>User:</strong> ${userEmail}</p>
+                    <p><strong>Customer:</strong> ${userName}</p>
+                    ${userEmail ? `<p class="text-xs text-gray-500">${userEmail}</p>` : ''}
                     <p><strong>Date:</strong> ${bookingDate}</p>
                     <p><strong>Payment:</strong> <span class="capitalize">${paymentMethod}</span></p>
-                    <p><strong>Message:</strong> ${message}</p>
                     <p><strong>Status:</strong> <span class="font-semibold uppercase text-xs">${status}</span></p>
                 </div>
 

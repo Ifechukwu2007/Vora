@@ -1,291 +1,236 @@
-import { supabase } from './supabase.js';
-import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { LoadingSpinner } from './loading-utils.js';
+import { supabase } from "./supabase.js";
+import { LoadingSpinner } from "./loading-utils.js";
 
 let allServices = [];
 let currentBuiltInMargin = 0;
 let currentUser = null;
-let hasService = false;
-let currentPage = 1;
-const ITEMS_PER_PAGE = 12;
-const CACHE_KEY = 'browse_services_cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+const CACHE_KEY = "browse_services_cache";
+const CACHE_DURATION = 5 * 60 * 1000;
+
+// =========================
+// PLATFORM SETTINGS
+// =========================
 async function getPlatformSettings() {
-    try {
-        const { data, error } = await supabase
-            .from('settings')
-            .select('built_in_margin')
-            .eq('id', 'platform')
-            .single();
+    const { data } = await supabase
+        .from("settings")
+        .select("built_in_margin")
+        .eq("id", "platform")
+        .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-            console.error('Error loading platform settings:', error);
-        }
-
-        return data ? { builtInMargin: data.built_in_margin || 0 } : { builtInMargin: 0 };
-    } catch (error) {
-        console.error('Error loading platform settings:', error);
-        return { builtInMargin: 0 };
-    }
+    return {
+        builtInMargin: data?.built_in_margin ?? 0
+    };
 }
 
-function roundUpToIncrement(value, increment = 500) {
-    return Math.ceil(value / increment) * increment;
-}
+// =========================
+// INIT
+// =========================
+document.addEventListener("DOMContentLoaded", async () => {
 
-document.addEventListener('DOMContentLoaded', () => {
+    const servicesContainer = document.getElementById("servicesGrid");
+    const searchInput = document.getElementById("searchInput");
+    const searchButton = document.getElementById("searchButton");
+    const categorySelect = document.getElementById("categorySelect");
+    const logoutBtn = document.getElementById("logoutBtn");
 
-const servicesContainer = document.getElementById('servicesGrid');  
-const searchInput = document.getElementById('searchInput');  
-const searchButton = document.getElementById('searchButton');  
-const categorySelect = document.getElementById('categorySelect');  
-const logoutBtn = document.getElementById('logoutBtn');  
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryCategory = urlParams.get("category");
+    const querySearch = urlParams.get("search");
 
-// Get query parameters from URL
-const urlParams = new URLSearchParams(window.location.search);
-const querySearch = urlParams.get('search');
-const queryCategory = urlParams.get('category');
+    // =========================
+    // AUTH CHECK
+    // =========================
+    const { data: sessionData } = await supabase.auth.getSession();
 
-// 🔐 Auth check
-supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== 'SIGNED_IN' || !session) {
-        LoadingSpinner.navigateTo('login.html');
+    if (!sessionData.session) {
+        window.location.href = "login.html";
         return;
     }
 
-    currentUser = session.user;
-    servicesContainer.innerHTML = '<p>Loading services...</p>';  
+    currentUser = sessionData.session.user;
 
-    await loadServices(servicesContainer);  
+    servicesContainer.innerHTML = `
+        <div class="text-center py-10 text-gray-500">
+            Loading services...
+        </div>
+    `;
 
-    // 🔥 Generate categories automatically  
-    populateCategories(categorySelect, allServices);  
+    await loadServices(servicesContainer);
 
-    // Apply URL parameters if they exist
-    if (querySearch) {
+    populateCategories(categorySelect, allServices);
+
+    // =========================
+    // AUTO APPLY URL FILTER
+    // =========================
+    if (queryCategory) {
+        const category = queryCategory.toLowerCase();
+
+        categorySelect.value = category;
+
+        applyFilters("", category, servicesContainer);
+    } else if (querySearch) {
         searchInput.value = querySearch;
-        applyFilters(querySearch, categorySelect.value, servicesContainer);
-    } else if (queryCategory) {
-        categorySelect.value = queryCategory.toLowerCase();
-        applyFilters(searchInput.value, queryCategory.toLowerCase(), servicesContainer);
+        applyFilters(querySearch, "all", servicesContainer);
+    } else {
+        applyFilters("", "all", servicesContainer);
     }
-});  
 
-// 🔍 Search  
-searchButton.onclick = () => {  
-    applyFilters(searchInput.value, categorySelect.value, servicesContainer);  
-};  
+    // =========================
+    // EVENTS
+    // =========================
+    searchButton.onclick = () => {
+        applyFilters(searchInput.value, categorySelect.value, servicesContainer);
+    };
 
-searchInput.addEventListener('keyup', (e) => {  
-    if (e.key === 'Enter') {  
-        applyFilters(searchInput.value, categorySelect.value, servicesContainer);  
-    }  
-});  
+    searchInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+            applyFilters(searchInput.value, categorySelect.value, servicesContainer);
+        }
+    });
 
-// 📂 Category change  
-categorySelect.addEventListener('change', () => {  
-    applyFilters(searchInput.value, categorySelect.value, servicesContainer);  
-});  
+    categorySelect.addEventListener("change", () => {
+        applyFilters(searchInput.value, categorySelect.value, servicesContainer);
+    });
 
-// 🚪 Logout  
-logoutBtn.onclick = async () => {  
-    LoadingSpinner.show();
-    await signOut(auth);
-    LoadingSpinner.navigateTo('login.html', 300);  
-};
-
+    logoutBtn.onclick = async () => {
+        await supabase.auth.signOut();
+        window.location.href = "login.html";
+    };
 });
 
 // =========================
-// Load services with caching
+// LOAD SERVICES
 // =========================
 async function loadServices(container) {
-    try {
-        // Check cache first
-        const cached = localStorage.getItem(CACHE_KEY);
-        const cacheTime = localStorage.getItem(CACHE_KEY + '_time');
-        
-        if (cached && cacheTime && Date.now() - parseInt(cacheTime) < CACHE_DURATION) {
-            console.log('Using cached services');
-            allServices = JSON.parse(cached);
-            const platformSettings = await getPlatformSettings();
-            currentBuiltInMargin = platformSettings.builtInMargin || 0;
-            renderServices(allServices, container, currentBuiltInMargin);
-            return;
-        }
 
-        // Load services from Supabase
-        const { data, error } = await supabase
-            .from('services')
-            .select('*');
-        
-        if (error) {
-            throw error;
-        }
+    const cached = localStorage.getItem(CACHE_KEY);
+    const cacheTime = localStorage.getItem(CACHE_KEY + "_time");
 
-        services = data.map(service => ({
-            id: service.id,
-            ...service,
-            providerName: service.provider_name || 'N/A'
-        }));
-        console.log('Loaded services from Supabase:', services.length);
-
-        allServices = services;
-        const platformSettings = await getPlatformSettings();
-        currentBuiltInMargin = platformSettings.builtInMargin || 0;
-
-        // Cache the results
-        localStorage.setItem(CACHE_KEY, JSON.stringify(allServices));
-        localStorage.setItem(CACHE_KEY + '_time', Date.now().toString());
-
-        renderServices(allServices, container, currentBuiltInMargin);
-    } catch (error) {
-        console.error('Error loading services:', error);
-        container.innerHTML = '<p class="text-red-500">Failed to load services</p>';
+    if (cached && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
+        allServices = JSON.parse(cached);
+        const settings = await getPlatformSettings();
+        currentBuiltInMargin = settings.builtInMargin;
+        render(allServices, container);
+        return;
     }
-}
 
-// =========================
-// Auto-generate categories
-// =========================
-function populateCategories(selectElement, services) {
+    const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-const categories = new Set();  
-
-services.forEach(service => {  
-    if (service.category) {  
-        categories.add(service.category);  
-    }  
-});  
-
-// Reset dropdown  
-selectElement.innerHTML = '';  
-
-// Default  
-const allOption = document.createElement('option');  
-allOption.value = 'all';  
-allOption.textContent = 'All';  
-selectElement.appendChild(allOption);  
-
-// Add categories  
-categories.forEach(category => {  
-    const option = document.createElement('option');  
-    option.value = category.toLowerCase();  
-    option.textContent = category;  
-    selectElement.appendChild(option);  
-});
-
-}
-
-// =========================
-// Apply filters with pagination
-// =========================
-function applyFilters(searchTerm, category, container) {
-
-let filtered = [...allServices];  
-
-// Category filter  
-if (category && category !== 'all') {  
-    filtered = filtered.filter(service =>  
-        service.category?.toLowerCase() === category  
-    );  
-}  
-
-// Search filter  
-if (searchTerm) {  
-    const term = searchTerm.toLowerCase();  
-
-    filtered = filtered.filter(service =>  
-        service.title?.toLowerCase().includes(term) ||  
-        service.description?.toLowerCase().includes(term)  
-    );  
-}  
-
-renderServicesPaginated(filtered, container, currentBuiltInMargin);
-
-}
-
-// =========================
-// Render services with pagination
-// =========================
-function renderServicesPaginated(services, container, builtInMargin = 0) {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    const paginatedServices = services.slice(startIndex, endIndex);
-
-    renderServices(paginatedServices, container, builtInMargin);
-
-    // Add pagination controls
-    const totalPages = Math.ceil(services.length / ITEMS_PER_PAGE);
-    if (totalPages > 1) {
-        const paginationDiv = document.createElement('div');
-        paginationDiv.className = 'col-span-full flex justify-center gap-2 mt-8';
-        
-        if (currentPage > 1) {
-            const prevBtn = document.createElement('button');
-            prevBtn.textContent = '← Previous';
-            prevBtn.className = 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition';
-            prevBtn.onclick = () => {
-                currentPage--;
-                applyFilters(searchInput.value, categorySelect.value, container);
-            };
-            paginationDiv.appendChild(prevBtn);
-        }
-        
-        const pageInfo = document.createElement('span');
-        pageInfo.className = 'px-4 py-2 text-gray-600';
-        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-        paginationDiv.appendChild(pageInfo);
-        
-        if (currentPage < totalPages) {
-            const nextBtn = document.createElement('button');
-            nextBtn.textContent = 'Next →';
-            nextBtn.className = 'px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition';
-            nextBtn.onclick = () => {
-                currentPage++;
-                applyFilters(searchInput.value, categorySelect.value, container);
-            };
-            paginationDiv.appendChild(nextBtn);
-        }
-        
-        container.parentElement.appendChild(paginationDiv);
+    if (error) {
+        console.error(error);
+        container.innerHTML = "Failed to load services";
+        return;
     }
+
+    allServices = data || [];
+
+    const settings = await getPlatformSettings();
+    currentBuiltInMargin = settings.builtInMargin;
+
+    localStorage.setItem(CACHE_KEY, JSON.stringify(allServices));
+    localStorage.setItem(CACHE_KEY + "_time", Date.now().toString());
+
+    render(allServices, container);
 }
 
 // =========================
-// Render services
+// FILTER LOGIC
 // =========================
-function renderServices(services, container, builtInMargin = 0) {
+function applyFilters(search, category, container) {
 
-    container.innerHTML = '';  
+    let filtered = [...allServices];
 
-    if (services.length === 0) {  
-        container.innerHTML = '<p>No services found</p>';  
-        return;  
-    }  
+    if (category && category !== "all") {
+        filtered = filtered.filter(s =>
+            s.category?.toLowerCase() === category
+        );
+    }
 
-    services.forEach((service) => {  
-        const servicePrice = Number(service.price) || 0;
-        const marginAmount = servicePrice * (builtInMargin / 100);
-        const rawBuyerPrice = servicePrice + marginAmount;
-        const buyerPrice = builtInMargin > 0 ? roundUpToIncrement(rawBuyerPrice, 500) : rawBuyerPrice;
+    if (search) {
+        const term = search.toLowerCase();
 
-        const card = document.createElement('div');  
+        filtered = filtered.filter(s =>
+            s.title?.toLowerCase().includes(term) ||
+            s.description?.toLowerCase().includes(term)
+        );
+    }
 
-        card.className = 'bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition';  
+    render(filtered, container);
+}
 
-        card.innerHTML = `  
-            <h3 class="text-xl font-bold">${service.title}</h3>  
-            <p class="text-blue-500 font-semibold">Provider: ${service.providerName}</p>
-            <p class="text-gray-600 mt-2">NGN ${buyerPrice.toLocaleString()}</p>
-            ${builtInMargin > 0 ? `<p class="text-xs text-gray-400 italic">Service fee included</p>` : ''}
-        `;  
+// =========================
+// CATEGORIES
+// =========================
+function populateCategories(select, services) {
 
-        card.onclick = () => {  
-            LoadingSpinner.navigateTo(`service.html?id=${service.id}`);  
-        };  
+    const set = new Set();
 
-        container.appendChild(card);  
+    services.forEach(s => {
+        if (s.category) set.add(s.category);
+    });
+
+    select.innerHTML = `<option value="all">All</option>`;
+
+    set.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat.toLowerCase();
+        option.textContent = cat;
+        select.appendChild(option);
+    });
+}
+
+// =========================
+// RENDER SERVICES
+// =========================
+function render(services, container) {
+
+    container.innerHTML = "";
+
+    if (!services.length) {
+        container.innerHTML = `
+            <div class="text-center py-10 text-gray-500 col-span-full">
+                No services found
+            </div>
+        `;
+        return;
+    }
+
+    services.forEach(service => {
+
+        const price = Number(service.price) || 0;
+        const buyerPrice = price + (price * currentBuiltInMargin / 100);
+
+        const card = document.createElement("div");
+
+        card.className = "bg-white rounded-xl shadow hover:shadow-lg transition cursor-pointer overflow-hidden";
+
+        card.innerHTML = `
+            <img src="${service.image_url || 'https://placehold.co/600x400'}"
+                 class="w-full h-40 object-cover" />
+
+            <div class="p-4">
+
+                <h3 class="font-semibold text-lg">${service.title}</h3>
+
+                <p class="text-gray-500 text-sm">
+                    ${service.category || ""}
+                </p>
+
+                <p class="text-blue-600 font-bold mt-2">
+                    ₦${buyerPrice.toLocaleString()}
+                </p>
+
+            </div>
+        `;
+
+        card.onclick = () => {
+            window.location.href = `service.html?id=${service.id}`;
+        };
+
+        container.appendChild(card);
     });
 }

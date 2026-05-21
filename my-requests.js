@@ -1,500 +1,544 @@
-import { LoadingSpinner } from './loading-utils.js';
-import { db, auth } from "./firebase-config.js";
-import { NotificationService } from './notification-service.js';
+import { supabase } from "./supabase.js";
+import { LoadingSpinner } from "./loading-utils.js";
 
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-  setDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-// Helper function to create notifications
-async function createNotification(recipientId, type, title, message, metadata = {}) {
-  return NotificationService.createNotification(recipientId, type, title, message, metadata, currentUser.uid);
-}
-
-// ---------------- STATE ----------------
 let currentUser = null;
-let requestsCache = [];
-let offersCache = [];
+
+let allRequests = [];
 let currentTab = "open";
 
-// ---------------- DOM ----------------
-const requestsList = document.getElementById("requestsList");
-const emptyState = document.getElementById("emptyState");
+// =========================
+// INIT
+// =========================
+document.addEventListener("DOMContentLoaded", async () => {
 
-// counts
-const openCount = document.getElementById("openCount");
-const acceptedCount = document.getElementById("acceptedCount");
-const offerCount = document.getElementById("offerCount");
+    // =========================
+    // ELEMENTS
+    // =========================
+    const requestsList = document.getElementById("requestsList");
+    const emptyState = document.getElementById("emptyState");
 
-// tabs
-const tabs = {
-  open: document.getElementById("openTab"),
-  accepted: document.getElementById("acceptedTab"),
-  offer: document.getElementById("offerTab")
-};
+    const openTab = document.getElementById("openTab");
+    const acceptedTab = document.getElementById("acceptedTab");
+    const offerTab = document.getElementById("offerTab");
 
-// modals
-const detailsModal = document.getElementById("detailsModal");
-const detailsContent = document.getElementById("detailsContent");
+    const detailsModal = document.getElementById("detailsModal");
+    const offersModal = document.getElementById("offersModal");
 
-const offersModal = document.getElementById("offersModal");
-const offersContent = document.getElementById("offersContent");
+    const closeDetailsModal = document.getElementById("closeDetailsModal");
+    const closeOffersModal = document.getElementById("closeOffersModal");
 
-// ---------------- AUTH ----------------
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    LoadingSpinner.navigateTo("login.html");
-    return;
-  }
+    const logoutBtn = document.getElementById("logoutBtn");
+    const logoutBtnSideMenu = document.getElementById("logoutBtnSideMenu");
 
-  currentUser = user;
-  await loadRequests();
+    // =========================
+    // AUTH
+    // =========================
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+        LoadingSpinner.navigateTo("login.html");
+        return;
+    }
+
+    currentUser = sessionData.session.user;
+
+    // =========================
+    // LOAD REQUESTS
+    // =========================
+    await loadRequests();
+
+    // =========================
+    // TAB EVENTS
+    // =========================
+    openTab.addEventListener("click", () => {
+        switchTab("open");
+    });
+
+    acceptedTab.addEventListener("click", () => {
+        switchTab("accepted");
+    });
+
+    offerTab.addEventListener("click", () => {
+        switchTab("offers");
+    });
+
+    // =========================
+    // CLOSE MODALS
+    // =========================
+    closeDetailsModal.onclick = () => {
+        detailsModal.classList.add("hidden");
+    };
+
+    closeOffersModal.onclick = () => {
+        offersModal.classList.add("hidden");
+    };
+
+    // =========================
+    // LOGOUT
+    // =========================
+    async function logout() {
+        await supabase.auth.signOut();
+        LoadingSpinner.navigateTo("login.html");
+    }
+
+    if (logoutBtn) logoutBtn.onclick = logout;
+    if (logoutBtnSideMenu) logoutBtnSideMenu.onclick = logout;
 });
 
-// ---------------- LOAD ----------------
+// =========================
+// LOAD REQUESTS
+// =========================
 async function loadRequests() {
-  const q = query(
-    collection(db, "requests"),
-    where("userId", "==", currentUser.uid)
-  );
 
-  const snap = await getDocs(q);
+    const requestsList = document.getElementById("requestsList");
 
-  requestsCache = snap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
+    requestsList.innerHTML = `
+        <div class="text-center py-12">
+            <p class="text-gray-500">Loading your requests...</p>
+        </div>
+    `;
 
-  await loadOffers();
-  updateCounts();
-  switchTab("open");
+    try {
+
+        const { data, error } = await supabase
+            .from("requests")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        allRequests = data || [];
+
+        updateCounts();
+
+        renderRequests();
+
+    } catch (error) {
+        console.error(error);
+
+        requestsList.innerHTML = `
+            <div class="text-center py-12 text-red-500">
+                Failed to load requests
+            </div>
+        `;
+    }
 }
 
-// Load all offers for user's requests
-async function loadOffers() {
-  if (requestsCache.length === 0) {
-    offersCache = [];
-    return;
-  }
-
-  const requestIds = requestsCache.map(r => r.id);
-  const q = query(
-    collection(db, "offers"),
-    where("requestId", "in", requestIds)
-  );
-
-  const snap = await getDocs(q);
-  offersCache = snap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
-}
-
-// ---------------- COUNTS ----------------
+// =========================
+// UPDATE COUNTS
+// =========================
 function updateCounts() {
-  openCount.textContent = count("open");
-  acceptedCount.textContent = count("accepted");
-  offerCount.textContent = offersCache.length;
+
+    const openCount = document.getElementById("openCount");
+    const acceptedCount = document.getElementById("acceptedCount");
+    const offerCount = document.getElementById("offerCount");
+
+    const openRequests = allRequests.filter(r => r.status !== "accepted");
+
+    const acceptedRequests = allRequests.filter(r => r.status === "accepted");
+
+    let totalOffers = 0;
+
+    allRequests.forEach(r => {
+        totalOffers += r.offer_count || 0;
+    });
+
+    openCount.textContent = openRequests.length;
+    acceptedCount.textContent = acceptedRequests.length;
+    offerCount.textContent = totalOffers;
 }
 
-function count(status) {
-  return requestsCache.filter(r => r.status === status).length;
-}
-
-// ---------------- TAB SWITCH ----------------
+// =========================
+// SWITCH TAB
+// =========================
 function switchTab(tab) {
-  currentTab = tab;
 
-  Object.keys(tabs).forEach(key => {
-    tabs[key].classList.remove("border-b-2", "border-blue-600", "text-blue-600");
-    tabs[key].classList.add("text-gray-600");
-  });
+    currentTab = tab;
 
-  tabs[tab].classList.add("border-b-2", "border-blue-600", "text-blue-600");
-  tabs[tab].classList.remove("text-gray-600");
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.remove(
+            "active",
+            "border-blue-600",
+            "text-blue-600"
+        );
 
-  render();
-}
-
-// attach tab clicks - ensure DOM is ready
-function initTabs() {
-  if (tabs.open) tabs.open.onclick = () => switchTab("open");
-  if (tabs.accepted) tabs.accepted.onclick = () => switchTab("accepted");
-  if (tabs.offer) tabs.offer.onclick = () => switchTab("offer");
-}
-
-// Initialize tabs when page loads
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initTabs);
-} else {
-  initTabs();
-}
-
-// ---------------- STATUS UI ----------------
-function statusStyle(status) {
-  switch (status) {
-    case "open":
-      return "bg-gray-200 text-gray-700";
-    case "accepted":
-      return "bg-green-100 text-green-700";
-    case "offer":
-      return "bg-purple-100 text-purple-700";
-    case "pending":
-      return "bg-yellow-100 text-yellow-700";
-    case "rejected":
-      return "bg-red-100 text-red-700";
-    case "cancelled":
-      return "bg-orange-100 text-orange-700";
-    case "completed":
-      return "bg-blue-100 text-blue-700";
-    default:
-      return "bg-gray-100";
-  }
-}
-
-// ---------------- RENDER ----------------
-function render() {
-  let data = [];
-
-  if (currentTab === "offer") {
-    // For offer tab, show all offers
-    data = offersCache;
-    renderOffers(data);
-  } else {
-    // For other tabs, show requests
-    data = requestsCache.filter(r => r.status === currentTab);
-    renderRequests(data);
-  }
-}
-
-function renderRequests(data) {
-  if (data.length === 0) {
-    requestsList.innerHTML = "";
-    emptyState.classList.remove("hidden");
-    return;
-  }
-
-  emptyState.classList.add("hidden");
-
-  requestsList.innerHTML = data.map(r => `
-    <div class="bg-white p-5 rounded-lg shadow">
-
-      <div class="flex justify-between items-start">
-        <div>
-          <h3 class="font-bold text-lg">${r.serviceType || "Service"}</h3>
-          <p class="text-sm text-gray-500">${r.location || ""}</p>
-        </div>
-
-        <span class="text-xs px-2 py-1 rounded ${statusStyle(r.status)}">
-          ${r.status}
-        </span>
-      </div>
-
-      <p class="text-sm text-gray-600 mt-3">
-        ${r.description || ""}
-      </p>
-
-      <div class="mt-4 flex justify-between">
-        <p class="font-semibold">₦${r.budget || 0}</p>
-
-        <div class="flex gap-2">
-          <button onclick="viewDetails('${r.id}')" class="text-blue-600 text-sm">
-            Details
-          </button>
-
-          <button onclick="viewOffers('${r.id}')" class="text-green-600 text-sm">
-            Offers
-          </button>
-        </div>
-      </div>
-
-    </div>
-  `).join("");
-}
-
-function renderOffers(data) {
-  if (data.length === 0) {
-    requestsList.innerHTML = "";
-    emptyState.classList.remove("hidden");
-    return;
-  }
-
-  emptyState.classList.add("hidden");
-
-  // Group offers by status
-  const groupedOffers = {
-    pending: data.filter(o => o.status === "pending"),
-    accepted: data.filter(o => o.status === "accepted"),
-    rejected: data.filter(o => o.status === "rejected"),
-    cancelled: data.filter(o => o.status === "cancelled"),
-    completed: data.filter(o => o.status === "completed")
-  };
-
-  let html = "";
-
-  if (groupedOffers.pending.length > 0) {
-    html += `<div class="mb-6">
-      <h3 class="font-bold text-lg mb-3 text-yellow-700">📋 Pending (${groupedOffers.pending.length})</h3>
-      ${renderOfferCards(groupedOffers.pending)}
-    </div>`;
-  }
-
-  if (groupedOffers.accepted.length > 0) {
-    html += `<div class="mb-6">
-      <h3 class="font-bold text-lg mb-3 text-green-700">✅ Accepted (${groupedOffers.accepted.length})</h3>
-      ${renderOfferCards(groupedOffers.accepted)}
-    </div>`;
-  }
-
-  if (groupedOffers.completed.length > 0) {
-    html += `<div class="mb-6">
-      <h3 class="font-bold text-lg mb-3 text-blue-700">🎉 Completed (${groupedOffers.completed.length})</h3>
-      ${renderOfferCards(groupedOffers.completed)}
-    </div>`;
-  }
-
-  if (groupedOffers.rejected.length > 0) {
-    html += `<div class="mb-6">
-      <h3 class="font-bold text-lg mb-3 text-red-700">❌ Rejected (${groupedOffers.rejected.length})</h3>
-      ${renderOfferCards(groupedOffers.rejected)}
-    </div>`;
-  }
-
-  if (groupedOffers.cancelled.length > 0) {
-    html += `<div class="mb-6">
-      <h3 class="font-bold text-lg mb-3 text-orange-700">⛔ Cancelled (${groupedOffers.cancelled.length})</h3>
-      ${renderOfferCards(groupedOffers.cancelled)}
-    </div>`;
-  }
-
-  requestsList.innerHTML = html;
-}
-
-function renderOfferCards(offers) {
-  return offers.map(o => `
-    <div class="bg-white p-4 rounded-lg shadow mb-3">
-      <div class="flex justify-between items-start">
-        <div class="flex-1">
-          <p class="font-semibold text-lg">₦${o.price}</p>
-          <p class="text-sm text-gray-500">Request ID: ${o.requestId?.slice(0, 8)}...</p>
-        </div>
-        <span class="text-xs px-2 py-1 rounded ${statusStyle(o.status)}">
-          ${o.status}
-        </span>
-      </div>
-      <p class="text-sm text-gray-600 mt-2">${o.message || ""}</p>
-      <div class="mt-3 flex gap-2 justify-end">
-        ${o.status === "pending" ? `
-          <button onclick="rejectOffer('${o.id}')" class="text-red-600 text-sm">Reject</button>
-          <button onclick="acceptOffer('${o.id}', '${o.requestId}')" class="text-green-600 text-sm">Accept</button>
-        ` : ""}
-      </div>
-    </div>
-  `).join("");
-}
-
-// ---------------- DETAILS ----------------
-window.viewDetails = function(id) {
-  const r = requestsCache.find(x => x.id === id);
-  if (!r) return;
-
-  detailsContent.innerHTML = `
-    <h2 class="text-xl font-bold mb-2">${r.serviceType}</h2>
-    <p><strong>Location:</strong> ${r.location}</p>
-    <p><strong>Budget:</strong> ₦${r.budget}</p>
-    <p class="mt-3">${r.description}</p>
-  `;
-
-  detailsModal.classList.remove("hidden");
-};
-
-// close modal
-document.getElementById("closeDetailsModal").onclick = () => {
-  detailsModal.classList.add("hidden");
-};
-
-// ---------------- OFFERS ----------------
-window.viewOffers = async function(requestId) {
-  offersModal.classList.remove("hidden");
-  offersContent.innerHTML = "Loading...";
-
-  const q = query(
-    collection(db, "offers"),
-    where("requestId", "==", requestId)
-  );
-
-  const snap = await getDocs(q);
-
-  const offers = snap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
-
-  if (offers.length === 0) {
-    offersContent.innerHTML = "<p class='text-gray-500'>No offers yet</p>";
-    return;
-  }
-
-  offersContent.innerHTML = offers.map(o => `
-    <div class="border p-3 rounded mb-2">
-
-      <p class="font-semibold">₦${o.price}</p>
-      <p class="text-sm text-gray-600">${o.message || ""}</p>
-
-      <div class="flex justify-between mt-2">
-        <span class="text-xs px-2 py-1 rounded ${statusStyle(o.status)}">
-          ${o.status}
-        </span>
-
-        ${o.status === "pending" ? `
-          <button onclick="acceptOffer('${o.id}', '${requestId}')"
-            class="text-green-600 text-sm">
-            Accept
-          </button>
-        ` : ""}
-      </div>
-
-    </div>
-  `).join("");
-};
-
-// close offers
-document.getElementById("closeOffersModal").onclick = () => {
-  offersModal.classList.add("hidden");
-};
-
-// ---------------- REJECT OFFER ----------------
-window.rejectOffer = async function(offerId) {
-  try {
-    // Get offer details for notification
-    const offerSnap = await getDocs(query(
-      collection(db, "offers"),
-      where("__name__", "==", offerId)
-    ));
-    
-    let offer = null;
-    offerSnap.forEach(doc => {
-      offer = doc.data();
+        btn.classList.add("text-gray-600");
     });
 
-    await updateDoc(doc(db, "offers", offerId), {
-      status: "rejected"
-    });
+    const activeBtn = document.getElementById(`${tab}Tab`);
 
-    // Create notification for provider
-    if (offer && offer.providerId) {
-      await createNotification(
-        offer.providerId,
-        'offer',
-        '❌ Offer Rejected',
-        `Your offer of ₦${offer.price?.toLocaleString()} has been rejected by the customer.`,
-        {
-          offerId: offerId,
-          requestId: offer.requestId,
-          amount: offer.price
-        }
-      );
-    }
-
-    // Create notification for customer
-    await createNotification(
-      currentUser.uid,
-      'offer',
-      '✓ Offer Rejected',
-      `You have rejected the offer of ₦${offer?.price?.toLocaleString() || 0}.`,
-      {
-        offerId: offerId,
-        requestId: offer?.requestId,
-        amount: offer?.price
-      }
+    activeBtn.classList.add(
+        "border-blue-600",
+        "text-blue-600"
     );
 
-    await loadOffers();
-    render();
-  } catch (err) {
-    console.error("Error rejecting offer:", err);
-    alert("Error rejecting offer");
-  }
-};
+    renderRequests();
+}
 
-// ---------------- ACCEPT OFFER ----------------
-window.acceptOffer = async function(offerId, requestId) {
-  try {
-    // Get offer details for notification
-    const offerSnap = await getDocs(query(
-      collection(db, "offers"),
-      where("__name__", "==", offerId)
-    ));
-    
-    let offer = null;
-    offerSnap.forEach(doc => {
-      offer = doc.data();
-    });
+// =========================
+// RENDER REQUESTS
+// =========================
+function renderRequests() {
 
-    await updateDoc(doc(db, "offers", offerId), {
-      status: "accepted"
-    });
+    const requestsList = document.getElementById("requestsList");
+    const emptyState = document.getElementById("emptyState");
 
-    await updateDoc(doc(db, "requests", requestId), {
-      status: "accepted"
-    });
+    let filtered = [...allRequests];
 
-    // Create notification for provider
-    if (offer && offer.providerId) {
-      await createNotification(
-        offer.providerId,
-        'offer',
-        '✅ Offer Accepted',
-        `Your offer of ₦${offer.price?.toLocaleString()} has been accepted! Awaiting payment...`,
-        {
-          offerId: offerId,
-          requestId: requestId,
-          amount: offer.price
-        }
-      );
+    // =========================
+    // FILTER BY TAB
+    // =========================
+    if (currentTab === "open") {
+        filtered = filtered.filter(r => r.status !== "accepted");
     }
 
-    // Create notification for customer
-    await createNotification(
-      currentUser.uid,
-      'offer',
-      '✅ Offer Accepted',
-      `You have accepted the offer of ₦${offer?.price?.toLocaleString() || 0}. Proceeding to payment...`,
-      {
-        offerId: offerId,
-        requestId: requestId,
-        amount: offer?.price
-      }
-    );
+    if (currentTab === "accepted") {
+        filtered = filtered.filter(r => r.status === "accepted");
+    }
 
-    // Refresh offers
-    await loadOffers();
-    render();
+    if (currentTab === "offers") {
+        filtered = filtered.filter(r => (r.offer_count || 0) > 0);
+    }
 
-    // Redirect to payment with offer details
-    LoadingSpinner.navigateTo(`payment.html?offerId=${offerId}&requestId=${requestId}`);
-  } catch (err) {
-    console.error("Error accepting offer:", err);
-    alert("Error accepting offer");
-  }
-};
+    requestsList.innerHTML = "";
 
-// ================= LOGOUT =================
-document.querySelectorAll("#logoutBtn, #logoutBtnSideMenu")
-  .forEach(btn => {
-    btn.addEventListener("click", async () => {
-      await signOut(auth);
-      LoadingSpinner.navigateTo("login.html");
+    // =========================
+    // EMPTY STATE
+    // =========================
+    if (!filtered.length) {
+        emptyState.classList.remove("hidden");
+        return;
+    }
+
+    emptyState.classList.add("hidden");
+
+    // =========================
+    // RENDER CARDS
+    // =========================
+    filtered.forEach(request => {
+
+        const card = document.createElement("div");
+
+        card.className = `
+            bg-white
+            rounded-xl
+            shadow-sm
+            hover:shadow-lg
+            transition
+            p-6
+        `;
+
+        const statusColor =
+            request.status === "accepted"
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700";
+
+        card.innerHTML = `
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+                <div class="flex-1">
+
+                    <div class="flex items-center gap-3 mb-2">
+
+                        <h2 class="text-xl font-bold text-gray-900">
+                            ${request.title || "Untitled Request"}
+                        </h2>
+
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusColor}">
+                            ${request.status || "open"}
+                        </span>
+
+                    </div>
+
+                    <p class="text-gray-600 line-clamp-2">
+                        ${request.description || ""}
+                    </p>
+
+                    <div class="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
+
+                        <span>
+                            📍 ${request.location || "No location"}
+                        </span>
+
+                        <span>
+                            🗂 ${request.category || "General"}
+                        </span>
+
+                        <span>
+                            💰 ₦${Number(request.budget || 0).toLocaleString()}
+                        </span>
+
+                        <span>
+                            📩 ${request.offer_count || 0} offers
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="flex flex-col gap-2">
+
+                    <button
+                        class="view-btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                        data-id="${request.id}"
+                    >
+                        View
+                    </button>
+
+                    <button
+                        class="offers-btn border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
+                        data-id="${request.id}"
+                    >
+                        Offers
+                    </button>
+
+                </div>
+
+            </div>
+        `;
+
+        requestsList.appendChild(card);
     });
-  });
+
+    // =========================
+    // VIEW EVENTS
+    // =========================
+    document.querySelectorAll(".view-btn").forEach(btn => {
+
+        btn.addEventListener("click", () => {
+
+            const requestId = btn.dataset.id;
+
+            const request = allRequests.find(r => r.id == requestId);
+
+            if (request) {
+                openDetailsModal(request);
+            }
+        });
+    });
+
+    // =========================
+    // OFFERS EVENTS
+    // =========================
+    document.querySelectorAll(".offers-btn").forEach(btn => {
+
+        btn.addEventListener("click", async () => {
+
+            const requestId = btn.dataset.id;
+
+            await openOffersModal(requestId);
+        });
+    });
+}
+
+// =========================
+// DETAILS MODAL
+// =========================
+function openDetailsModal(request) {
+
+    const modal = document.getElementById("detailsModal");
+    const content = document.getElementById("detailsContent");
+
+    content.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">
+            ${request.title}
+        </h2>
+
+        <div class="space-y-4">
+
+            <div>
+                <p class="text-sm text-gray-500">Description</p>
+                <p class="text-gray-800">
+                    ${request.description || "No description"}
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+
+                <div>
+                    <p class="text-sm text-gray-500">Category</p>
+                    <p class="font-semibold">
+                        ${request.category || "General"}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">Budget</p>
+                    <p class="font-semibold">
+                        ₦${Number(request.budget || 0).toLocaleString()}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">Location</p>
+                    <p class="font-semibold">
+                        ${request.location || "N/A"}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">Status</p>
+                    <p class="font-semibold capitalize">
+                        ${request.status || "open"}
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+    `;
+
+    modal.classList.remove("hidden");
+}
+
+// =========================
+// OPEN OFFERS MODAL
+// =========================
+async function openOffersModal(requestId) {
+
+    const modal = document.getElementById("offersModal");
+    const content = document.getElementById("offersContent");
+
+    content.innerHTML = `
+        <div class="text-center py-8 text-gray-500">
+            Loading offers...
+        </div>
+    `;
+
+    modal.classList.remove("hidden");
+
+    try {
+
+        const { data, error } = await supabase
+            .from("offers")
+            .select("*")
+            .eq("request_id", requestId)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        if (!data.length) {
+
+            content.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    No offers yet
+                </div>
+            `;
+
+            return;
+        }
+
+        content.innerHTML = "";
+
+        data.forEach(offer => {
+
+            const card = document.createElement("div");
+
+            card.className = `
+                border
+                rounded-xl
+                p-4
+                mb-4
+            `;
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+
+                    <div>
+                        <p class="font-bold">
+                            ₦${Number(offer.price || 0).toLocaleString()}
+                        </p>
+
+                        <p class="text-sm text-gray-500">
+                            ${offer.availability || "Flexible"}
+                        </p>
+                    </div>
+
+                    <button
+                        class="accept-offer-btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                        data-offer="${offer.id}"
+                        data-provider="${offer.provider_id}"
+                        data-request="${requestId}"
+                    >
+                        Accept
+                    </button>
+
+                </div>
+
+                <p class="text-gray-700">
+                    ${offer.message || ""}
+                </p>
+            `;
+
+            content.appendChild(card);
+        });
+
+        // =========================
+        // ACCEPT OFFER
+        // =========================
+        document.querySelectorAll(".accept-offer-btn").forEach(btn => {
+
+            btn.addEventListener("click", async () => {
+
+                const offerId = btn.dataset.offer;
+                const providerId = btn.dataset.provider;
+                const requestId = btn.dataset.request;
+
+                await acceptOffer(
+                    offerId,
+                    providerId,
+                    requestId
+                );
+            });
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        content.innerHTML = `
+            <div class="text-center py-8 text-red-500">
+                Failed to load offers
+            </div>
+        `;
+    }
+}
+
+// =========================
+// ACCEPT OFFER
+// =========================
+async function acceptOffer(
+    offerId,
+    providerId,
+    requestId
+) {
+
+    try {
+
+        // UPDATE REQUEST
+        const { error: requestError } = await supabase
+            .from("requests")
+            .update({
+                status: "accepted",
+                accepted_provider_id: providerId,
+                accepted_offer_id: offerId
+            })
+            .eq("id", requestId);
+
+        if (requestError) throw requestError;
+
+        alert("Offer accepted successfully!");
+
+        // OPTIONAL CHAT REDIRECT
+        window.location.href = `
+            chat.html?user=${providerId}
+        `;
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert("Failed to accept offer");
+    }
+}

@@ -1,14 +1,63 @@
 import { supabase } from './supabase.js';
 import { LoadingSpinner } from './loading-utils.js';
 
+let selectedImageFile = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     const addServiceForm = document.getElementById('add-service-form');
     const backBtn = document.getElementById('backBtn');
+    const imageInput = document.getElementById('service-image');
+    const imagePreview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    const removeImageBtn = document.getElementById('remove-image-btn');
 
     if (backBtn) {
         backBtn.addEventListener('click', () => {
             LoadingSpinner.navigateTo('browse.html');
         });
+    }
+
+    // Handle image preview
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select a valid image file.');
+                    imageInput.value = '';
+                    selectedImageFile = null;
+                    imagePreview.classList.add('hidden');
+                    return;
+                }
+                
+                // Validate file size (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('Image must be less than 10MB.');
+                    imageInput.value = '';
+                    selectedImageFile = null;
+                    imagePreview.classList.add('hidden');
+                    return;
+                }
+
+                selectedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    previewImg.src = event.target.result;
+                    imagePreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectedImageFile = null;
+                imageInput.value = '';
+                imagePreview.classList.add('hidden');
+            });
+        }
     }
 
     if (addServiceForm) {
@@ -49,6 +98,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('Could not fetch user data:', error);
             }
 
+            let imageUrl = null;
+
+            // Upload image if selected
+            if (selectedImageFile) {
+                try {
+                    const fileName = `${user.id}_${Date.now()}_${selectedImageFile.name}`;
+                    const { data, error: uploadError } = await supabase.storage
+                        .from('services')
+                        .upload(fileName, selectedImageFile);
+
+                    if (uploadError) {
+                        throw new Error(`Image upload failed: ${uploadError.message}`);
+                    }
+
+                    // Get the public URL
+                    const { data: urlData } = supabase.storage
+                        .from('services')
+                        .getPublicUrl(fileName);
+                    
+                    imageUrl = urlData?.publicUrl;
+                } catch (error) {
+                    console.error("Error uploading image:", error);
+                    alert(`Error uploading image: ${error.message}`);
+                    return;
+                }
+            }
+
             const serviceData = {
                 provider_id: user.id,
                 title: document.getElementById('service-title').value.trim(),
@@ -57,6 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 price: parseFloat(priceValue),
                 location: document.getElementById('service-location').value.trim()
             };
+
+            // Add image URL if uploaded
+            if (imageUrl) {
+                serviceData.image_url = imageUrl;
+            }
 
             try {
                 console.log('Adding service with data:', serviceData);

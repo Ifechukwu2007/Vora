@@ -97,11 +97,6 @@
                 <p class="text-gray-600"><strong class="font-medium text-gray-900">Service:</strong> <span id="service-title"></span></p>
                 <p class="text-gray-600"><strong class="font-medium text-gray-900">Provider:</strong> <span id="provider-name"></span></p>
             </div>
-
-            <!-- Message Provider Button -->
-            <button id="messageProviderBtn" class="mt-4 w-full py-2 px-4 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors">
-                💬 Message Provider
-            </button>
             
             <!-- Price Breakdown -->
             <div class="mt-6 pt-6 border-t space-y-2">
@@ -128,18 +123,12 @@
                     <input type="radio" name="paymentMethod" value="paystack" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked>
                     <span class="ml-3 text-lg font-medium text-gray-800">Pay with Paystack (Card, Bank Transfer)</span>
                 </label>
-                <label class="flex items-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input type="radio" name="paymentMethod" value="cash" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                    <span class="ml-3 text-lg font-medium text-gray-800">Pay with Cash</span>
-                </label>
             </div>
             <button id="confirm-booking-btn" class="w-full mt-6 py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 Confirm & Pay
             </button>
         </div>
     </main>
-
-    <script src="./firebase-config.js" type="module"></script>
     <script src="./payment.js" type="module"></script>
     <script src="./menu.js" type="module"></script>       
     <script src="https://js.paystack.co/v1/inline.js"></script>

@@ -3,12 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat | Vora</title>
+    <title>Service Details | Vora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
-</head>
-<body class="flex flex-col h-screen bg-gray-100">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  *{
+    font-family:'Inter',sans-serif;
+  }
+
+  body{
+    background:#f8fafc;
+  }
+
+  .gallery-image{
+    transition:0.3s ease;
+  }
+
+  .gallery-image:hover{
+    transform:scale(1.02);
+  }
+
+  .sticky-booking{
+    position:sticky;
+    top:100px;
+  }
+
+  .fade-in{
+    animation:fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn{
+    from{
+      opacity:0;
+      transform:translateY(10px);
+    }
+
+    to{
+      opacity:1;
+      transform:translateY(0);
+    }
+  }
+</style>
+</head>
 <body class="bg-gray-100">
 
 <!-- ================= HEADER ================= -->
@@ -36,13 +77,8 @@
           </a>
 
           <a href="browse.html"
-            class="block font-semibold text-black-800">
+            class="font-medium text-gray-700 hover:text-black-600 transition">
             Browse
-          </a>
-
-          <a href="my-messages.html"
-            class="block font-semibold text-black-800">
-            My Messages
           </a>
 
     <a href="browse-pool.html"
@@ -51,7 +87,7 @@
           </a>
 
           <a href="add-service.html"
-            class="block font-semibold text-black-800">
+            class="font-medium text-gray-700 hover:text-black-600 transition">
             Become a Provider
           </a>
 
@@ -138,11 +174,6 @@
       Browse
     </a>
 
-    <a href="my-messages.html"
-      class="block font-semibold text-black-800">
-      My Messages
-    </a>
-
     <a href="browse-pool.html"
       class="block font-semibold text-black-800">
       Request Pool
@@ -167,46 +198,59 @@
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 
-    <!-- Main Chat Area -->
-    <main class="pt-24 px-4 max-w-4xl mx-auto">
-    </main>
-        <!-- Chat Context Header -->
-        <div id="chat-context-header" class="bg-white border-b border-gray-200 p-4 z-10">
-                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><button id="backBtn" type="button" onclick="window.history.back()"
+    <main class="p-8 pt-24 max-w-4xl mx-auto">
+        <div class="mb-6 flex items-center gap-4">
+                          <!-- BACK BUTTON -->
+        <button id="backBtn" type="button" onclick="window.history.back()"
           class="text-blue-600 hover:text-blue-800 font-semibold">
           ← Back
         </button>
-             <h2 id="service-title" class="text-lg font-bold text-center text-gray-800">Loading...</h2>
-             <p id="other-user-name" class="text-sm text-gray-500 text-center"></p>
+            <h1 class="text-3xl font-extrabold text-gray-900">Service Details</h1>
         </div>
-        
-        <!-- Messages Container -->
-        <div id="chat-container" class="flex-1 overflow-y-auto p-4">
-            <!-- Messages will be loaded here -->
+        <div id="service-container" class="bg-white p-8 rounded-lg shadow">
+            <!-- Service details will be loaded here -->
+            <div class="text-center">
+                <p>Loading service details...</p>
+            </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div id="service-reviews" class="bg-white p-8 rounded-lg shadow mt-8">
+            <h2 class="text-2xl font-bold mb-4">Reviews</h2>
+            <div id="reviews-container">
+                <!-- Reviews will be loaded here -->
+            </div>
         </div>
     </main>
 
-    <!-- Message Input Footer -->
-    <footer class="bg-white p-4 border-t border-gray-200">
-        <div class="flex items-center">
-            <input type="text" id="message-input" placeholder="Type a message..." class="flex-1 p-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 px-5">
-            <button id="send-button" class="ml-3 bg-blue-600 text-white rounded-full px-6 py-3 font-semibold hover:bg-blue-700 transition-colors">Send</button>
-        </div>
-    </footer>
-
-    <script src="./firebase-config.js" type="module"></script>
     <script src="./auth.js" type="module"></script>
-    <script src="./chat.js" type="module"></script>
     <script src="./menu.js" type="module"></script>
     <script src="./main.js" type="module"></script>
+    <script src="./service.js" type="module"></script>
+    <script src="./router.js" type="module"></script>
     <script src="./notifications.js" type="module"></script>
     <script src="./notification-service.js" type="module"></script>
     <script src="./notification-badge.js" type="module"></script>
-<script type="module">
-  import { supabase } from './supabase.js'
+    <script src="./loading-utils.js" type="module"></script>
+    <script type="module">
+      import { supabase } from './supabase.js'
 
-  console.log(supabase)
+      console.log(supabase)
+    </script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
 </script>
+<!--End of Tawk.to Script-->
 </body>
 </html>
 

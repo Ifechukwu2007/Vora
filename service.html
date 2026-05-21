@@ -6,6 +6,49 @@
     <title>Service Details | Vora</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  *{
+    font-family:'Inter',sans-serif;
+  }
+
+  body{
+    background:#f8fafc;
+  }
+
+  .gallery-image{
+    transition:0.3s ease;
+  }
+
+  .gallery-image:hover{
+    transform:scale(1.02);
+  }
+
+  .sticky-booking{
+    position:sticky;
+    top:100px;
+  }
+
+  .fade-in{
+    animation:fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn{
+    from{
+      opacity:0;
+      transform:translateY(10px);
+    }
+
+    to{
+      opacity:1;
+      transform:translateY(0);
+    }
+  }
+</style>
 </head>
 <body class="bg-gray-100">
 
@@ -37,11 +80,6 @@
             class="font-medium text-gray-700 hover:text-black-600 transition">
             Browse
           </a>
-
-              <a href="my-messages.html"
-      class="block font-semibold text-black-800">
-      My Messages
-    </a>
 
     <a href="browse-pool.html"
             class="block font-semibold text-black-800">
@@ -136,11 +174,6 @@
       Browse
     </a>
 
-        <a href="my-messages.html"
-      class="block font-semibold text-black-800">
-      My Messages
-    </a>
-
     <a href="browse-pool.html"
       class="block font-semibold text-black-800">
       Request Pool
@@ -190,7 +223,6 @@
         </div>
     </main>
 
-    <script src="./firebase-config.js" type="module"></script>
     <script src="./auth.js" type="module"></script>
     <script src="./menu.js" type="module"></script>
     <script src="./main.js" type="module"></script>

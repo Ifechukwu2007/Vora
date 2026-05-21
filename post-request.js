@@ -1,96 +1,230 @@
-import { LoadingSpinner } from './loading-utils.js';
-import { db, auth } from "./firebase-config.js";
-import {
-  collection,
-  addDoc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { supabase } from "./supabase.js";
+import { LoadingSpinner } from "./loading-utils.js";
 
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { supabase } from './supabase.js';
+document.addEventListener("DOMContentLoaded", async () => {
 
-const form = document.getElementById("post-request-form");
-const cancelBtn = document.getElementById("cancelBtn");
-const backBtn = document.getElementById("backBtn");
+    // =========================
+    // FORM
+    // =========================
+    const form = document.getElementById("post-request-form");
 
-let currentUser = null;
+    const serviceTypeInput = document.getElementById("service-type");
+    const descriptionInput = document.getElementById("request-description");
+    const budgetInput = document.getElementById("budget");
+    const locationInput = document.getElementById("location");
+    const dateNeededInput = document.getElementById("date-needed");
+    const timeNeededInput = document.getElementById("time-needed");
+    const fullNameInput = document.getElementById("full-name");
+    const phoneInput = document.getElementById("phone");
 
-// 🔐 Check if user is logged in
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    alert("You must be logged in to post a request.");
-    LoadingSpinner.navigateTo('login.html');
-  } else {
-    currentUser = user;
-  }
-});
+    if (!form) {
+        console.error("Post request form not found");
+        return;
+    }
 
-// 🚀 Handle form submit
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+    const submitBtn = document.getElementById("submitBtn") || form.querySelector("button[type='submit']");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const backBtn = document.getElementById("backBtn");
 
-  const serviceType = document.getElementById("service-type").value;
-  const description = document.getElementById("request-description").value;
-  const location = document.getElementById("location").value;
-  const dateNeeded = document.getElementById("date-needed").value;
-  const timeNeeded = document.getElementById("time-needed").value;
-  const budget = document.getElementById("budget").value;
-  const fullName = document.getElementById("full-name").value;
-  const phone = document.getElementById("phone").value;
+    if (!serviceTypeInput || !descriptionInput || !budgetInput || !locationInput || !dateNeededInput || !timeNeededInput || !fullNameInput || !phoneInput || !submitBtn || !cancelBtn || !backBtn) {
+        console.error("Missing one or more form elements in post-request.js", {
+            serviceTypeInput,
+            descriptionInput,
+            budgetInput,
+            locationInput,
+            dateNeededInput,
+            timeNeededInput,
+            fullNameInput,
+            phoneInput,
+            submitBtn,
+            cancelBtn,
+            backBtn
+        });
+        return;
+    }
 
-  // 🧠 Basic validation
-  if (!serviceType || !description || !location || !dateNeeded || !fullName || !phone) {
-    alert("Please fill in all required fields.");
-    return;
-  }
+    // =========================
+    // CHECK USER
+    // =========================
+    const { data: { session } } = await supabase.auth.getSession();
 
-  try {
-    // 📝 Create request object
-    const requestData = {
-      user_id: currentUser.uid,
-      service_type: serviceType,
-      description,
-      location,
-      date_needed: dateNeeded,
-      time_needed: timeNeeded || null,
-      budget: budget ? Number(budget) : null,
-      full_name: fullName,
-      phone,
-      status: "open",
-      created_at: new Date().toISOString()
-    };
+    if (!session) {
+        LoadingSpinner.navigateTo("login.html");
+        return;
+    }
 
-    // 📦 Save to Supabase
-    const { error } = await supabase
-      .from('requests')
-      .insert([requestData]);
+    const currentUser = session.user;
 
-    if (error) throw error;
+    // =========================
+    // BUTTON HANDLERS
+    // =========================
+    backBtn.addEventListener("click", () => {
+        window.history.back();
+    });
 
-    alert("Request posted successfully!");
+    cancelBtn.addEventListener("click", () => {
+        window.history.back();
+    });
 
-    // 🔁 Reset form
-    form.reset();
+    // =========================
+    // AUTO GET LOCATION
+    // =========================
+    if (navigator.geolocation) {
 
-    // 🔄 Redirect (optional)
-    LoadingSpinner.navigateTo('my-requests.html');
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
 
-  } catch (error) {
-    console.error("Error posting request:", error);
-    alert("Something went wrong. Try again.");
-  }
-});
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
 
-// ❌ Cancel button
-cancelBtn.addEventListener("click", () => {
-  if (confirm("Are you sure you want to cancel?")) {
-    LoadingSpinner.navigateTo('home.html');
-  }
-});
+                console.log("Lat:", latitude);
+                console.log("Lng:", longitude);
 
-// 🔙 Back button
-backBtn.addEventListener("click", () => {
-  window.history.back();
+                // Save coordinates temporarily
+                locationInput.dataset.latitude = latitude;
+                locationInput.dataset.longitude = longitude;
+
+            },
+            (error) => {
+                console.log("Location permission denied");
+            }
+        );
+
+    }
+
+    // =========================
+    // SUBMIT REQUEST
+    // =========================
+    form.addEventListener("submit", async (e) => {
+
+        e.preventDefault();
+
+        try {
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "Posting Request...";
+
+            // =========================
+            // GET VALUES
+            // =========================
+            const serviceType = serviceTypeInput.value.trim();
+            const description = descriptionInput.value.trim();
+            const budget = budgetInput.value.trim();
+            const location = locationInput.value.trim();
+            const dateNeeded = dateNeededInput.value.trim();
+            const timeNeeded = timeNeededInput.value.trim();
+            const fullName = fullNameInput.value.trim();
+            const phone = phoneInput.value.trim();
+
+            // =========================
+            // VALIDATION
+            // =========================
+            if (!serviceType) {
+                alert("Please select a service type");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            if (!description) {
+                alert("Please enter a description");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            if (!location) {
+                alert("Please enter your location");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            if (!dateNeeded) {
+                alert("Please select a date needed");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            if (!fullName) {
+                alert("Please enter your full name");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            if (!phone) {
+                alert("Please enter your phone number");
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "Post Request";
+                return;
+            }
+
+            // =========================
+            // INSERT REQUEST
+            // =========================
+            const payload = {
+
+                // USER
+                user_id: currentUser.id,
+                user_email: currentUser.email,
+
+                // REQUEST
+                title: serviceType,
+                description: description,
+                category: serviceType,
+                budget: budget ? Number(budget) : null,
+
+                // LOCATION
+                location: location,
+                latitude: locationInput.dataset.latitude || null,
+                longitude: locationInput.dataset.longitude || null,
+
+                // STATUS
+                status: "open",
+
+                // TIME
+                created_at: new Date().toISOString()
+
+            };
+
+            console.log("Saving payload:", payload);
+
+            const { data, error } = await supabase
+                .from("requests")
+                .insert([payload])
+                .select();
+
+            if (error) {
+                console.error(error);
+                alert(error.message);
+                return;
+            }
+
+            console.log("Request created:", data);
+
+            // =========================
+            // SUCCESS
+            // =========================
+            alert("Request posted successfully!");
+
+            form.reset();
+
+            LoadingSpinner.navigateTo("my-requests.html");
+
+        } catch (error) {
+
+            console.error(error);
+            alert(error?.message || "Something went wrong");
+
+        } finally {
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = "Post Request";
+
+        }
+
+    });
+
 });

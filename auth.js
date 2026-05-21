@@ -77,7 +77,7 @@ function updateStrengthUI(strength) {
     document.getElementById("strength0"),
     document.getElementById("strength1"),
     document.getElementById("strength2"),
-    document.getElementById("strength3")
+    document.getElementById("strength3"),
   ];
 
   const text = document.getElementById("strengthText");
@@ -88,33 +88,15 @@ function updateStrengthUI(strength) {
     bar.className = "flex-1 bg-gray-200 rounded";
   });
 
-  if (strength >= 1) {
-    bars[0].classList.add("bg-red-500");
-  }
+  if (strength >= 1) bars[0].classList.add("bg-red-500");
+  if (strength >= 2) bars[1].classList.add("bg-yellow-500");
+  if (strength >= 3) bars[2].classList.add("bg-blue-500");
+  if (strength >= 4) bars[3].classList.add("bg-green-500");
 
-  if (strength >= 2) {
-    bars[1].classList.add("bg-yellow-500");
-  }
-
-  if (strength >= 3) {
-    bars[2].classList.add("bg-blue-500");
-  }
-
-  if (strength >= 4) {
-    bars[3].classList.add("bg-green-500");
-  }
-
-  const labels = [
-    "Very Weak",
-    "Weak",
-    "Good",
-    "Strong"
-  ];
+  const labels = ["Very Weak", "Weak", "Good", "Strong"];
 
   text.textContent =
-    strength === 0
-      ? "Password strength"
-      : labels[strength - 1];
+    strength === 0 ? "Password strength" : labels[strength - 1];
 }
 
 // ===============================
@@ -132,9 +114,7 @@ if (loginForm) {
 
   function checkLoginInputs() {
     if (loginBtn) {
-      loginBtn.disabled =
-        !emailInput?.value.trim() ||
-        !passwordInput?.value.trim();
+      loginBtn.disabled = !emailInput?.value.trim() || !passwordInput?.value.trim();
     }
   }
 
@@ -171,12 +151,7 @@ if (loginForm) {
 
       if (error) throw error;
 
-      showSuccess("Login successful!");
-
-      setTimeout(() => {
-        window.location.href = "home.html";
-      }, 1500);
-
+      window.location.href = "home.html";
     } catch (error) {
       console.error("Login error:", error);
 
@@ -190,7 +165,6 @@ if (loginForm) {
         default:
           showError(error.message || "Login failed. Please try again.");
       }
-
     } finally {
       if (loginBtn) loginBtn.disabled = false;
       if (buttonText) buttonText.textContent = "Sign In";
@@ -258,7 +232,8 @@ if (registerForm) {
 
   if (fullnameInput) fullnameInput.addEventListener("input", checkRegisterInputs);
   if (emailInput) emailInput.addEventListener("input", checkRegisterInputs);
-  if (confirmPasswordInput) confirmPasswordInput.addEventListener("input", checkRegisterInputs);
+  if (confirmPasswordInput)
+    confirmPasswordInput.addEventListener("input", checkRegisterInputs);
   if (termsInput) termsInput.addEventListener("change", checkRegisterInputs);
 
   // ===============================
@@ -312,22 +287,28 @@ if (registerForm) {
         options: {
           data: {
             full_name: fullname,
-          }
-        }
+          },
+        },
       });
 
       if (authError) throw authError;
 
-      // Create user profile in Supabase
+      // authData.user can be null in some edge cases
+      if (!authData?.user?.id) {
+        throw new Error("Account created but user id was not returned by Supabase.");
+      }
+
       const { error: profileError } = await supabase
-        .from('users')
-        .insert([{
-          uid: authData.user.id,
-          full_name: fullname,
-          email: email,
-          role: 'user',
-          verified: false
-        }]);
+        .from("users")
+        .insert([
+          {
+            id: authData.user.id, // ✅ correct column
+            full_name: fullname,
+            email: email,
+            role: "user",
+            verified: false,
+          },
+        ]);
 
       if (profileError) throw profileError;
 
@@ -339,7 +320,6 @@ if (registerForm) {
       setTimeout(() => {
         window.location.href = "login.html";
       }, 2000);
-
     } catch (error) {
       console.error("Registration error:", error);
 
@@ -353,7 +333,6 @@ if (registerForm) {
         default:
           showError(error.message || "Registration failed. Please try again.");
       }
-
     } finally {
       if (signupBtn) signupBtn.disabled = false;
       if (buttonText) buttonText.textContent = "Create Account";
@@ -390,18 +369,8 @@ if (logoutBtnSideMenu) {
 }
 
 // ===============================
-// AUTH STATE LISTENER
+// EXPORT
 // ===============================
-
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log("Auth state changed:", event, session);
-
-  if (event === 'SIGNED_IN') {
-    console.log("User signed in:", session.user);
-  } else if (event === 'SIGNED_OUT') {
-    console.log("User signed out");
-  }
-});
 
 // Export for use in other files
 export { supabase };

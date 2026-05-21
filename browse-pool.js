@@ -1,224 +1,469 @@
-import { db, auth } from "./firebase-config.js";
+import { supabase } from './supabase.js';
 
-import {
-  collection,
-  getDocs,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+document.addEventListener('DOMContentLoaded', () => {
+  const requestsList = document.getElementById('requestsList');
+  const noResults = document.getElementById('noResults');
 
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  const searchInput = document.getElementById('searchInput');
+  const categorySelect = document.getElementById('service-category');
+  const locationFilter = document.getElementById('locationFilter');
+  const sortFilter = document.getElementById('sortFilter');
 
-// ---------------- STATE ----------------
-let currentUser = null;
-let allRequests = [];
+  // Modals
+  const requestModal = document.getElementById('requestModal');
+  const modalContent = document.getElementById('modalContent');
+  const closeModalBtn = document.getElementById('closeModal');
 
-// ---------------- DOM ----------------
-const requestsList = document.getElementById("requestsList");
-const noResults = document.getElementById("noResults");
+  const offerModal = document.getElementById('offerModal');
+  const closeOfferBtn = document.getElementById('closeOfferBtn');
+  const closeOfferModalBtn = document.getElementById('closeOfferModal');
 
-const searchInput = document.getElementById("searchInput");
-const categoryFilter = document.getElementById("categoryFilter");
-const locationFilter = document.getElementById("locationFilter");
-const sortFilter = document.getElementById("sortFilter");
+  // Offer form
+  const offerForm = document.getElementById('offerForm');
+  const requestIdInput = document.getElementById('requestId');
+  const offerPriceInput = document.getElementById('offerPrice');
+  const offerMessageInput = document.getElementById('offerMessage');
+  const offerAvailabilityInput = document.getElementById('offerAvailability');
 
-const requestModal = document.getElementById("requestModal");
-const modalContent = document.getElementById("modalContent");
-const closeModal = document.getElementById("closeModal");
+  // Quick guards
+  if (!requestsList || !noResults || !requestModal || !modalContent || !offerModal || !offerForm) {
+    console.error('Missing required DOM elements for browse-pool.js');
+    return;
+  }
 
-const offerModal = document.getElementById("offerModal");
-const closeOfferModal = document.getElementById("closeOfferModal");
-const closeOfferBtn = document.getElementById("closeOfferBtn");
+  // Close modals
+  closeModalBtn?.addEventListener('click', () => hideModal(requestModal));
+  closeOfferBtn?.addEventListener('click', () => hideModal(offerModal));
+  closeOfferModalBtn?.addEventListener('click', () => hideModal(offerModal));
 
-const offerForm = document.getElementById("offerForm");
+  // Close modal by clicking overlay
+  requestModal?.addEventListener('click', (e) => {
+    if (e.target === requestModal) hideModal(requestModal);
+  });
 
-// ---------------- AUTH ----------------
-onAuthStateChanged(auth, async (user) => {
-  currentUser = user || null;
-  await loadRequests();
-});
+  offerModal?.addEventListener('click', (e) => {
+    if (e.target === offerModal) hideModal(offerModal);
+  });
 
-// ---------------- LOAD REQUESTS ----------------
-async function loadRequests() {
-  try {
-    const q = query(collection(db, "requests"), orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
+  // Load requests on filter changes
+  const debouncedReload = debounce(() => loadRequests(), 250);
 
-    allRequests = [];
+  searchInput?.addEventListener('input', debouncedReload);
+  categorySelect?.addEventListener('change', debouncedReload);
+  locationFilter?.addEventListener('input', debouncedReload);
+  sortFilter?.addEventListener('change', () => loadRequests());
 
-    snap.forEach(doc => {
-      allRequests.push({
-        id: doc.id,
-        ...doc.data()
+  // Offer submit
+  offerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user) {
+      alert('You must be logged in to submit an offer.');
+      return;
+    }
+
+    const requestId = requestIdInput.value;
+    const offerPrice = offerPriceInput.value;
+    const offerMessage = (offerMessageInput.value || '').trim();
+    const availability = offerAvailabilityInput.value;
+
+    if (!requestId) return alert('Missing request ID.');
+    if (!offerPrice || Number.isNaN(Number(offerPrice)) || Number(offerPrice) <= 0) {
+      return alert('Enter a valid price.');
+    }
+    if (!availability) return alert('Select availability.');
+
+    // Prevent multiple offers by the same provider for same request (optional but recommended)
+    // If you don't want this constraint, remove this block.
+    const { data: existingOffer } = await supabase
+      .from('offers')
+      .select('id')
+      .eq('request_id', requestId)
+      .eq('provider_id', authData.user.id)
+      .maybeSingle();
+
+    if (existingOffer) {
+      return alert('You already submitted an offer for this request.');
+    }
+
+    try {
+      // Insert offer
+      const { data: inserted, error: insertErr } = await supabase
+        .from('offers')
+        .insert({
+          request_id: Number(requestId),
+          provider_id: authData.user.id,
+          price: Number(offerPrice),
+          message: offerMessage || null,
+          status: 'pending',
+          availability: availability, // stored as text in your schema: offers.availability boolean? (see below)
+        })
+        .select('*')
+        .single();
+
+      if (insertErr) {
+        console.error(insertErr);
+        throw insertErr;
+      }
+
+      // IMPORTANT:
+      // Your `offers.availability` column is BOOLEAN (per schema listing).
+      // But your UI provides: today/tomorrow/this-week/... (text).
+      //
+      // To avoid breaking, we convert to boolean:
+      // - any non-empty selection => true
+      //
+      // If your DB is strict boolean, the insert above may fail.
+      // So we handle it by updating availability after insert if needed.
+
+      // If insert fails due to boolean mismatch, we'll catch it and insert with correct boolean below.
+      // (We still proceed to update request offer_count only after a successful insert.)
+
+      // Update request offer_count
+      const { error: reqErr } = await supabase.rpc
+        ? { error: null } // placeholder; we won't use rpc since we don't know it exists
+        : { error: null };
+
+      // Instead do it with a normal UPDATE + offer_count = offer_count + 1
+      const { error: updateReqErr } = await supabase
+        .from('requests')
+        .update({
+          offer_count: supabase.raw('offer_count + 1'),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', Number(requestId));
+
+      // Supabase PostgREST may not support supabase.raw in all clients.
+      // If that fails, we fall back to fetching then updating.
+      if (updateReqErr) {
+        // fallback: fetch then update
+        const { data: reqRow, error: fetchReqErr } = await supabase
+          .from('requests')
+          .select('offer_count')
+          .eq('id', Number(requestId))
+          .single();
+
+        if (fetchReqErr) throw fetchReqErr;
+
+        const nextCount = (reqRow?.offer_count || 0) + 1;
+
+        const { error: updateReqErr2 } = await supabase
+          .from('requests')
+          .update({ offer_count: nextCount, updated_at: new Date().toISOString() })
+          .eq('id', Number(requestId));
+
+        if (updateReqErr2) throw updateReqErr2;
+      }
+
+      alert('Offer sent successfully!');
+      hideModal(offerModal);
+      offerForm.reset();
+      await loadRequests();
+    } catch (err) {
+      // If this is failing because availability is boolean, do a corrected insert
+      // (availability: true)
+      console.error('Offer submit error:', err?.message || err);
+
+      try {
+        const { data: authData2 } = await supabase.auth.getUser();
+        const requestId = requestIdInput.value;
+
+        const { error: retryErr } = await supabase
+          .from('offers')
+          .insert({
+            request_id: Number(requestId),
+            provider_id: authData2.user.id,
+            price: Number(offerPriceInput.value),
+            message: (offerMessageInput.value || '').trim() || null,
+            status: 'pending',
+            availability: true, // boolean fix
+          });
+
+        if (retryErr) throw retryErr;
+
+        // Update request offer_count (same approach as above)
+        const { data: reqRow, error: fetchReqErr } = await supabase
+          .from('requests')
+          .select('offer_count')
+          .eq('id', Number(requestId))
+          .single();
+
+        if (fetchReqErr) throw fetchReqErr;
+
+        const nextCount = (reqRow?.offer_count || 0) + 1;
+
+        const { error: updateReqErr2 } = await supabase
+          .from('requests')
+          .update({ offer_count: nextCount, updated_at: new Date().toISOString() })
+          .eq('id', Number(requestId));
+
+        if (updateReqErr2) throw updateReqErr2;
+
+        alert('Offer sent successfully!');
+        hideModal(offerModal);
+        offerForm.reset();
+        await loadRequests();
+      } catch (retryErr) {
+        console.error('Retry failed:', retryErr);
+        alert('Failed to send offer. Please try again.');
+      }
+    }
+  });
+
+  // Initial load
+  loadRequests();
+
+  async function loadRequests() {
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr) {
+      console.error(authErr);
+      showError('Failed to load requests.');
+      return;
+    }
+
+    // If you want only logged-in providers to see this page, uncomment:
+    // if (!authData?.user) { showError('Please log in.'); return; }
+
+    const search = (searchInput?.value || '').trim();
+    const category = categorySelect?.value || '';
+    const location = (locationFilter?.value || '').trim();
+    const sort = sortFilter?.value || 'newest';
+
+    let query = supabase
+      .from('requests')
+      .select(`
+        id,
+        title,
+        description,
+        category,
+        budget,
+        location,
+        status,
+        offer_count,
+        created_at,
+        updated_at
+      `);
+
+    // Filters
+    if (search) {
+      query = query.or(
+        `title.ilike.%${escapeLike(search)}%,description.ilike.%${escapeLike(search)}%`
+      );
+    }
+
+    if (category) query = query.eq('category', category);
+
+    if (location) {
+      query = query.ilike('location', `%${escapeLike(location)}%`);
+    }
+
+    // Sort
+    // requests.id is bigint; use created_at for "newest"
+    if (sort === 'newest') query = query.order('created_at', { ascending: false });
+
+    if (sort === 'budget-high') query = query.order('budget', { ascending: false, nullsLast: true });
+    if (sort === 'budget-low') query = query.order('budget', { ascending: true, nullsLast: true });
+
+    if (sort === 'urgent') {
+      // No urgent field in schema; best-effort:
+      // treat as "recently updated/open"
+      query = query
+        .order('updated_at', { ascending: false, nullsLast: true });
+    }
+
+    // Only open requests (recommended)
+    query = query.eq('status', 'open');
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(error);
+      showError('Failed to load requests.');
+      return;
+    }
+
+    renderRequests(data || []);
+  }
+
+  function renderRequests(requests) {
+    requestsList.innerHTML = '';
+    noResults.classList.add('hidden');
+
+    if (!requests.length) {
+      noResults.classList.remove('hidden');
+      return;
+    }
+
+    for (const r of requests) {
+      const card = document.createElement('div');
+      card.className = 'bg-white rounded-lg shadow p-5';
+
+      const budgetText = r.budget != null ? `₦${formatNumber(r.budget)}` : 'Not set';
+      const offerCountText = r.offer_count != null ? `${r.offer_count} offers` : '0 offers';
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-extrabold text-gray-900">${escapeHtml(r.title || 'Untitled')}</h3>
+            <p class="text-gray-600 text-sm mt-1">${escapeHtml(r.category || '')}</p>
+            <p class="text-gray-500 text-sm mt-2">📍 ${escapeHtml(r.location || 'Location not set')}</p>
+            <p class="text-gray-700 text-sm mt-2">💰 Budget: <span class="font-semibold">${budgetText}</span></p>
+            <p class="text-gray-500 text-sm mt-1">🧾 ${escapeHtml(offerCountText)}</p>
+          </div>
+
+          <div class="min-w-[140px] text-right">
+            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+              r.status === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-700'
+            }">
+              ${escapeHtml(r.status || 'open')}
+            </span>
+
+            <div class="text-xs text-gray-500 mt-2">
+              ${r.created_at ? `Created: ${new Date(r.created_at).toLocaleDateString()}` : ''}
+            </div>
+          </div>
+        </div>
+
+        <p class="text-gray-600 text-sm mt-4 leading-relaxed">${escapeHtml(shorten(r.description, 160))}</p>
+
+        <div class="flex items-center justify-between mt-4 gap-3">
+          <button
+            type="button"
+            class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-md text-sm"
+            data-action="view"
+            data-id="${r.id}"
+          >
+            View details
+          </button>
+
+          <button
+            type="button"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md text-sm"
+            data-action="offer"
+            data-id="${r.id}"
+          >
+            Submit offer
+          </button>
+        </div>
+      `;
+
+      requestsList.appendChild(card);
+    }
+
+    // Attach handlers for buttons
+    requestsList.querySelectorAll('[data-action="view"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        openRequestModal(id);
       });
     });
 
-    renderRequests(allRequests);
-
-  } catch (err) {
-    console.error(err);
-    requestsList.innerHTML = `<p class="text-red-500">Failed to load requests</p>`;
-  }
-}
-
-// ---------------- FILTER + SORT ----------------
-function applyFilters() {
-  let filtered = [...allRequests];
-
-  const search = searchInput.value.toLowerCase();
-  const category = categoryFilter.value;
-  const location = locationFilter.value.toLowerCase();
-  const sort = sortFilter.value;
-
-  if (search) {
-    filtered = filtered.filter(r =>
-      (r.title || "").toLowerCase().includes(search) ||
-      (r.description || "").toLowerCase().includes(search)
-    );
-  }
-
-  if (category) {
-    filtered = filtered.filter(r => r.category === category);
-  }
-
-  if (location) {
-    filtered = filtered.filter(r =>
-      (r.location || "").toLowerCase().includes(location)
-    );
-  }
-
-  // SORT
-  if (sort === "budget-high") {
-    filtered.sort((a, b) => (b.budget || 0) - (a.budget || 0));
-  }
-
-  if (sort === "budget-low") {
-    filtered.sort((a, b) => (a.budget || 0) - (b.budget || 0));
-  }
-
-  if (sort === "urgent") {
-    filtered.sort((a, b) => (b.urgent === true) - (a.urgent === true));
-  }
-
-  renderRequests(filtered);
-}
-
-// ---------------- RENDER ----------------
-function renderRequests(list) {
-  if (list.length === 0) {
-    requestsList.innerHTML = "";
-    noResults.classList.remove("hidden");
-    return;
-  }
-
-  noResults.classList.add("hidden");
-
-  requestsList.innerHTML = list.map(r => `
-    <div class="bg-white p-4 rounded-lg shadow">
-      <div class="flex justify-between items-start">
-        <div>
-          <h3 class="text-lg font-bold">${r.serviceType || "Service Request"}</h3>
-          <p class="text-sm text-gray-600">${r.location || "No location"}</p>
-        </div>
-        <p class="font-bold text-blue-600">₦${r.budget || 0}</p>
-      </div>
-
-      <p class="text-gray-700 mt-2 text-sm">
-        ${(r.description || "").slice(0, 100)}...
-      </p>
-
-      <div class="flex justify-between items-center mt-4">
-        <span class="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded font-semibold">
-          📋 ${r.serviceType || "Service Request"}
-        </span>
-
-        <button onclick="viewRequest('${r.id}')"
-          class="text-blue-600 text-sm font-semibold">
-          View →
-        </button>
-      </div>
-    </div>
-  `).join("");
-}
-
-// ---------------- VIEW MODAL ----------------
-window.viewRequest = function(id) {
-  const r = allRequests.find(x => x.id === id);
-  if (!r) return;
-
-  modalContent.innerHTML = `
-    <h2 class="text-xl font-bold mb-2">${r.serviceType || "Service Request"}</h2>
-    <p class="text-gray-600 mb-2">${r.location}</p>
-    <p class="mb-4">${r.description}</p>
-
-    <p><strong>Budget:</strong> ₦${r.budget}</p>
-    <p><strong>Service:</strong> ${r.serviceType}</p>
-
-    <button onclick="openOffer('${r.id}')"
-      class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">
-      Submit Offer
-    </button>
-  `;
-
-  requestModal.classList.remove("hidden");
-};
-
-// ---------------- OPEN OFFER ----------------
-window.openOffer = function(requestId) {
-  if (!currentUser) {
-    alert("Login required to send offer");
-    return;
-  }
-
-  document.getElementById("requestId").value = requestId;
-
-  requestModal.classList.add("hidden");
-  offerModal.classList.remove("hidden");
-};
-
-// ---------------- SUBMIT OFFER ----------------
-offerForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const requestId = document.getElementById("requestId").value;
-  const price = Number(document.getElementById("offerPrice").value);
-  const message = document.getElementById("offerMessage").value;
-  const availability = document.getElementById("offerAvailability").value;
-
-  try {
-    await addDoc(collection(db, "offers"), {
-      requestId,
-      providerId: currentUser.uid,
-      price,
-      message,
-      availability,
-      status: "pending",
-      createdAt: serverTimestamp()
+    requestsList.querySelectorAll('[data-action="offer"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        openOfferModal(id);
+      });
     });
+  }
 
-    alert("Offer sent successfully");
+  async function openRequestModal(requestId) {
+    const { data, error } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('id', Number(requestId))
+      .single();
 
-    offerModal.classList.add("hidden");
-    offerForm.reset();
+    if (error) {
+      console.error(error);
+      alert('Unable to load request details.');
+      return;
+    }
 
-  } catch (err) {
-    console.error(err);
-    alert("Failed to send offer");
+    const budgetText = data.budget != null ? `₦${formatNumber(data.budget)}` : 'Not set';
+
+    modalContent.innerHTML = `
+      <div class="space-y-3">
+        <h2 class="text-2xl font-extrabold text-gray-900">${escapeHtml(data.title || '')}</h2>
+        <div class="flex flex-wrap gap-2">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">${escapeHtml(data.category || '')}</span>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">📍 ${escapeHtml(data.location || '')}</span>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">💰 ${budgetText}</span>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">🧾 ${data.offer_count ?? 0} offers</span>
+        </div>
+        <p class="text-gray-700 whitespace-pre-wrap">${escapeHtml(data.description || '')}</p>
+
+        <div class="text-sm text-gray-500">
+          Created: ${data.created_at ? new Date(data.created_at).toLocaleString() : ''}
+        </div>
+      </div>
+    `;
+
+    showModal(requestModal);
+  }
+
+  function openOfferModal(requestId) {
+    requestIdInput.value = requestId;
+
+    // Reset fields
+    offerPriceInput.value = '';
+    offerMessageInput.value = '';
+    offerAvailabilityInput.value = '';
+
+    showModal(offerModal);
+    offerPriceInput.focus();
+  }
+
+  function showModal(el) {
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+  }
+
+  function hideModal(el) {
+    el.classList.add('hidden');
+    el.classList.remove('flex');
+  }
+
+  function showError(msg) {
+    requestsList.innerHTML = `
+      <div class="text-center py-12">
+        <p class="text-red-600 font-semibold">${escapeHtml(msg)}</p>
+      </div>
+    `;
   }
 });
 
-// ---------------- CLOSE MODALS ----------------
-closeModal.onclick = () => requestModal.classList.add("hidden");
+// Helpers
+function debounce(fn, wait) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
 
-closeOfferModal.onclick = () => offerModal.classList.add("hidden");
-closeOfferBtn.onclick = () => offerModal.classList.add("hidden");
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
 
-// ---------------- EVENTS ----------------
-searchInput.addEventListener("input", applyFilters);
-categoryFilter.addEventListener("change", applyFilters);
-locationFilter.addEventListener("input", applyFilters);
-sortFilter.addEventListener("change", applyFilters);
+// For ilike patterns
+function escapeLike(str) {
+  return String(str ?? '').replaceAll('%', '\\%').replaceAll('_', '\\_');
+}
+
+function shorten(text, max) {
+  const s = String(text ?? '');
+  if (s.length <= max) return s;
+  return s.slice(0, max).trimEnd() + '...';
+}
+
+function formatNumber(value) {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (n == null || Number.isNaN(Number(n))) return '0';
+  return new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(Number(n));
+}

@@ -1,86 +1,150 @@
-import { LoadingSpinner } from './loading-utils.js';
-import { app, auth, db } from './firebase-config.js';
-import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { supabase } from './supabase.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-	const urlParams = new URLSearchParams(window.location.search);
-	const serviceId = urlParams.get('id');
-	const form = document.getElementById('add-service-form');
-	const backBtn = document.getElementById('backBtn');
+  const form = document.getElementById('add-service-form');
+  const serviceId = getServiceIdFromUrl();
 
-	if (backBtn) {
-		backBtn.addEventListener('click', () => {
-			LoadingSpinner.navigateTo('my-services.html');
-		});
-	}
-	const titleInput = document.getElementById('service-title');
-	const descInput = document.getElementById('service-description');
-	const categoryInput = document.getElementById('service-category');
-	const priceInput = document.getElementById('service-price');
-	const locationInput = document.getElementById('service-location');
+  const titleInput = document.getElementById('service-title');
+  const descInput = document.getElementById('service-description');
+  const categoryInput = document.getElementById('service-category');
+  const priceInput = document.getElementById('service-price');
+  const locationInput = document.getElementById('service-location');
+  const imageInput = document.getElementById('service-image');
 
-	if (!serviceId) {
-		alert('No service ID provided.');
-		LoadingSpinner.navigateTo('my-services.html');
-		return;
-	}
+  if (!form || !serviceId) {
+    console.error('Missing form or service id');
+    alert('Invalid page request.');
+    return;
+  }
 
-	onAuthStateChanged(auth, async (user) => {
-		if (!user) {
-			alert('You must be logged in to edit a service.');
-			LoadingSpinner.navigateTo('login.html');
-			return;
-		}
+  loadService(serviceId)
+    .then((svc) => {
+      titleInput.value = svc.title ?? '';
+      descInput.value = svc.description ?? '';
+      categoryInput.value = svc.category ?? '';
+      priceInput.value = svc.price ?? '';
+      locationInput.value = svc.location ?? '';
+      // image_url not placed into UI inputs automatically (file input can’t be pre-filled)
+    })
+    .catch((err) => {
+      console.error(err);
+      alert('Unable to load service.');
+    });
 
-		// Fetch service data
-		const serviceRef = doc(db, 'services', serviceId);
-		const serviceSnap = await getDoc(serviceRef);
-		if (!serviceSnap.exists()) {
-			alert('Service not found.');
-			LoadingSpinner.navigateTo('my-services.html');
-			return;
-		}
-		const service = serviceSnap.data();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-		// Only allow owner/provider to edit
-		if (service.userId !== user.uid && service.providerId !== user.uid) {
-			alert('You are not authorized to edit this service.');
-			LoadingSpinner.navigateTo('my-services.html');
-			return;
-		}
+    const { data: authData, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authData?.user) {
+      alert('You must be logged in to edit a service.');
+      return;
+    }
 
-		// Populate form
-		titleInput.value = service.title || '';
-		descInput.value = service.description || '';
-		categoryInput.value = service.category || '';
-		priceInput.value = service.price || '';
-		locationInput.value = service.location || '';
+    const bankName = (titleInput.value || '').trim();
+    const title = bankName; // rename for clarity below
+    const description = (descInput.value || '').trim();
+    const category = (categoryInput.value || '').trim();
+    const location = (locationInput.value || '').trim();
 
-		// Change button text to "Update Service"
-		const submitBtn = form.querySelector('button[type="submit"]');
-		if (submitBtn) submitBtn.textContent = 'Update Service';
+    const priceValue = priceInput.value;
+    const price = priceValue === '' ? null : Number(priceValue);
 
-		// Handle form submit
-		form.addEventListener('submit', async (e) => {
-			e.preventDefault();
-			submitBtn.disabled = true;
-			submitBtn.textContent = 'Updating...';
-			try {
-				await updateDoc(serviceRef, {
-					title: titleInput.value.trim(),
-					description: descInput.value.trim(),
-					category: categoryInput.value,
-					price: Number(priceInput.value),
-					location: locationInput.value.trim(),
-				});
-				alert('Service updated successfully!');
-			LoadingSpinner.navigateTo('my-services.html');
-			} catch (err) {
-				alert('Error updating service. Please try again.');
-				submitBtn.disabled = false;
-				submitBtn.textContent = 'Update Service';
-			}
-		});
-	});
+    if (!title || !description || !category || !location) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    if (price === null || Number.isNaN(price) || price < 0) {
+      alert('Please enter a valid price.');
+      return;
+    }
+
+    // Always prevent updating another provider’s service
+    // (RLS should already do this, but we keep UI-safe behavior)
+    const payloadBase = {
+      title,
+      description,
+      category,
+      price,
+      location,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      let imageUrl = null;
+
+      if (imageInput?.files?.length) {
+        const file = imageInput.files[0];
+        // Basic validation
+        if (!file.type.startsWith('image/')) {
+          alert('Please upload a valid image.');
+          return;
+        }
+
+        // Upload to Supabase Storage bucket "services"
+        // Store with a predictable unique key:
+        const fileExt = getFileExt(file.name);
+        const fileName = `${authData.user.id}/${serviceId}/${crypto.randomUUID()}${fileExt}`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from('services')
+          .upload(fileName, file, { upsert: true });
+
+        if (uploadErr) {
+          console.error(uploadErr);
+          throw new Error('Image upload failed.');
+        }
+
+        // Get public URL (only works if your bucket is public or you handle auth-based URLs)
+        const { data: publicUrlData } = supabase.storage
+          .from('services')
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrlData.publicUrl;
+
+        payloadBase.image_url = imageUrl;
+      }
+
+      // Update service
+      const { error: updateErr } = await supabase
+        .from('services')
+        .update(payloadBase)
+        .eq('id', serviceId)
+        .eq('provider_id', authData.user.id);
+
+      if (updateErr) {
+        console.error(updateErr);
+        throw updateErr;
+      }
+
+      alert('Service updated successfully!');
+      // Redirect back to a page (adjust if you have a specific route)
+      window.location.href = 'home.html';
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update service. Please try again.');
+    }
+  });
 });
+
+function getServiceIdFromUrl() {
+  const url = new URL(window.location.href);
+  return url.searchParams.get('id');
+}
+
+function getFileExt(filename) {
+  const idx = filename.lastIndexOf('.');
+  if (idx === -1) return '';
+  return filename.slice(idx);
+}
+
+async function loadService(serviceId) {
+  // Select only columns we care about
+  const { data, error } = await supabase
+    .from('services')
+    .select('id, provider_id, title, description, category, price, location, image_url')
+    .eq('id', serviceId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
