@@ -1,391 +1,198 @@
 import { supabase } from "./supabase.js";
-import { LoadingSpinner } from "./loading-utils.js";
+import { NotificationService } from "./notification-service.js";
 
 let currentUser = null;
-
 let allRequests = [];
-let currentTab = "open";
+let requestsChannel = null;
 
 // =========================
 // INIT
 // =========================
 document.addEventListener("DOMContentLoaded", async () => {
 
-    // =========================
-    // ELEMENTS
-    // =========================
-    const requestsList = document.getElementById("requestsList");
-    const emptyState = document.getElementById("emptyState");
-
-    const openTab = document.getElementById("openTab");
-    const acceptedTab = document.getElementById("acceptedTab");
-    const offerTab = document.getElementById("offerTab");
-
-    const detailsModal = document.getElementById("detailsModal");
-    const offersModal = document.getElementById("offersModal");
-
-    const closeDetailsModal = document.getElementById("closeDetailsModal");
-    const closeOffersModal = document.getElementById("closeOffersModal");
-
-    const logoutBtn = document.getElementById("logoutBtn");
-    const logoutBtnSideMenu = document.getElementById("logoutBtnSideMenu");
-
-    // =========================
-    // AUTH
-    // =========================
     const { data: sessionData } = await supabase.auth.getSession();
+    currentUser = sessionData?.session?.user || null;
 
-    if (!sessionData.session) {
-        LoadingSpinner.navigateTo("login.html");
+    if (!currentUser) {
+        window.location.href = "login.html";
         return;
     }
 
-    currentUser = sessionData.session.user;
-
-    // =========================
-    // LOAD REQUESTS
-    // =========================
     await loadRequests();
+    setupFilters();
+    setupModals();
+    setupLogout();
+    setupRealtime();
+});
 
-    // =========================
-    // TAB EVENTS
-    // =========================
-    openTab.addEventListener("click", () => {
-        switchTab("open");
-    });
+// =========================
+// SAFE ELEMENT HELPER
+// =========================
+function el(id) {
+    return document.getElementById(id);
+}
 
-    acceptedTab.addEventListener("click", () => {
-        switchTab("accepted");
-    });
+// =========================
+// LOGOUT
+// =========================
+function setupLogout() {
+    el("logoutBtn")?.addEventListener("click", logout);
+    el("logoutBtnSideMenu")?.addEventListener("click", logout);
 
-    offerTab.addEventListener("click", () => {
-        switchTab("offers");
-    });
-
-    // =========================
-    // CLOSE MODALS
-    // =========================
-    closeDetailsModal.onclick = () => {
-        detailsModal.classList.add("hidden");
-    };
-
-    closeOffersModal.onclick = () => {
-        offersModal.classList.add("hidden");
-    };
-
-    // =========================
-    // LOGOUT
-    // =========================
     async function logout() {
         await supabase.auth.signOut();
-        LoadingSpinner.navigateTo("login.html");
+        window.location.href = "login.html";
     }
-
-    if (logoutBtn) logoutBtn.onclick = logout;
-    if (logoutBtnSideMenu) logoutBtnSideMenu.onclick = logout;
-});
+}
 
 // =========================
 // LOAD REQUESTS
 // =========================
 async function loadRequests() {
 
-    const requestsList = document.getElementById("requestsList");
+    const list = el("requestsList");
 
-    requestsList.innerHTML = `
-        <div class="text-center py-12">
-            <p class="text-gray-500">Loading your requests...</p>
+    if (!list) return;
+
+    list.innerHTML = `
+        <div class="text-center py-10 text-gray-500">
+            Loading requests...
         </div>
     `;
 
-    try {
+    const { data, error } = await supabase
+        .from("requests")
+        .select(`
+            id, title, description, category, budget,
+            location, status, created_at, offer_count, user_id,
+            profiles:user_id (id, email, full_name, profile_picture)
+        `)
+        .order("created_at", { ascending: false });
 
-        const { data, error } = await supabase
-            .from("requests")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        allRequests = data || [];
-
-        updateCounts();
-
-        renderRequests();
-
-    } catch (error) {
+    if (error) {
+        list.innerHTML = `<p class="text-red-500">Failed to load requests</p>`;
         console.error(error);
-
-        requestsList.innerHTML = `
-            <div class="text-center py-12 text-red-500">
-                Failed to load requests
-            </div>
-        `;
-    }
-}
-
-// =========================
-// UPDATE COUNTS
-// =========================
-function updateCounts() {
-
-    const openCount = document.getElementById("openCount");
-    const acceptedCount = document.getElementById("acceptedCount");
-    const offerCount = document.getElementById("offerCount");
-
-    const openRequests = allRequests.filter(r => r.status !== "accepted");
-
-    const acceptedRequests = allRequests.filter(r => r.status === "accepted");
-
-    let totalOffers = 0;
-
-    allRequests.forEach(r => {
-        totalOffers += r.offer_count || 0;
-    });
-
-    openCount.textContent = openRequests.length;
-    acceptedCount.textContent = acceptedRequests.length;
-    offerCount.textContent = totalOffers;
-}
-
-// =========================
-// SWITCH TAB
-// =========================
-function switchTab(tab) {
-
-    currentTab = tab;
-
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.classList.remove(
-            "active",
-            "border-blue-600",
-            "text-blue-600"
-        );
-
-        btn.classList.add("text-gray-600");
-    });
-
-    const activeBtn = document.getElementById(`${tab}Tab`);
-
-    activeBtn.classList.add(
-        "border-blue-600",
-        "text-blue-600"
-    );
-
-    renderRequests();
-}
-
-// =========================
-// RENDER REQUESTS
-// =========================
-function renderRequests() {
-
-    const requestsList = document.getElementById("requestsList");
-    const emptyState = document.getElementById("emptyState");
-
-    let filtered = [...allRequests];
-
-    // =========================
-    // FILTER BY TAB
-    // =========================
-    if (currentTab === "open") {
-        filtered = filtered.filter(r => r.status !== "accepted");
-    }
-
-    if (currentTab === "accepted") {
-        filtered = filtered.filter(r => r.status === "accepted");
-    }
-
-    if (currentTab === "offers") {
-        filtered = filtered.filter(r => (r.offer_count || 0) > 0);
-    }
-
-    requestsList.innerHTML = "";
-
-    // =========================
-    // EMPTY STATE
-    // =========================
-    if (!filtered.length) {
-        emptyState.classList.remove("hidden");
         return;
     }
 
-    emptyState.classList.add("hidden");
+    allRequests = data || [];
+    renderRequests(allRequests);
+}
 
-    // =========================
-    // RENDER CARDS
-    // =========================
-    filtered.forEach(request => {
+// =========================
+// NORMALIZE PROFILE (IMPORTANT FIX)
+// =========================
+function normalizeProfile(profile) {
+    if (!profile) return null;
+    return Array.isArray(profile) ? profile[0] : profile;
+}
+
+// =========================
+// RENDER
+// =========================
+function renderRequests(requests) {
+
+    const list = el("requestsList");
+    const empty = el("noResults");
+
+    if (!list) return;
+
+    list.innerHTML = "";
+
+    if (!requests.length) {
+        if (empty) empty.classList.remove("hidden");
+        return;
+    }
+
+    if (empty) empty.classList.add("hidden");
+
+    requests.forEach(r => {
+
+        const profile = normalizeProfile(r.profiles);
+
+        const email = profile?.email || "User not available";
+        const name = profile?.full_name || email;
 
         const card = document.createElement("div");
 
-        card.className = `
-            bg-white
-            rounded-xl
-            shadow-sm
-            hover:shadow-lg
-            transition
-            p-6
-        `;
-
-        const statusColor =
-            request.status === "accepted"
-                ? "bg-green-100 text-green-700"
-                : "bg-yellow-100 text-yellow-700";
+        card.className = "bg-white rounded-xl shadow p-5";
 
         card.innerHTML = `
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-                <div class="flex-1">
-
-                    <div class="flex items-center gap-3 mb-2">
-
-                        <h2 class="text-xl font-bold text-gray-900">
-                            ${request.title || "Untitled Request"}
-                        </h2>
-
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusColor}">
-                            ${request.status || "open"}
-                        </span>
-
-                    </div>
-
-                    <p class="text-gray-600 line-clamp-2">
-                        ${request.description || ""}
-                    </p>
-
-                    <div class="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
-
-                        <span>
-                            📍 ${request.location || "No location"}
-                        </span>
-
-                        <span>
-                            🗂 ${request.category || "General"}
-                        </span>
-
-                        <span>
-                            💰 ₦${Number(request.budget || 0).toLocaleString()}
-                        </span>
-
-                        <span>
-                            📩 ${request.offer_count || 0} offers
-                        </span>
-
-                    </div>
-
+            <div class="flex items-center gap-3 mb-3">
+                <img src="${profile?.profile_picture || 'https://ui-avatars.com/api/?name=User'}"
+                     class="w-10 h-10 rounded-full" />
+                <div>
+                    <p class="text-xs text-gray-500">Posted by</p>
+                    <p class="font-semibold">${email}</p>
                 </div>
+            </div>
 
-                <div class="flex flex-col gap-2">
+            <h2 class="text-xl font-bold">${r.title}</h2>
 
-                    <button
-                        class="view-btn bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-                        data-id="${request.id}"
-                    >
-                        View
-                    </button>
+            <p class="text-gray-600 text-sm mt-2">
+                ${r.description || "No description"}
+            </p>
 
-                    <button
-                        class="offers-btn border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
-                        data-id="${request.id}"
-                    >
-                        Offers
-                    </button>
+            <div class="flex justify-between mt-4 text-sm text-gray-500">
+                <span>📍 ${r.location || "N/A"}</span>
+                <span>💰 ₦${Number(r.budget || 0).toLocaleString()}</span>
+                <span>📩 ${r.offer_count || 0} offers</span>
+            </div>
 
-                </div>
+            <div class="mt-4 flex gap-2">
+                <button class="view-btn bg-blue-600 text-white px-3 py-2 rounded"
+                    data-id="${r.id}">
+                    View
+                </button>
 
+                <button class="offer-btn border px-3 py-2 rounded"
+                    data-id="${r.id}">
+                    Offers
+                </button>
             </div>
         `;
 
-        requestsList.appendChild(card);
+        list.appendChild(card);
     });
 
-    // =========================
-    // VIEW EVENTS
-    // =========================
+    setupButtons();
+}
+
+// =========================
+// BUTTON EVENTS
+// =========================
+function setupButtons() {
+
     document.querySelectorAll(".view-btn").forEach(btn => {
-
-        btn.addEventListener("click", () => {
-
-            const requestId = btn.dataset.id;
-
-            const request = allRequests.find(r => r.id == requestId);
-
-            if (request) {
-                openDetailsModal(request);
-            }
-        });
+        btn.onclick = () => openDetails(btn.dataset.id);
     });
 
-    // =========================
-    // OFFERS EVENTS
-    // =========================
-    document.querySelectorAll(".offers-btn").forEach(btn => {
-
-        btn.addEventListener("click", async () => {
-
-            const requestId = btn.dataset.id;
-
-            await openOffersModal(requestId);
-        });
+    document.querySelectorAll(".offer-btn").forEach(btn => {
+        btn.onclick = () => openOffers(btn.dataset.id);
     });
 }
 
 // =========================
 // DETAILS MODAL
 // =========================
-function openDetailsModal(request) {
+function openDetails(id) {
 
-    const modal = document.getElementById("detailsModal");
-    const content = document.getElementById("detailsContent");
+    const request = allRequests.find(r => r.id == id);
+    if (!request) return;
+
+    const modal = el("detailsModal");
+    const content = el("detailsContent");
+
+    const profile = normalizeProfile(request.profiles);
 
     content.innerHTML = `
-        <h2 class="text-2xl font-bold mb-4">
-            ${request.title}
-        </h2>
+        <h2 class="text-2xl font-bold">${request.title}</h2>
+        <p class="text-gray-600 mt-2">${request.description}</p>
 
-        <div class="space-y-4">
-
-            <div>
-                <p class="text-sm text-gray-500">Description</p>
-                <p class="text-gray-800">
-                    ${request.description || "No description"}
-                </p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-
-                <div>
-                    <p class="text-sm text-gray-500">Category</p>
-                    <p class="font-semibold">
-                        ${request.category || "General"}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">Budget</p>
-                    <p class="font-semibold">
-                        ₦${Number(request.budget || 0).toLocaleString()}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">Location</p>
-                    <p class="font-semibold">
-                        ${request.location || "N/A"}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">Status</p>
-                    <p class="font-semibold capitalize">
-                        ${request.status || "open"}
-                    </p>
-                </div>
-
-            </div>
-
+        <div class="mt-4 text-sm text-gray-500">
+            <p>Email: ${profile?.email || "N/A"}</p>
+            <p>Location: ${request.location || "N/A"}</p>
+            <p>Budget: ₦${Number(request.budget || 0).toLocaleString()}</p>
         </div>
     `;
 
@@ -393,152 +200,99 @@ function openDetailsModal(request) {
 }
 
 // =========================
-// OPEN OFFERS MODAL
+// OFFERS MODAL (FIXED SAFE VERSION)
 // =========================
-async function openOffersModal(requestId) {
+async function openOffers(id) {
 
-    const modal = document.getElementById("offersModal");
-    const content = document.getElementById("offersContent");
-
-    content.innerHTML = `
-        <div class="text-center py-8 text-gray-500">
-            Loading offers...
-        </div>
-    `;
+    const modal = el("offersModal");
+    const content = el("offersContent");
 
     modal.classList.remove("hidden");
 
-    try {
+    content.innerHTML = "Loading offers...";
 
-        const { data, error } = await supabase
-            .from("offers")
-            .select("*")
-            .eq("request_id", requestId)
-            .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+        .from("offers")
+        .select("*")
+        .eq("request_id", id)
+        .order("created_at", { ascending: false });
 
-        if (error) throw error;
+    if (error) {
+        content.innerHTML = "Failed to load offers";
+        return;
+    }
 
-        if (!data.length) {
+    if (!data.length) {
+        content.innerHTML = "No offers yet";
+        return;
+    }
 
-            content.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    No offers yet
-                </div>
-            `;
+    content.innerHTML = "";
 
-            return;
-        }
+    for (const offer of data) {
 
-        content.innerHTML = "";
+        const card = document.createElement("div");
+        card.className = "border p-3 rounded mb-2";
 
-        data.forEach(offer => {
-
-            const card = document.createElement("div");
-
-            card.className = `
-                border
-                rounded-xl
-                p-4
-                mb-4
-            `;
-
-            card.innerHTML = `
-                <div class="flex items-center justify-between mb-3">
-
-                    <div>
-                        <p class="font-bold">
-                            ₦${Number(offer.price || 0).toLocaleString()}
-                        </p>
-
-                        <p class="text-sm text-gray-500">
-                            ${offer.availability || "Flexible"}
-                        </p>
-                    </div>
-
-                    <button
-                        class="accept-offer-btn bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                        data-offer="${offer.id}"
-                        data-provider="${offer.provider_id}"
-                        data-request="${requestId}"
-                    >
-                        Accept
-                    </button>
-
-                </div>
-
-                <p class="text-gray-700">
-                    ${offer.message || ""}
-                </p>
-            `;
-
-            content.appendChild(card);
-        });
-
-        // =========================
-        // ACCEPT OFFER
-        // =========================
-        document.querySelectorAll(".accept-offer-btn").forEach(btn => {
-
-            btn.addEventListener("click", async () => {
-
-                const offerId = btn.dataset.offer;
-                const providerId = btn.dataset.provider;
-                const requestId = btn.dataset.request;
-
-                await acceptOffer(
-                    offerId,
-                    providerId,
-                    requestId
-                );
-            });
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        content.innerHTML = `
-            <div class="text-center py-8 text-red-500">
-                Failed to load offers
-            </div>
+        card.innerHTML = `
+            <p>💰 ₦${offer.price}</p>
+            <p>${offer.message || ""}</p>
+            <p class="text-sm text-gray-500">${offer.status}</p>
         `;
+
+        content.appendChild(card);
     }
 }
 
 // =========================
-// ACCEPT OFFER
+// FILTER (SAFE)
 // =========================
-async function acceptOffer(
-    offerId,
-    providerId,
-    requestId
-) {
+function setupFilters() {
 
-    try {
+    const search = el("searchInput");
 
-        // UPDATE REQUEST
-        const { error: requestError } = await supabase
-            .from("requests")
-            .update({
-                status: "accepted",
-                accepted_provider_id: providerId,
-                accepted_offer_id: offerId
-            })
-            .eq("id", requestId);
+    search?.addEventListener("input", () => {
 
-        if (requestError) throw requestError;
+        const value = search.value.toLowerCase();
 
-        alert("Offer accepted successfully!");
+        const filtered = allRequests.filter(r =>
+            (r.title || "").toLowerCase().includes(value) ||
+            (r.description || "").toLowerCase().includes(value)
+        );
 
-        // OPTIONAL CHAT REDIRECT
-        window.location.href = `
-            chat.html?user=${providerId}
-        `;
+        renderRequests(filtered);
+    });
+}
 
-    } catch (error) {
+// =========================
+// MODALS CLOSE SAFE
+// =========================
+function setupModals() {
 
-        console.error(error);
+    el("closeDetailsModal")?.addEventListener("click", () => {
+        el("detailsModal")?.classList.add("hidden");
+    });
 
-        alert("Failed to accept offer");
-    }
+    el("closeOffersModal")?.addEventListener("click", () => {
+        el("offersModal")?.classList.add("hidden");
+    });
+}
+
+// =========================
+// REALTIME (OPTIONAL)
+// =========================
+function setupRealtime() {
+
+    if (!currentUser) return;
+
+    requestsChannel = supabase
+        .channel("requests-feed")
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "requests"
+        }, () => {
+            loadRequests();
+        })
+        .subscribe();
 }

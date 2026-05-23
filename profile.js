@@ -307,6 +307,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         try {
 
+            if (!backToDashboardBtn) {
+                return;
+            }
+
             const { data, error } = await supabase
                 .from("services")
                 .select("id")
@@ -318,16 +322,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 throw error;
             }
 
-            // SHOW DASHBOARD BUTTON
             if (data && data.length > 0) {
-
                 backToDashboardBtn.classList.remove("hidden");
                 backToDashboardBtn.style.display = "block";
+            } else {
+                backToDashboardBtn.classList.add("hidden");
+                backToDashboardBtn.style.display = "none";
             }
 
         } catch (error) {
 
             console.error(error);
+
+            if (backToDashboardBtn) {
+                backToDashboardBtn.classList.add("hidden");
+                backToDashboardBtn.style.display = "none";
+            }
         }
     }
 

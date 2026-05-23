@@ -95,7 +95,18 @@
             <div id="service-details" class="space-y-3">
                 <!-- Service details will be loaded here -->
                 <p class="text-gray-600"><strong class="font-medium text-gray-900">Service:</strong> <span id="service-title"></span></p>
-                <p class="text-gray-600"><strong class="font-medium text-gray-900">Provider:</strong> <span id="provider-name"></span></p>
+                <div class="flex items-center gap-3 mt-4">
+                    <img
+                        id="provider-picture"
+                        src="https://ui-avatars.com/api/?name=User"
+                        alt="Provider avatar"
+                        class="w-12 h-12 rounded-full object-cover border border-gray-200"
+                    />
+                    <div>
+                        <p class="text-sm text-gray-500">Service Provider</p>
+                        <p class="font-semibold text-gray-900" id="provider-name"></p>
+                    </div>
+                </div>
             </div>
             
             <!-- Price Breakdown -->

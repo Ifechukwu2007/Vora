@@ -61,6 +61,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     // =========================
     logoutBtn?.addEventListener("click", logout);
     logoutBtnSideMenu?.addEventListener("click", logout);
+
+    // =========================
+    // LOAD REVIEW STATS
+    // =========================
+    await loadRequestPoolReviewStats();
 });
 
 // =========================
@@ -165,4 +170,49 @@ function renderRequests(requests) {
 async function logout() {
     await supabase.auth.signOut();
     window.location.href = "login.html";
+}
+
+// =========================
+// REQUEST POOL REVIEW STATS
+// =========================
+async function loadRequestPoolReviewStats() {
+    const reviewStatsElement = document.getElementById('requestPoolReviewStats');
+
+    if (!reviewStatsElement) return;
+
+    try {
+        reviewStatsElement.innerHTML = `
+            <span class="text-blue-600">⏳</span>
+            Loading rating information...
+        `;
+
+        const { data: reviews, error } = await supabase
+            .from('reviews')
+            .select('rating, user_id');
+
+        if (error) throw error;
+
+        const totalReviews = (reviews || []).length;
+        const uniqueProviders = new Set((reviews || []).map((review) => review.user_id).filter(Boolean)).size;
+        const totalRating = (reviews || []).reduce((sum, review) => sum + Number(review.rating || 0), 0);
+        const averageRating = totalReviews ? (totalRating / totalReviews).toFixed(1) : '0.0';
+        const stars = totalReviews ? '★'.repeat(Math.round(averageRating)) + '☆'.repeat(5 - Math.round(averageRating)) : '☆☆☆☆☆';
+
+        if (totalReviews > 0) {
+            reviewStatsElement.innerHTML = `
+                <span class="font-semibold text-gray-900">${averageRating}/5 • ${stars}</span>
+                <span class="text-gray-600">•</span>
+                <span class="text-gray-700">${totalReviews} review${totalReviews !== 1 ? 's' : ''} from ${uniqueProviders} provider${uniqueProviders !== 1 ? 's' : ''}</span>
+            `;
+        } else {
+            reviewStatsElement.innerHTML = `
+                <span class="text-gray-700">No ratings yet — join Vora and start earning 5-star reviews today!</span>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading request pool review stats:', error);
+        reviewStatsElement.innerHTML = `
+            <span class="text-red-700">⚠️ Could not load rating info right now</span>
+        `;
+    }
 }

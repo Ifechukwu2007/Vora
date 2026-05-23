@@ -1,543 +1,508 @@
-import { LoadingSpinner } from "./loading-utils.js";
-import { supabase } from "./supabase.js";
+import { supabase } from './supabase.js';
 
-// ================= STATE =================
-let user = null;
-let bookings = [];
-let services = [];
-let offers = [];
+document.addEventListener('DOMContentLoaded', async () => {
 
-// ================= DOM ELEMENTS =================
-const noServiceOverlay = document.getElementById("noServiceOverlay");
-const providerName = document.getElementById("providerName");
+    // =========================
+    // ELEMENTS
+    // =========================
+    const providerName = document.getElementById('providerName');
 
-// Booking & Revenue Stats
-const totalBookings = document.getElementById("totalBookings");
-const totalRevenue = document.getElementById("totalRevenue");
-const activeServices = document.getElementById("activeServices");
+    const totalBookings = document.getElementById('totalBookings');
+    const totalRevenue = document.getElementById('totalRevenue');
+    const activeServices = document.getElementById('activeServices');
+    const successRate = document.getElementById('successRate');
 
-// Offer Stats
-const totalOffers = document.getElementById("totalOffers");
-const totalWins = document.getElementById("totalWins");
-const totalCompleted = document.getElementById("totalCompleted");
-const successRate = document.getElementById("successRate");
-const winRateBar = document.getElementById("winRateBar");
-const winRatePercent = document.getElementById("winRatePercent");
+    const totalOffers = document.getElementById('totalOffers');
+    const totalWins = document.getElementById('totalWins');
+    const totalCompleted = document.getElementById('totalCompleted');
 
-// Sections
-const todayBookings = document.getElementById("todayBookings");
-const activeOffersList = document.getElementById("activeOffersList");
-const upcomingBookings = document.getElementById("upcomingBookings");
-const recentServices = document.getElementById("recentServices");
-const activityFeed = document.getElementById("activityFeed");
+    const todayBookings = document.getElementById('todayBookings');
+    const upcomingBookings = document.getElementById('upcomingBookings');
+    const recentServices = document.getElementById('recentServices');
+    const activityFeed = document.getElementById('activityFeed');
+    const activeOffersList = document.getElementById('activeOffersList');
 
-// Modal
-const offerDetailsModal = document.getElementById("offerDetailsModal");
-const offerDetailsContent = document.getElementById("offerDetailsContent");
-const closeOfferModal = document.getElementById("closeOfferModal");
+    const noServiceOverlay = document.getElementById('noServiceOverlay');
 
-// ================= STATUS CONSTANTS =================
-const STATUS = {
-  PENDING: "pending",
-  ACCEPTED: "accepted",
-  REJECTED: "rejected",
-  CANCELLED: "cancelled",
-  AWAITING_PAYMENT: "awaiting_payment",
-  COMPLETED: "completed"
-};
+    const winRateBar = document.getElementById('winRateBar');
+    const winRatePercent = document.getElementById('winRatePercent');
 
-let selectedOffer = null;
+    const logoutBtns = document.querySelectorAll('[data-logout], #logoutBtn');
 
-// ================= AUTH & INITIALIZATION =================
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  user = session?.user ?? null;
-
-  if (!user) {
-    LoadingSpinner.navigateTo("login.html");
-    return;
-  }
-
-  await loadDashboardData();
-  checkUserHasServices();
-  render();
-});
-
-// ================= LOAD DATA =================
-async function loadDashboardData() {
-  try {
-    // Load bookings for this provider
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from("bookings")
-      .select("*")
-      .eq("provider_id", user.id)
-      .order("date", { ascending: false });
-
-    if (bookingsError) throw bookingsError;
-    bookings = bookingsData || [];
-
-    // Load offers for this provider
-    const { data: offersData, error: offersError } = await supabase
-      .from("offers")
-      .select("*")
-      .eq("provider_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (offersError) throw offersError;
-    offers = offersData || [];
-
-    // Load services for this provider
-    const { data: servicesData, error: servicesError } = await supabase
-      .from("services")
-      .select("*")
-      .eq("provider_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (servicesError) throw servicesError;
-    services = servicesData || [];
-
-    // Load user profile
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("full_name")
-      .eq("id", user.id)
-      .single();
-
-    if (userError && userError.code !== "PGRST116") throw userError;
-
-    if (userData?.full_name && providerName) {
-      providerName.textContent = userData.full_name;
-    }
-  } catch (error) {
-    console.error("Error loading dashboard data:", error);
-  }
-}
-
-// ================= CHECK USER HAS SERVICES =================
-async function checkUserHasServices() {
-  try {
-    const { data, error } = await supabase
-      .from("services")
-      .select("id")
-      .eq("provider_id", user.id)
-      .limit(1);
-
-    if (error && error.code !== "PGRST116") throw error;
-
-    if (!data || data.length === 0) {
-      if (noServiceOverlay) {
-        noServiceOverlay.classList.remove("hidden");
-      }
-    } else {
-      if (noServiceOverlay) {
-        noServiceOverlay.classList.add("hidden");
-      }
-    }
-  } catch (error) {
-    console.error("Error checking services:", error);
-  }
-}
-
-// ================= RENDER DASHBOARD =================
-function render() {
-  renderStats();
-  renderTodayBookings();
-  renderActiveOffers();
-  renderUpcomingBookings();
-  renderServices();
-  renderActivity();
-}
-
-// ================= RENDER STATS =================
-function renderStats() {
-  // Booking stats
-  if (totalBookings) {
-    totalBookings.textContent = bookings.length;
-  }
-
-  const revenue = bookings.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-  if (totalRevenue) {
-    totalRevenue.textContent = `₦${revenue.toLocaleString()}`;
-  }
-
-  if (activeServices) {
-    activeServices.textContent = services.length;
-  }
-
-  // Offer stats
-  if (totalOffers) {
-    totalOffers.textContent = offers.length;
-  }
-
-  const wins = offers.filter(o =>
-    o.status === STATUS.ACCEPTED ||
-    o.status === STATUS.AWAITING_PAYMENT ||
-    o.status === STATUS.COMPLETED
-  ).length;
-
-  if (totalWins) {
-    totalWins.textContent = wins;
-  }
-
-  const completed = offers.filter(o => o.status === STATUS.COMPLETED).length;
-  if (totalCompleted) {
-    totalCompleted.textContent = completed;
-  }
-
-  const successPercent = offers.length > 0 ? Math.round((wins / offers.length) * 100) : 0;
-  if (successRate) {
-    successRate.textContent = `${successPercent}%`;
-  }
-
-  if (winRateBar) {
-    winRateBar.style.width = `${successPercent}%`;
-  }
-
-  if (winRatePercent) {
-    winRatePercent.textContent = successPercent;
-  }
-}
-
-// ================= RENDER TODAY'S BOOKINGS =================
-function renderTodayBookings() {
-  const today = new Date().toISOString().split("T")[0];
-  const todayList = bookings.filter((b) => {
-    const bookingDate = new Date(b.date).toISOString().split("T")[0];
-    return bookingDate === today;
-  });
-
-  if (todayList.length === 0) {
-    todayBookings.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No bookings scheduled for today</p>';
-    return;
-  }
-
-  todayBookings.innerHTML = todayList
-    .map(
-      (b) => `
-    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-      <div class="flex justify-between items-start">
-        <div>
-          <p class="font-medium text-gray-900">${b.customer_name || "Unknown"}</p>
-          <p class="text-sm text-gray-600">${new Date(b.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</p>
-        </div>
-        <p class="font-semibold text-gray-900">₦${Number(b.amount || 0).toLocaleString()}</p>
-      </div>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// ================= RENDER ACTIVE OFFERS =================
-function renderActiveOffers() {
-  const activeOffers = offers.filter(o =>
-    o.status !== STATUS.COMPLETED &&
-    o.status !== STATUS.REJECTED &&
-    o.status !== STATUS.CANCELLED
-  );
-
-  if (activeOffers.length === 0) {
-    activeOffersList.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No active offers</p>';
-    return;
-  }
-
-  activeOffersList.innerHTML = activeOffers
-    .slice(0, 5)
-    .map((o) => `
-    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-      <div class="flex justify-between items-start mb-3">
-        <div>
-          <p class="font-bold text-gray-900">₦${Number(o.price || 0).toLocaleString()}</p>
-          <p class="text-xs text-gray-500 mt-1">Status: <span class="font-semibold uppercase">${o.status}</span></p>
-        </div>
-      </div>
-      ${o.message ? `<p class="text-sm text-gray-600 mb-3">${o.message}</p>` : ''}
-      <div class="flex gap-2 flex-wrap">
-        <button onclick="window.openOffer('${o.id}')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200">
-          View
-        </button>
-        ${o.status === STATUS.PENDING ? `
-          <button onclick="window.acceptOffer('${o.id}')" class="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200">
-            Accept
-          </button>
-          <button onclick="window.rejectOffer('${o.id}')" class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm font-medium hover:bg-red-200">
-            Reject
-          </button>
-        ` : ''}
-        ${o.status === STATUS.ACCEPTED ? `
-          <button onclick="window.markAwaitingPayment('${o.id}')" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm font-medium hover:bg-yellow-200">
-            Payment Received
-          </button>
-        ` : ''}
-        ${o.status === STATUS.AWAITING_PAYMENT ? `
-          <button onclick="window.markCompleted('${o.id}')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200">
-            Mark Completed
-          </button>
-        ` : ''}
-      </div>
-    </div>
-  `).join("");
-}
-
-// ================= RENDER UPCOMING BOOKINGS =================
-function renderUpcomingBookings() {
-  const today = new Date().toISOString().split("T")[0];
-  const upcomingList = bookings.filter((b) => {
-    const bookingDate = new Date(b.date).toISOString().split("T")[0];
-    return bookingDate > today;
-  });
-
-  if (upcomingList.length === 0) {
-    upcomingBookings.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No upcoming bookings</p>';
-    return;
-  }
-
-  upcomingBookings.innerHTML = upcomingList
-    .slice(0, 5)
-    .map(
-      (b) => `
-    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-      <div class="flex justify-between items-start">
-        <div>
-          <p class="font-medium text-gray-900">${b.customer_name || "Unknown"}</p>
-          <p class="text-sm text-gray-600">${new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-        </div>
-        <p class="font-semibold text-gray-900">₦${Number(b.amount || 0).toLocaleString()}</p>
-      </div>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// ================= RENDER SERVICES =================
-function renderServices() {
-  if (services.length === 0) {
-    recentServices.innerHTML = `
-      <div class="text-center py-4">
-        <p class="text-gray-500 text-sm mb-3">No services added yet</p>
-        <a href="add-service.html" class="text-blue-600 text-sm font-medium hover:underline">Add a Service</a>
-      </div>
-    `;
-    return;
-  }
-
-  recentServices.innerHTML = services
-    .slice(0, 3)
-    .map(
-      (s) => `
-    <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-      <p class="font-medium text-gray-900">${s.title || "Untitled Service"}</p>
-      <p class="text-sm text-gray-600">₦${Number(s.price || 0).toLocaleString()}</p>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// ================= RENDER ACTIVITY FEED =================
-function renderActivity() {
-  const combined = [...bookings, ...offers]
-    .sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date))
-    .slice(0, 8);
-
-  if (combined.length === 0) {
-    activityFeed.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No recent activity</p>';
-    return;
-  }
-
-  activityFeed.innerHTML = combined
-    .map((item) => {
-      const isOffer = item.price !== undefined;
-      const date = new Date(item.created_at || item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const label = isOffer ? `Offer (₦${Number(item.price).toLocaleString()})` : `Booking (₦${Number(item.amount).toLocaleString()})`;
-      const status = item.status || "pending";
-
-      return `
-    <div class="border-b border-gray-200 pb-3 last:border-b-0">
-      <p class="text-sm text-gray-700">${label} • ${status}</p>
-      <p class="text-xs text-gray-500 mt-1">${date}</p>
-    </div>
-  `;
-    })
-    .join("");
-}
-
-// ================= OFFER MANAGEMENT FUNCTIONS =================
-async function updateOffer(id, data) {
-  const { error } = await supabase
-    .from("offers")
-    .update(data)
-    .eq("id", id);
-
-  if (error) {
-    console.error("Error updating offer:", error);
-    throw error;
-  }
-}
-
-window.acceptOffer = async (id) => {
-  try {
-    LoadingSpinner.show?.();
-    await updateOffer(id, { status: STATUS.ACCEPTED });
-    await loadDashboardData();
-    render();
-  } catch (error) {
-    alert("Failed to accept offer");
-  } finally {
-    LoadingSpinner.hide?.();
-  }
-};
-
-window.rejectOffer = async (id) => {
-  try {
-    LoadingSpinner.show?.();
-    await updateOffer(id, { status: STATUS.REJECTED });
-    await loadDashboardData();
-    render();
-  } catch (error) {
-    alert("Failed to reject offer");
-  } finally {
-    LoadingSpinner.hide?.();
-  }
-};
-
-window.cancelOffer = async (id) => {
-  try {
-    LoadingSpinner.show?.();
-    await updateOffer(id, { status: STATUS.CANCELLED });
-    await loadDashboardData();
-    render();
-    offerDetailsModal.classList.add("hidden");
-  } catch (error) {
-    alert("Failed to cancel offer");
-  } finally {
-    LoadingSpinner.hide?.();
-  }
-};
-
-window.markAwaitingPayment = async (id) => {
-  try {
-    LoadingSpinner.show?.();
-    await updateOffer(id, {
-      status: STATUS.AWAITING_PAYMENT,
-      payment_received_at: new Date().toISOString()
+    // =========================
+    // LOGOUT
+    // =========================
+    logoutBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            window.location.href = 'login.html';
+        });
     });
-    await loadDashboardData();
-    render();
-  } catch (error) {
-    alert("Failed to update offer");
-  } finally {
-    LoadingSpinner.hide?.();
-  }
-};
 
-window.markCompleted = async (id) => {
-  try {
-    const offer = offers.find(o => o.id === id);
-    if (!offer) {
-      alert("Offer not found");
-      return;
+    // =========================
+    // GET USER
+    // =========================
+    const authResp = await supabase.auth.getUser();
+    const user = authResp?.data?.user;
+    const authError = authResp?.error;
+
+    if (authError || !user) {
+        window.location.href = 'login.html';
+        return;
     }
 
-    if (offer.status !== STATUS.AWAITING_PAYMENT) {
-      alert("You must confirm payment first before completing this job.");
-      return;
+    // =========================
+    // LOAD USER PROFILE
+    // =========================
+    async function loadUserProfile() {
+
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        if (error) {
+            console.error(error);
+            if (providerName) providerName.textContent = 'Provider';
+            return;
+        }
+
+        if (providerName)
+            providerName.textContent =
+                data?.name ||
+                data?.email ||
+                user.email ||
+                'Provider';
     }
 
-    LoadingSpinner.show?.();
-    await updateOffer(id, {
-      status: STATUS.COMPLETED,
-      completed_at: new Date().toISOString()
+    // =========================
+    // LOAD SERVICES
+    // =========================
+    async function loadServices() {
+
+        const { data: services, error } = await supabase
+            .from('services')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return [];
+        }
+
+        // NO SERVICE
+        if (!services || services.length === 0) {
+            if (noServiceOverlay) noServiceOverlay.classList.remove('hidden');
+        } else {
+            if (noServiceOverlay) noServiceOverlay.classList.add('hidden');
+        }
+
+        // ACTIVE SERVICES COUNT
+        if (activeServices) activeServices.textContent = services.length;
+
+        // RENDER SERVICES
+        if (services.length === 0) {
+
+            recentServices.innerHTML = `
+                <p class="text-gray-500 text-sm text-center py-4">
+                    No services added yet
+                </p>
+            `;
+
+        } else {
+
+            if (recentServices) recentServices.innerHTML = '';
+
+            services.slice(0, 5).forEach(service => {
+
+                const div = document.createElement('div');
+
+                div.className =
+                    'border rounded-lg p-4 flex items-center justify-between';
+
+                div.innerHTML = `
+                    <div>
+                        <h3 class="font-semibold text-gray-900">
+                            ${service.title || 'Untitled Service'}
+                        </h3>
+
+                        <p class="text-sm text-gray-500">
+                            ${service.category || 'General'}
+                        </p>
+                    </div>
+
+                    <span class="text-sm font-semibold text-green-600">
+                        Active
+                    </span>
+                `;
+
+                if (recentServices) recentServices.appendChild(div);
+            });
+        }
+
+        return services;
+    }
+
+    // =========================
+    // LOAD BOOKINGS
+    // =========================
+    async function loadBookings() {
+
+        const { data: bookings, error } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('provider_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return [];
+        }
+
+        // TOTAL BOOKINGS
+        if (totalBookings) totalBookings.textContent = bookings.length;
+
+        // TOTAL REVENUE
+        let revenue = 0;
+
+        bookings.forEach(booking => {
+            revenue += Number(booking.amount || 0);
+        });
+
+        if (totalRevenue) totalRevenue.textContent = `₦${revenue.toLocaleString()}`;
+
+        // COMPLETED
+        const completedBookings = bookings.filter(
+            booking =>
+                booking.status === 'completed'
+        );
+
+        if (totalCompleted) totalCompleted.textContent = completedBookings.length;
+
+        // SUCCESS RATE
+        const rate =
+            bookings.length > 0
+                ? Math.round(
+                    (completedBookings.length / bookings.length) * 100
+                )
+                : 0;
+
+        if (successRate) successRate.textContent = `${rate}%`;
+
+        if (winRatePercent) winRatePercent.textContent = rate;
+        if (winRateBar) winRateBar.style.width = `${rate}%`;
+
+        // TODAY BOOKINGS
+        const today = new Date().toISOString().split('T')[0];
+
+        const todays = bookings.filter(booking => {
+
+            if (!booking.booking_date) return false;
+
+            return booking.booking_date === today;
+        });
+
+        renderBookings(todayBookings, todays, 'No bookings scheduled for today');
+
+        // UPCOMING
+        const upcoming = bookings.filter(booking => {
+
+            if (!booking.booking_date) return false;
+
+            return booking.booking_date > today;
+        });
+
+        renderBookings(upcomingBookings, upcoming, 'No upcoming bookings');
+
+        // ACTIVITY
+        renderActivity(bookings);
+
+        return bookings;
+    }
+
+    // =========================
+    // RENDER BOOKINGS
+    // =========================
+    function renderBookings(container, bookings, emptyText) {
+
+        if (!container) return;
+
+        if (!bookings || bookings.length === 0) {
+            container.innerHTML = `
+                <p class="text-gray-500 text-sm text-center py-4">
+                    ${emptyText}
+                </p>
+            `;
+
+            return;
+        }
+
+        container.innerHTML = '';
+
+        bookings.slice(0, 5).forEach(booking => {
+
+            const div = document.createElement('div');
+
+            div.className =
+                'border rounded-lg p-4 flex items-center justify-between';
+
+            div.innerHTML = `
+                <div>
+                    <h3 class="font-semibold text-gray-900">
+                        ${booking.service_title || 'Service Booking'}
+                    </h3>
+
+                    <p class="text-sm text-gray-500">
+                        ${booking.customer_email || 'Customer'}
+                    </p>
+                </div>
+
+                <div class="text-right">
+                    <p class="font-semibold text-green-600">
+                        ₦${Number(booking.amount || 0).toLocaleString()}
+                    </p>
+
+                    <p class="text-xs text-gray-500 capitalize">
+                        ${booking.status || 'pending'}
+                    </p>
+                </div>
+            `;
+
+                container.appendChild(div);
+        });
+    }
+
+    // =========================
+    // LOAD OFFERS
+    // =========================
+    async function loadOffers() {
+
+        const { data: offers, error } = await supabase
+            .from('offers')
+            .select('*')
+            .eq('provider_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return [];
+        }
+
+        if (totalOffers) totalOffers.textContent = offers.length;
+
+        const wins = offers.filter(
+            offer => offer.status === 'accepted'
+        );
+
+        if (totalWins) totalWins.textContent = wins.length;
+
+        // ACTIVE OFFERS
+        if (!offers || offers.length === 0) {
+
+            activeOffersList.innerHTML = `
+                <p class="text-gray-500 text-sm text-center py-4">
+                    No active offers
+                </p>
+            `;
+
+        } else {
+
+            if (activeOffersList) activeOffersList.innerHTML = '';
+
+            offers.slice(0, 5).forEach(offer => {
+
+                const div = document.createElement('div');
+
+                div.className =
+                    'border rounded-lg p-4';
+
+                div.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+
+                        <h3 class="font-semibold text-gray-900">
+                            ${offer.request_title || 'Service Request'}
+                        </h3>
+
+                        <span class="text-xs px-2 py-1 rounded-full
+                            ${offer.status === 'accepted'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-yellow-100 text-yellow-700'}">
+
+                            ${offer.status || 'pending'}
+                        </span>
+
+                    </div>
+
+                    <p class="text-sm text-gray-500 mb-2">
+                        ₦${Number(offer.price || 0).toLocaleString()}
+                    </p>
+
+                    <button
+                        class="view-offer-btn text-blue-600 text-sm font-medium"
+                        data-id="${offer.id}">
+                        View Details
+                    </button>
+                `;
+
+                if (activeOffersList) activeOffersList.appendChild(div);
+            });
+        }
+
+        return offers;
+    }
+
+    // =========================
+    // ACTIVITY FEED
+    // =========================
+    function renderActivity(bookings) {
+
+        if (!bookings || bookings.length === 0) {
+
+            activityFeed.innerHTML = `
+                <p class="text-gray-500 text-sm text-center py-4">
+                    No recent activity
+                </p>
+            `;
+
+            return;
+        }
+
+        activityFeed.innerHTML = '';
+
+        bookings.slice(0, 5).forEach(booking => {
+
+            const div = document.createElement('div');
+
+            div.className =
+                'border-b pb-3';
+
+            div.innerHTML = `
+                <p class="text-sm text-gray-900">
+                    New booking for
+                    <span class="font-semibold">
+                        ${booking.service_title || 'service'}
+                    </span>
+                </p>
+
+                <p class="text-xs text-gray-500 mt-1">
+                    ${new Date(
+                        booking.created_at
+                    ).toLocaleString()}
+                </p>
+            `;
+
+            activityFeed.appendChild(div);
+        });
+    }
+
+    // =========================
+    // OFFER MODAL
+    // =========================
+    const offerModal =
+        document.getElementById('offerDetailsModal');
+
+    const offerContent =
+        document.getElementById('offerDetailsContent');
+
+    const closeOfferModal =
+        document.getElementById('closeOfferModal');
+
+    document.addEventListener('click', async (e) => {
+
+        if (!e.target.classList.contains('view-offer-btn'))
+            return;
+
+        const offerId = e.target.dataset.id;
+
+        const { data: offer, error } = await supabase
+            .from('offers')
+            .select('*')
+            .eq('id', offerId)
+            .single();
+
+        if (error || !offer) {
+            alert('Failed to load offer');
+            return;
+        }
+
+        offerContent.innerHTML = `
+            <div class="space-y-4">
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Request
+                    </p>
+
+                    <h3 class="font-semibold text-lg">
+                        ${offer.request_title || 'Service Request'}
+                    </h3>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Your Price
+                    </p>
+
+                    <p class="font-bold text-green-600 text-xl">
+                        ₦${Number(offer.price || 0).toLocaleString()}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Message
+                    </p>
+
+                    <p class="text-gray-800">
+                        ${offer.message || 'No message'}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Availability
+                    </p>
+
+                    <p class="text-gray-800 capitalize">
+                        ${offer.availability || 'Flexible'}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Status
+                    </p>
+
+                    <p class="capitalize font-semibold">
+                        ${offer.status || 'pending'}
+                    </p>
+                </div>
+
+            </div>
+        `;
+
+        offerModal.classList.remove('hidden');
     });
-    await loadDashboardData();
-    render();
-    offerDetailsModal.classList.add("hidden");
-  } catch (error) {
-    alert("Failed to mark offer as completed");
-  } finally {
-    LoadingSpinner.hide?.();
-  }
-};
 
-window.openOffer = (id) => {
-  const offer = offers.find(o => o.id === id);
-  if (!offer) return;
+    closeOfferModal.addEventListener('click', () => {
+        offerModal.classList.add('hidden');
+    });
 
-  selectedOffer = offer;
+    offerModal.addEventListener('click', (e) => {
 
-  offerDetailsContent.innerHTML = `
-    <div class="space-y-4">
-      <div>
-        <p class="text-sm text-gray-600">Price</p>
-        <p class="text-2xl font-bold text-gray-900">₦${Number(offer.price).toLocaleString()}</p>
-      </div>
-      
-      <div>
-        <p class="text-sm text-gray-600">Status</p>
-        <p class="font-semibold text-gray-900 uppercase">${offer.status}</p>
-      </div>
+        if (e.target === offerModal) {
+            offerModal.classList.add('hidden');
+        }
+    });
 
-      ${offer.message ? `
-      <div>
-        <p class="text-sm text-gray-600">Message</p>
-        <p class="text-gray-900">${offer.message}</p>
-      </div>
-      ` : ''}
+    // =========================
+    // INIT
+    // =========================
+    await loadUserProfile();
+    await loadServices();
+    await loadBookings();
+    await loadOffers();
 
-      <div class="mt-6 space-y-2">
-        ${offer.status === STATUS.PENDING ? `
-          <button onclick="window.acceptOffer('${offer.id}')" class="w-full bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700">
-            Accept Offer
-          </button>
-          <button onclick="window.rejectOffer('${offer.id}')" class="w-full bg-red-600 text-white py-2 rounded-lg font-medium hover:bg-red-700">
-            Reject Offer
-          </button>
-        ` : ''}
-
-        ${offer.status === STATUS.ACCEPTED ? `
-          <button onclick="window.markAwaitingPayment('${offer.id}')" class="w-full bg-yellow-600 text-white py-2 rounded-lg font-medium hover:bg-yellow-700">
-            Confirm Payment Received
-          </button>
-        ` : ''}
-
-        ${offer.status === STATUS.AWAITING_PAYMENT ? `
-          <button onclick="window.markCompleted('${offer.id}')" class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
-            Mark as Completed
-          </button>
-        ` : ''}
-
-        ${offer.status !== STATUS.COMPLETED && offer.status !== STATUS.REJECTED ? `
-          <button onclick="window.cancelOffer('${offer.id}')" class="w-full bg-gray-600 text-white py-2 rounded-lg font-medium hover:bg-gray-700">
-            Cancel
-          </button>
-        ` : ''}
-      </div>
-    </div>
-  `;
-
-  offerDetailsModal.classList.remove("hidden");
-};
-
-// ================= MODAL CLOSE =================
-closeOfferModal?.addEventListener("click", () => {
-  offerDetailsModal.classList.add("hidden");
-});
-
-offerDetailsModal?.addEventListener("click", (e) => {
-  if (e.target === offerDetailsModal) {
-    offerDetailsModal.classList.add("hidden");
-  }
-});
-
-// ================= LOGOUT =================
-document.querySelectorAll("#logoutBtn, [data-logout]").forEach((btn) => {
-  btn?.addEventListener("click", async () => {
-    try {
-      await supabase.auth.signOut();
-      LoadingSpinner.navigateTo("login.html");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  });
 });

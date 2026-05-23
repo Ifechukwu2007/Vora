@@ -1,5 +1,10 @@
 import { supabase } from './supabase.js';
 
+function normalizeProfile(profile) {
+    if (!profile) return null;
+    return Array.isArray(profile) ? profile[0] : profile;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
 
   // =========================
@@ -15,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const serviceTitleEl = document.getElementById('service-title');
   const providerNameEl = document.getElementById('provider-name');
+  const providerPictureEl = document.getElementById('provider-picture');
 
   const basePriceEl = document.getElementById('base-price');
   const feeEl = document.getElementById('service-fee');
@@ -28,6 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
 
   const serviceId = params.get('serviceId');
+  const requestId = params.get('requestId');
+  const offerId = params.get('offerId');
   const providerId = params.get('providerId');
 
   const scheduledDate =
@@ -40,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================
   // VALIDATION
   // =========================
-  if (!serviceId || !providerId) {
+  if ((!serviceId && !requestId) || !providerId) {
     alert('Missing booking details');
     return;
   }
@@ -67,56 +75,88 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =========================
-  // FETCH SERVICE
+  // FETCH SERVICE OR REQUEST DETAILS
   // =========================
   let serviceData = null;
+  let requestData = null;
+  let displayTitle = 'Service';
 
   try {
+    if (serviceId) {
+      const { data: service, error: serviceError } =
+        await supabase
+          .from('services')
+          .select('*')
+          .eq('id', serviceId)
+          .single();
 
-    const { data: service, error: serviceError } =
-      await supabase
-        .from('services')
-        .select('*')
-        .eq('id', serviceId)
-        .single();
+      if (serviceError) throw serviceError;
 
-    if (serviceError) throw serviceError;
+      serviceData = service;
+      displayTitle = service.title || 'Service';
 
-    serviceData = service;
+      // price fallback
+      if (!totalPrice || totalPrice <= 0) {
+        totalPrice = Number(service.price) || 0;
+      }
+    } else {
+      const { data: request, error: requestError } =
+        await supabase
+          .from('requests')
+          .select('*')
+          .eq('id', requestId)
+          .single();
 
-    // price fallback
-    if (!totalPrice || totalPrice <= 0) {
-      totalPrice = Number(service.price) || 0;
+      if (requestError) throw requestError;
+
+      requestData = request;
+      displayTitle = request.title || 'Request';
+
+      if (!totalPrice || totalPrice <= 0) {
+        totalPrice = Number(request.budget) || 0;
+      }
     }
 
     if (serviceTitleEl) {
-      serviceTitleEl.textContent = service.title || 'Service';
+      serviceTitleEl.textContent = displayTitle;
     }
 
     // =========================
     // FETCH PROVIDER (SERVICE OWNER EMAIL)
     // =========================
     let providerEmail = 'provider@vora.com';
+    let providerPicture = 'https://ui-avatars.com/api/?name=User';
 
     // First priority: get email from services table (stored when service was created)
     if (serviceData?.provider_email) {
       providerEmail = serviceData.provider_email;
-    } else {
-      // Fallback: try to get from profiles table
-      const { data: provider, error: providerError } =
-        await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', providerId)
-          .maybeSingle();
+    }
+    
+    // Fetch full provider profile
+    const { data: providerData, error: providerError } =
+      await supabase
+        .from('profiles')
+        .select('email, profile_picture')
+        .eq('id', providerId)
+        .maybeSingle();
 
-      if (provider?.email) {
+    const provider = normalizeProfile(providerData);
+
+    if (provider) {
+      if (provider.email) {
         providerEmail = provider.email;
+      }
+      if (provider.profile_picture) {
+        providerPicture = provider.profile_picture;
       }
     }
 
     if (providerNameEl) {
       providerNameEl.textContent = providerEmail;
+    }
+
+    if (providerPictureEl) {
+      providerPictureEl.src = providerPicture;
     }
 
   } catch (err) {
@@ -158,19 +198,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       // =========================
       // CREATE BOOKING
       // =========================
+      const bookingPayload = {
+        provider_id: providerId,
+        user_id: currentUser.id,
+        scheduled_date: scheduledDate,
+        total_price: totalPrice,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...(serviceId ? { service_id: serviceId } : {}),
+        ...(requestId ? { request_id: requestId } : {})
+      };
+
       const { data: booking, error: bookingError } =
         await supabase
           .from('bookings')
-          .insert([{
-            service_id: serviceId,
-            provider_id: providerId,
-            user_id: currentUser.id,
-            scheduled_date: scheduledDate,
-            total_price: totalPrice,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }])
+          .insert([bookingPayload])
           .select()
           .single();
 
@@ -222,6 +265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         metadata: {
           service_id: serviceId,
+          request_id: requestId,
+          offer_id: offerId,
           provider_id: providerId,
           booking_id: booking.id,
           payment_id: payment.id

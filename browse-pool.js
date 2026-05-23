@@ -1,469 +1,884 @@
 import { supabase } from './supabase.js';
+import { NotificationService } from './notification-service.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-  const requestsList = document.getElementById('requestsList');
-  const noResults = document.getElementById('noResults');
+let currentUser = null;
+let allRequests = [];
 
-  const searchInput = document.getElementById('searchInput');
-  const categorySelect = document.getElementById('service-category');
-  const locationFilter = document.getElementById('locationFilter');
-  const sortFilter = document.getElementById('sortFilter');
+// ==========================
+// INIT
+// ==========================
+document.addEventListener('DOMContentLoaded', async () => {
 
-  // Modals
-  const requestModal = document.getElementById('requestModal');
-  const modalContent = document.getElementById('modalContent');
-  const closeModalBtn = document.getElementById('closeModal');
+    // OPTIONAL AUTH
+    const { data: sessionData } = await supabase.auth.getSession();
 
-  const offerModal = document.getElementById('offerModal');
-  const closeOfferBtn = document.getElementById('closeOfferBtn');
-  const closeOfferModalBtn = document.getElementById('closeOfferModal');
+    currentUser = sessionData?.session?.user || null;
 
-  // Offer form
-  const offerForm = document.getElementById('offerForm');
-  const requestIdInput = document.getElementById('requestId');
-  const offerPriceInput = document.getElementById('offerPrice');
-  const offerMessageInput = document.getElementById('offerMessage');
-  const offerAvailabilityInput = document.getElementById('offerAvailability');
+    // LOAD REQUESTS
+    await loadRequests();
 
-  // Quick guards
-  if (!requestsList || !noResults || !requestModal || !modalContent || !offerModal || !offerForm) {
-    console.error('Missing required DOM elements for browse-pool.js');
-    return;
-  }
+    // FILTERS
+    setupFilters();
 
-  // Close modals
-  closeModalBtn?.addEventListener('click', () => hideModal(requestModal));
-  closeOfferBtn?.addEventListener('click', () => hideModal(offerModal));
-  closeOfferModalBtn?.addEventListener('click', () => hideModal(offerModal));
+    // MODALS
+    setupModals();
 
-  // Close modal by clicking overlay
-  requestModal?.addEventListener('click', (e) => {
-    if (e.target === requestModal) hideModal(requestModal);
-  });
-
-  offerModal?.addEventListener('click', (e) => {
-    if (e.target === offerModal) hideModal(offerModal);
-  });
-
-  // Load requests on filter changes
-  const debouncedReload = debounce(() => loadRequests(), 250);
-
-  searchInput?.addEventListener('input', debouncedReload);
-  categorySelect?.addEventListener('change', debouncedReload);
-  locationFilter?.addEventListener('input', debouncedReload);
-  sortFilter?.addEventListener('change', () => loadRequests());
-
-  // Offer submit
-  offerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user) {
-      alert('You must be logged in to submit an offer.');
-      return;
-    }
-
-    const requestId = requestIdInput.value;
-    const offerPrice = offerPriceInput.value;
-    const offerMessage = (offerMessageInput.value || '').trim();
-    const availability = offerAvailabilityInput.value;
-
-    if (!requestId) return alert('Missing request ID.');
-    if (!offerPrice || Number.isNaN(Number(offerPrice)) || Number(offerPrice) <= 0) {
-      return alert('Enter a valid price.');
-    }
-    if (!availability) return alert('Select availability.');
-
-    // Prevent multiple offers by the same provider for same request (optional but recommended)
-    // If you don't want this constraint, remove this block.
-    const { data: existingOffer } = await supabase
-      .from('offers')
-      .select('id')
-      .eq('request_id', requestId)
-      .eq('provider_id', authData.user.id)
-      .maybeSingle();
-
-    if (existingOffer) {
-      return alert('You already submitted an offer for this request.');
-    }
-
-    try {
-      // Insert offer
-      const { data: inserted, error: insertErr } = await supabase
-        .from('offers')
-        .insert({
-          request_id: Number(requestId),
-          provider_id: authData.user.id,
-          price: Number(offerPrice),
-          message: offerMessage || null,
-          status: 'pending',
-          availability: availability, // stored as text in your schema: offers.availability boolean? (see below)
-        })
-        .select('*')
-        .single();
-
-      if (insertErr) {
-        console.error(insertErr);
-        throw insertErr;
-      }
-
-      // IMPORTANT:
-      // Your `offers.availability` column is BOOLEAN (per schema listing).
-      // But your UI provides: today/tomorrow/this-week/... (text).
-      //
-      // To avoid breaking, we convert to boolean:
-      // - any non-empty selection => true
-      //
-      // If your DB is strict boolean, the insert above may fail.
-      // So we handle it by updating availability after insert if needed.
-
-      // If insert fails due to boolean mismatch, we'll catch it and insert with correct boolean below.
-      // (We still proceed to update request offer_count only after a successful insert.)
-
-      // Update request offer_count
-      const { error: reqErr } = await supabase.rpc
-        ? { error: null } // placeholder; we won't use rpc since we don't know it exists
-        : { error: null };
-
-      // Instead do it with a normal UPDATE + offer_count = offer_count + 1
-      const { error: updateReqErr } = await supabase
-        .from('requests')
-        .update({
-          offer_count: supabase.raw('offer_count + 1'),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', Number(requestId));
-
-      // Supabase PostgREST may not support supabase.raw in all clients.
-      // If that fails, we fall back to fetching then updating.
-      if (updateReqErr) {
-        // fallback: fetch then update
-        const { data: reqRow, error: fetchReqErr } = await supabase
-          .from('requests')
-          .select('offer_count')
-          .eq('id', Number(requestId))
-          .single();
-
-        if (fetchReqErr) throw fetchReqErr;
-
-        const nextCount = (reqRow?.offer_count || 0) + 1;
-
-        const { error: updateReqErr2 } = await supabase
-          .from('requests')
-          .update({ offer_count: nextCount, updated_at: new Date().toISOString() })
-          .eq('id', Number(requestId));
-
-        if (updateReqErr2) throw updateReqErr2;
-      }
-
-      alert('Offer sent successfully!');
-      hideModal(offerModal);
-      offerForm.reset();
-      await loadRequests();
-    } catch (err) {
-      // If this is failing because availability is boolean, do a corrected insert
-      // (availability: true)
-      console.error('Offer submit error:', err?.message || err);
-
-      try {
-        const { data: authData2 } = await supabase.auth.getUser();
-        const requestId = requestIdInput.value;
-
-        const { error: retryErr } = await supabase
-          .from('offers')
-          .insert({
-            request_id: Number(requestId),
-            provider_id: authData2.user.id,
-            price: Number(offerPriceInput.value),
-            message: (offerMessageInput.value || '').trim() || null,
-            status: 'pending',
-            availability: true, // boolean fix
-          });
-
-        if (retryErr) throw retryErr;
-
-        // Update request offer_count (same approach as above)
-        const { data: reqRow, error: fetchReqErr } = await supabase
-          .from('requests')
-          .select('offer_count')
-          .eq('id', Number(requestId))
-          .single();
-
-        if (fetchReqErr) throw fetchReqErr;
-
-        const nextCount = (reqRow?.offer_count || 0) + 1;
-
-        const { error: updateReqErr2 } = await supabase
-          .from('requests')
-          .update({ offer_count: nextCount, updated_at: new Date().toISOString() })
-          .eq('id', Number(requestId));
-
-        if (updateReqErr2) throw updateReqErr2;
-
-        alert('Offer sent successfully!');
-        hideModal(offerModal);
-        offerForm.reset();
-        await loadRequests();
-      } catch (retryErr) {
-        console.error('Retry failed:', retryErr);
-        alert('Failed to send offer. Please try again.');
-      }
-    }
-  });
-
-  // Initial load
-  loadRequests();
-
-  async function loadRequests() {
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr) {
-      console.error(authErr);
-      showError('Failed to load requests.');
-      return;
-    }
-
-    // If you want only logged-in providers to see this page, uncomment:
-    // if (!authData?.user) { showError('Please log in.'); return; }
-
-    const search = (searchInput?.value || '').trim();
-    const category = categorySelect?.value || '';
-    const location = (locationFilter?.value || '').trim();
-    const sort = sortFilter?.value || 'newest';
-
-    let query = supabase
-      .from('requests')
-      .select(`
-        id,
-        title,
-        description,
-        category,
-        budget,
-        location,
-        status,
-        offer_count,
-        created_at,
-        updated_at
-      `);
-
-    // Filters
-    if (search) {
-      query = query.or(
-        `title.ilike.%${escapeLike(search)}%,description.ilike.%${escapeLike(search)}%`
-      );
-    }
-
-    if (category) query = query.eq('category', category);
-
-    if (location) {
-      query = query.ilike('location', `%${escapeLike(location)}%`);
-    }
-
-    // Sort
-    // requests.id is bigint; use created_at for "newest"
-    if (sort === 'newest') query = query.order('created_at', { ascending: false });
-
-    if (sort === 'budget-high') query = query.order('budget', { ascending: false, nullsLast: true });
-    if (sort === 'budget-low') query = query.order('budget', { ascending: true, nullsLast: true });
-
-    if (sort === 'urgent') {
-      // No urgent field in schema; best-effort:
-      // treat as "recently updated/open"
-      query = query
-        .order('updated_at', { ascending: false, nullsLast: true });
-    }
-
-    // Only open requests (recommended)
-    query = query.eq('status', 'open');
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error(error);
-      showError('Failed to load requests.');
-      return;
-    }
-
-    renderRequests(data || []);
-  }
-
-  function renderRequests(requests) {
-    requestsList.innerHTML = '';
-    noResults.classList.add('hidden');
-
-    if (!requests.length) {
-      noResults.classList.remove('hidden');
-      return;
-    }
-
-    for (const r of requests) {
-      const card = document.createElement('div');
-      card.className = 'bg-white rounded-lg shadow p-5';
-
-      const budgetText = r.budget != null ? `₦${formatNumber(r.budget)}` : 'Not set';
-      const offerCountText = r.offer_count != null ? `${r.offer_count} offers` : '0 offers';
-
-      card.innerHTML = `
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-extrabold text-gray-900">${escapeHtml(r.title || 'Untitled')}</h3>
-            <p class="text-gray-600 text-sm mt-1">${escapeHtml(r.category || '')}</p>
-            <p class="text-gray-500 text-sm mt-2">📍 ${escapeHtml(r.location || 'Location not set')}</p>
-            <p class="text-gray-700 text-sm mt-2">💰 Budget: <span class="font-semibold">${budgetText}</span></p>
-            <p class="text-gray-500 text-sm mt-1">🧾 ${escapeHtml(offerCountText)}</p>
-          </div>
-
-          <div class="min-w-[140px] text-right">
-            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-              r.status === 'open' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-700'
-            }">
-              ${escapeHtml(r.status || 'open')}
-            </span>
-
-            <div class="text-xs text-gray-500 mt-2">
-              ${r.created_at ? `Created: ${new Date(r.created_at).toLocaleDateString()}` : ''}
-            </div>
-          </div>
-        </div>
-
-        <p class="text-gray-600 text-sm mt-4 leading-relaxed">${escapeHtml(shorten(r.description, 160))}</p>
-
-        <div class="flex items-center justify-between mt-4 gap-3">
-          <button
-            type="button"
-            class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-md text-sm"
-            data-action="view"
-            data-id="${r.id}"
-          >
-            View details
-          </button>
-
-          <button
-            type="button"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md text-sm"
-            data-action="offer"
-            data-id="${r.id}"
-          >
-            Submit offer
-          </button>
-        </div>
-      `;
-
-      requestsList.appendChild(card);
-    }
-
-    // Attach handlers for buttons
-    requestsList.querySelectorAll('[data-action="view"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        openRequestModal(id);
-      });
-    });
-
-    requestsList.querySelectorAll('[data-action="offer"]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        openOfferModal(id);
-      });
-    });
-  }
-
-  async function openRequestModal(requestId) {
-    const { data, error } = await supabase
-      .from('requests')
-      .select('*')
-      .eq('id', Number(requestId))
-      .single();
-
-    if (error) {
-      console.error(error);
-      alert('Unable to load request details.');
-      return;
-    }
-
-    const budgetText = data.budget != null ? `₦${formatNumber(data.budget)}` : 'Not set';
-
-    modalContent.innerHTML = `
-      <div class="space-y-3">
-        <h2 class="text-2xl font-extrabold text-gray-900">${escapeHtml(data.title || '')}</h2>
-        <div class="flex flex-wrap gap-2">
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">${escapeHtml(data.category || '')}</span>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">📍 ${escapeHtml(data.location || '')}</span>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">💰 ${budgetText}</span>
-          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">🧾 ${data.offer_count ?? 0} offers</span>
-        </div>
-        <p class="text-gray-700 whitespace-pre-wrap">${escapeHtml(data.description || '')}</p>
-
-        <div class="text-sm text-gray-500">
-          Created: ${data.created_at ? new Date(data.created_at).toLocaleString() : ''}
-        </div>
-      </div>
-    `;
-
-    showModal(requestModal);
-  }
-
-  function openOfferModal(requestId) {
-    requestIdInput.value = requestId;
-
-    // Reset fields
-    offerPriceInput.value = '';
-    offerMessageInput.value = '';
-    offerAvailabilityInput.value = '';
-
-    showModal(offerModal);
-    offerPriceInput.focus();
-  }
-
-  function showModal(el) {
-    el.classList.remove('hidden');
-    el.classList.add('flex');
-  }
-
-  function hideModal(el) {
-    el.classList.add('hidden');
-    el.classList.remove('flex');
-  }
-
-  function showError(msg) {
-    requestsList.innerHTML = `
-      <div class="text-center py-12">
-        <p class="text-red-600 font-semibold">${escapeHtml(msg)}</p>
-      </div>
-    `;
-  }
+    // LOGOUT
+    setupLogout();
 });
 
-// Helpers
-function debounce(fn, wait) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
-  };
+// ==========================
+// LOGOUT
+// ==========================
+function setupLogout() {
+
+    const logoutBtn =
+        document.getElementById('logoutBtn');
+
+    const logoutBtnSideMenu =
+        document.getElementById('logoutBtnSideMenu');
+
+    async function logout() {
+
+        await supabase.auth.signOut();
+
+        window.location.href = 'login.html';
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+
+    if (logoutBtnSideMenu) {
+        logoutBtnSideMenu.addEventListener('click', logout);
+    }
 }
 
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+// ==========================
+// LOAD REQUESTS
+// ==========================
+async function loadRequests() {
+
+    const requestsList =
+        document.getElementById('requestsList');
+
+    try {
+
+        requestsList.innerHTML = `
+            <div class="bg-white rounded-xl shadow p-10 text-center">
+
+                <div class="text-5xl mb-4">⏳</div>
+
+                <p class="text-gray-600 text-lg">
+                    Loading requests...
+                </p>
+
+            </div>
+        `;
+
+        // ==========================
+        // FETCH REQUESTS
+        // ==========================
+        const { data: requests, error } = await supabase
+            .from('requests')
+            .select('*')
+            .eq('status', 'open')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // ==========================
+        // GET USER IDS
+        // ==========================
+        const userIds = [
+            ...new Set(
+                (requests || [])
+                .map(request => request.user_id)
+                .filter(Boolean)
+            )
+        ];
+
+        // ==========================
+        // FETCH PROFILES
+        // ==========================
+        let profilesMap = {};
+
+        if (userIds.length > 0) {
+
+            const {
+                data: profiles,
+                error: profilesError
+            } = await supabase
+                .from('profiles')
+                .select(`
+                    id,
+                    full_name,
+                    email,
+                    phone,
+                    location,
+                    profile_picture
+                `)
+                .in('id', userIds);
+
+            if (profilesError) {
+                console.error(
+                    'Profiles fetch error:',
+                    profilesError
+                );
+            }
+
+            if (profiles) {
+
+                profiles.forEach(profile => {
+
+                    profilesMap[profile.id] = profile;
+                });
+            }
+        }
+
+        // ==========================
+        // ATTACH PROFILE
+        // ==========================
+        allRequests = (requests || []).map(request => {
+
+            return {
+                ...request,
+                profile: profilesMap[request.user_id] || null
+            };
+        });
+
+        renderRequests(allRequests);
+
+    } catch (error) {
+
+        console.error(
+            'Load requests error:',
+            error
+        );
+
+        requestsList.innerHTML = `
+            <div class="bg-white rounded-xl shadow p-10 text-center">
+
+                <div class="text-6xl mb-4">❌</div>
+
+                <h2 class="text-2xl font-bold text-red-600 mb-3">
+                    Failed to load requests
+                </h2>
+
+                <p class="text-gray-600">
+                    ${error.message}
+                </p>
+
+            </div>
+        `;
+    }
 }
 
-// For ilike patterns
-function escapeLike(str) {
-  return String(str ?? '').replaceAll('%', '\\%').replaceAll('_', '\\_');
+// ==========================
+// RENDER REQUESTS
+// ==========================
+function renderRequests(requests) {
+
+    const requestsList =
+        document.getElementById('requestsList');
+
+    const noResults =
+        document.getElementById('noResults');
+
+    if (!requests || requests.length === 0) {
+
+        requestsList.innerHTML = '';
+
+        noResults.classList.remove('hidden');
+
+        return;
+    }
+
+    noResults.classList.add('hidden');
+
+    requestsList.innerHTML = '';
+
+    requests.forEach(request => {
+
+        const card =
+            document.createElement('div');
+
+        card.className = `
+            bg-white
+            rounded-2xl
+            shadow-md
+            hover:shadow-xl
+            transition
+            overflow-hidden
+        `;
+
+        const title =
+            request.title || 'Service Request';
+
+        const description =
+            request.description ||
+            'No description provided';
+
+        const category =
+            request.category || 'General';
+
+        const budget =
+            Number(request.budget || 0)
+            .toLocaleString('en-NG');
+
+        const urgency =
+            request.urgency || 'normal';
+
+        const location =
+            request.location ||
+            'Location not specified';
+
+        // PROFILE
+        const requesterProfile =
+            request.profile || null;
+
+        const requesterEmail =
+            requesterProfile?.email ||
+            'No email';
+
+        const requesterName =
+            requesterProfile?.full_name ||
+            requesterEmail ||
+            'Unknown User';
+
+        const requesterPicture =
+            requesterProfile?.profile_picture ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(requesterName)}`;
+
+        const createdDate =
+            formatDate(request.created_at);
+
+        let urgencyColor =
+            'bg-gray-100 text-gray-700';
+
+        if (urgency === 'urgent') {
+            urgencyColor =
+                'bg-red-100 text-red-700';
+        }
+
+        if (urgency === 'high') {
+            urgencyColor =
+                'bg-orange-100 text-orange-700';
+        }
+
+        if (urgency === 'medium') {
+            urgencyColor =
+                'bg-yellow-100 text-yellow-700';
+        }
+
+        card.innerHTML = `
+            <div class="p-6">
+
+                <!-- REQUESTER -->
+                <div class="flex items-center gap-3 mb-4 pb-4 border-b">
+
+                    <img
+                        src="${requesterPicture}"
+                        alt="Requester avatar"
+                        class="w-12 h-12 rounded-full object-cover border border-gray-200"
+                    />
+
+                    <div>
+
+                        <p class="text-sm text-gray-500">
+                            Posted by
+                        </p>
+
+                        <p class="font-semibold text-gray-900">
+                            ${requesterName}
+                        </p>
+
+                        <p class="text-sm text-blue-600">
+                            ${requesterEmail}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- TOP -->
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+
+                    <div>
+
+                        <div class="flex items-center gap-3 flex-wrap">
+
+                            <h2 class="text-2xl font-bold text-gray-900">
+                                ${title}
+                            </h2>
+
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${urgencyColor}">
+                                ${urgency}
+                            </span>
+
+                        </div>
+
+                        <p class="text-gray-500 mt-2">
+                            ${category}
+                        </p>
+
+                    </div>
+
+                    <div class="text-right">
+
+                        <p class="text-sm text-gray-500">
+                            Budget
+                        </p>
+
+                        <p class="text-3xl font-extrabold text-green-600">
+                            ₦${budget}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- DESCRIPTION -->
+                <div class="mt-5">
+
+                    <p class="text-gray-700 leading-relaxed">
+                        ${description}
+                    </p>
+
+                </div>
+
+                <!-- DETAILS -->
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div class="bg-gray-50 rounded-xl p-4">
+
+                        <p class="text-sm text-gray-500 mb-1">
+                            👤 Requested By
+                        </p>
+
+                        <p class="font-semibold text-gray-900">
+                            ${requesterName}
+                        </p>
+
+                        <p class="text-sm text-blue-600">
+                            ${requesterEmail}
+                        </p>
+
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-4">
+
+                        <p class="text-sm text-gray-500 mb-1">
+                            📍 Location
+                        </p>
+
+                        <p class="font-semibold text-gray-900">
+                            ${location}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- FOOTER -->
+                <div class="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+                    <div class="text-sm text-gray-500">
+                        Posted ${createdDate}
+                    </div>
+
+                    <div class="flex gap-3 flex-wrap">
+
+                        <button
+                            class="view-request-btn bg-gray-200 hover:bg-gray-300 text-gray-900 px-5 py-3 rounded-xl font-semibold transition"
+                            data-id="${request.id}"
+                        >
+                            View Details
+                        </button>
+
+                        <button
+                            class="offer-btn bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold transition"
+                            data-id="${request.id}"
+                        >
+                            Submit Offer
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+        requestsList.appendChild(card);
+    });
+
+    setupRequestButtons();
 }
 
-function shorten(text, max) {
-  const s = String(text ?? '');
-  if (s.length <= max) return s;
-  return s.slice(0, max).trimEnd() + '...';
+// ==========================
+// FILTERS
+// ==========================
+function setupFilters() {
+
+    const searchInput =
+        document.getElementById('searchInput');
+
+    const categoryFilter =
+        document.getElementById('service-category');
+
+    const locationFilter =
+        document.getElementById('locationFilter');
+
+    const sortFilter =
+        document.getElementById('sortFilter');
+
+    [
+        searchInput,
+        categoryFilter,
+        locationFilter,
+        sortFilter
+    ].forEach(element => {
+
+        if (!element) return;
+
+        element.addEventListener(
+            'input',
+            applyFilters
+        );
+
+        element.addEventListener(
+            'change',
+            applyFilters
+        );
+    });
 }
 
-function formatNumber(value) {
-  const n = typeof value === 'string' ? Number(value) : value;
-  if (n == null || Number.isNaN(Number(n))) return '0';
-  return new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(Number(n));
+// ==========================
+// APPLY FILTERS
+// ==========================
+function applyFilters() {
+
+    const search =
+        document.getElementById('searchInput')
+        .value
+        .toLowerCase();
+
+    const category =
+        document.getElementById('service-category')
+        .value;
+
+    const location =
+        document.getElementById('locationFilter')
+        .value
+        .toLowerCase();
+
+    const sort =
+        document.getElementById('sortFilter')
+        .value;
+
+    let filtered = [...allRequests];
+
+    // SEARCH
+    filtered = filtered.filter(request => {
+
+        const title =
+            (request.title || '')
+            .toLowerCase();
+
+        const description =
+            (request.description || '')
+            .toLowerCase();
+
+        return (
+            title.includes(search) ||
+            description.includes(search)
+        );
+    });
+
+    // CATEGORY
+    if (category) {
+
+        filtered = filtered.filter(
+            request =>
+            request.category === category
+        );
+    }
+
+    // LOCATION
+    if (location) {
+
+        filtered = filtered.filter(
+            request =>
+            (request.location || '')
+            .toLowerCase()
+            .includes(location)
+        );
+    }
+
+    // SORT
+    if (sort === 'budget-high') {
+
+        filtered.sort(
+            (a, b) =>
+            (b.budget || 0) -
+            (a.budget || 0)
+        );
+    }
+
+    if (sort === 'budget-low') {
+
+        filtered.sort(
+            (a, b) =>
+            (a.budget || 0) -
+            (b.budget || 0)
+        );
+    }
+
+    if (sort === 'newest') {
+
+        filtered.sort(
+            (a, b) =>
+            new Date(b.created_at) -
+            new Date(a.created_at)
+        );
+    }
+
+    renderRequests(filtered);
+}
+
+// ==========================
+// BUTTONS
+// ==========================
+function setupRequestButtons() {
+
+    document
+    .querySelectorAll('.view-request-btn')
+    .forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => {
+
+                openRequestModal(
+                    button.dataset.id
+                );
+            }
+        );
+    });
+
+    document
+    .querySelectorAll('.offer-btn')
+    .forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => {
+
+                openOfferModal(
+                    button.dataset.id
+                );
+            }
+        );
+    });
+}
+
+// ==========================
+// REQUEST MODAL
+// ==========================
+function openRequestModal(requestId) {
+
+    const request =
+        allRequests.find(
+            r => r.id == requestId
+        );
+
+    if (!request) return;
+
+    const requesterProfile =
+        request.profile || null;
+
+    const requesterEmail =
+        requesterProfile?.email || 'N/A';
+
+    const requesterName =
+        requesterProfile?.full_name ||
+        requesterEmail;
+
+    const modal =
+        document.getElementById(
+            'requestModal'
+        );
+
+    const modalContent =
+        document.getElementById(
+            'modalContent'
+        );
+
+    modalContent.innerHTML = `
+        <h2 class="text-3xl font-bold mb-4">
+            ${request.title}
+        </h2>
+
+        <div class="space-y-4">
+
+            <div>
+
+                <p class="font-semibold text-gray-900">
+                    Description
+                </p>
+
+                <p class="text-gray-700 mt-1">
+                    ${request.description || 'No description'}
+                </p>
+
+            </div>
+
+            <div>
+
+                <p class="font-semibold text-gray-900">
+                    Budget
+                </p>
+
+                <p class="text-green-600 font-bold text-2xl">
+                    ₦${formatMoney(request.budget)}
+                </p>
+
+            </div>
+
+            <div>
+
+                <p class="font-semibold text-gray-900">
+                    Location
+                </p>
+
+                <p class="text-gray-700">
+                    ${request.location || 'N/A'}
+                </p>
+
+            </div>
+
+            <div>
+
+                <p class="font-semibold text-gray-900">
+                    Client Email
+                </p>
+
+                <p class="text-blue-600">
+                    ${requesterEmail}
+                </p>
+
+            </div>
+
+            <div>
+
+                <p class="font-semibold text-gray-900">
+                    Client Name
+                </p>
+
+                <p class="text-gray-900">
+                    ${requesterName}
+                </p>
+
+            </div>
+
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+// ==========================
+// OFFER MODAL
+// ==========================
+function openOfferModal(requestId) {
+
+    document.getElementById('requestId').value =
+        requestId;
+
+    document.getElementById('offerModal')
+    .classList.remove('hidden');
+}
+
+// ==========================
+// MODALS
+// ==========================
+function setupModals() {
+
+    document.getElementById('closeModal')
+    ?.addEventListener('click', () => {
+
+        document.getElementById(
+            'requestModal'
+        ).classList.add('hidden');
+    });
+
+    document.getElementById('closeOfferModal')
+    ?.addEventListener(
+        'click',
+        closeOfferModal
+    );
+
+    document.getElementById('closeOfferBtn')
+    ?.addEventListener(
+        'click',
+        closeOfferModal
+    );
+
+    document.getElementById('offerForm')
+    ?.addEventListener(
+        'submit',
+        submitOffer
+    );
+}
+
+// ==========================
+// CLOSE OFFER MODAL
+// ==========================
+function closeOfferModal() {
+
+    document.getElementById('offerModal')
+    .classList.add('hidden');
+
+    document.getElementById('offerForm')
+    .reset();
+}
+
+// ==========================
+// SUBMIT OFFER
+// ==========================
+async function submitOffer(e) {
+
+    e.preventDefault();
+
+    if (!currentUser) {
+
+        alert('Please login first');
+
+        window.location.href = 'login.html';
+
+        return;
+    }
+
+    const submitBtn =
+        e.target.querySelector(
+            'button[type="submit"]'
+        );
+
+    try {
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent =
+            'Sending...';
+
+        const requestId =
+            document.getElementById(
+                'requestId'
+            ).value;
+
+        const offerPrice =
+            document.getElementById(
+                'offerPrice'
+            ).value;
+
+        const offerMessage =
+            document.getElementById(
+                'offerMessage'
+            ).value;
+
+        const availability =
+            document.getElementById(
+                'offerAvailability'
+            ).value;
+
+        // CHECK EXISTING OFFER
+        const {
+            data: existingOffer
+        } = await supabase
+            .from('offers')
+            .select('id')
+            .eq('request_id', requestId)
+            .eq('provider_id', currentUser.id)
+            .maybeSingle();
+
+        if (existingOffer) {
+
+            alert(
+                'You already submitted an offer'
+            );
+
+            submitBtn.disabled = false;
+
+            submitBtn.textContent =
+                'Send Offer';
+
+            return;
+        }
+
+        // INSERT OFFER
+        const {
+            data: insertedOffer,
+            error
+        } = await supabase
+            .from('offers')
+            .insert({
+                request_id: requestId,
+                provider_id: currentUser.id,
+                price: Number(offerPrice),
+                message: offerMessage,
+                availability: availability,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        alert(
+            'Offer submitted successfully!'
+        );
+
+        closeOfferModal();
+
+        await loadRequests();
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+
+    } finally {
+
+        submitBtn.disabled = false;
+
+        submitBtn.textContent =
+            'Send Offer';
+    }
+}
+
+// ==========================
+// FORMAT DATE
+// ==========================
+function formatDate(dateString) {
+
+    if (!dateString) return 'Recently';
+
+    return new Date(dateString)
+    .toLocaleDateString('en-NG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+// ==========================
+// FORMAT MONEY
+// ==========================
+function formatMoney(amount) {
+
+    return Number(amount || 0)
+    .toLocaleString('en-NG');
 }

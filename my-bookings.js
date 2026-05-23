@@ -1,6 +1,12 @@
 import { supabase } from "./supabase.js";
 
 let currentUser = null;
+let bookingReviewStats = {};
+
+function normalizeProfile(profile) {
+    if (!profile) return null;
+    return Array.isArray(profile) ? profile[0] : profile;
+}
 
 // ==========================
 // REVIEW STATE
@@ -103,8 +109,18 @@ async function loadBookings() {
         const { data: bookings, error } =
             await supabase
                 .from("bookings")
-                .select("*")
-                .eq("user_id", currentUser.id)
+                .select(`
+                    *,
+                    profiles:provider_id (
+                        id,
+                        email,
+                        full_name,
+                        profile_picture
+                    )
+                `)
+                .or(
+                    `user_id.eq.${currentUser.id},userId.eq.${currentUser.id}`
+                )
                 .order("created_at", {
                     ascending: false
                 });
@@ -116,6 +132,33 @@ async function loadBookings() {
         // ==========================
         // EMPTY STATE
         // ==========================
+        const bookingServiceIds = [...new Set(bookings
+            .map(b => b.service_id || b.serviceId)
+            .filter(Boolean)
+        )];
+
+        if (bookingServiceIds.length) {
+            const { data: reviews, error: reviewError } = await supabase
+                .from('reviews')
+                .select('service_id, rating')
+                .in('service_id', bookingServiceIds);
+
+            if (!reviewError && reviews) {
+                bookingReviewStats = reviews.reduce((map, review) => {
+                    const id = review.service_id;
+                    if (!map[id]) map[id] = { sum: 0, count: 0 };
+                    map[id].sum += Number(review.rating || 0);
+                    map[id].count += 1;
+                    return map;
+                }, {});
+
+                Object.keys(bookingReviewStats).forEach(id => {
+                    const stats = bookingReviewStats[id];
+                    stats.avg = stats.count ? stats.sum / stats.count : 0;
+                });
+            }
+        }
+
         if (!bookings || bookings.length === 0) {
 
             container.innerHTML = `
@@ -147,17 +190,24 @@ async function loadBookings() {
         container.innerHTML = "";
 
         // ==========================
+        // ==========================
         // LOOP BOOKINGS
         // ==========================
         for (const booking of bookings) {
 
             let service = null;
-            let provider = null;
+            let provider = normalizeProfile(booking.profiles);
 
             // ==========================
             // GET SERVICE
             // ==========================
-            if (booking.service_id) {
+            const serviceId =
+                booking.service_id || booking.serviceId;
+
+            const providerId =
+                booking.provider_id || booking.providerId;
+
+            if (serviceId) {
 
                 const {
                     data: serviceData,
@@ -165,7 +215,7 @@ async function loadBookings() {
                 } = await supabase
                     .from("services")
                     .select("*")
-                    .eq("id", booking.service_id)
+                    .eq("id", serviceId)
                     .maybeSingle();
 
                 if (!serviceError) {
@@ -174,39 +224,28 @@ async function loadBookings() {
             }
 
             // ==========================
-            // GET PROVIDER
-            // ==========================
-            if (booking.provider_id) {
-
-                const {
-                    data: providerData,
-                    error: providerError
-                } = await supabase
-                    .from("profiles")
-                    .select("full_name,email")
-                    .eq("id", booking.provider_id)
-                    .maybeSingle();
-
-                if (!providerError) {
-                    provider = providerData;
-                }
-            }
-
-            // ==========================
             // DISPLAY VALUES
             // ==========================
             const image =
                 service?.image_url ||
+                service?.imageUrl ||
                 "https://placehold.co/600x400?text=Vora";
 
-            // THIS FIXES YOUR PROVIDER NAME ISSUE
             const providerName =
                 provider?.full_name ||
                 provider?.email ||
                 "Unknown Provider";
 
+            const providerEmail =
+                provider?.email || "unknown@email.com";
+
+            const providerPicture =
+                provider?.profile_picture ||
+                "https://ui-avatars.com/api/?name=User";
+
             const serviceTitle =
                 service?.title ||
+                service?.name ||
                 "Service";
 
             const category =
@@ -214,7 +253,9 @@ async function loadBookings() {
                 "General";
 
             const status =
-                booking.status || "pending";
+                booking.status ||
+                booking.state ||
+                "pending";
 
             let statusColor =
                 "bg-yellow-100 text-yellow-700";
@@ -272,6 +313,22 @@ async function loadBookings() {
                                     ${category}
                                 </p>
 
+                                ${(() => {
+                                    const stats = bookingReviewStats[serviceId];
+                                    if (stats && stats.count) {
+                                        const avg = stats.avg.toFixed(1);
+                                        return `
+                                            <div class="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                                                <span class="text-yellow-500">${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))}</span>
+                                                <span>${avg}/5 · ${stats.count} review${stats.count > 1 ? 's' : ''}</span>
+                                            </div>
+                                        `;
+                                    }
+                                    return `
+                                        <div class="mt-3 text-sm text-gray-400">No reviews yet for this service</div>
+                                    `;
+                                })()}
+
                             </div>
 
                             <span class="px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
@@ -281,26 +338,42 @@ async function loadBookings() {
                         </div>
 
                         <!-- INFO -->
-                        <div class="mt-5 space-y-2 text-gray-700">
+                        <div class="mt-5 space-y-4 text-gray-700">
 
-                            <p>
-                                👤 Provider:
-                                <span class="font-semibold text-gray-900">
-                                    ${providerName}
-                                </span>
-                            </p>
+                            <div class="flex items-center gap-3">
+                                <img
+                                    src="${providerPicture}"
+                                    alt="Provider avatar"
+                                    class="w-12 h-12 rounded-full object-cover border border-gray-200"
+                                />
+                                <div>
+                                    <p class="text-sm text-gray-500">Service Provider</p>
+                                    <p class="font-semibold text-gray-900">
+                                        ${providerEmail}
+                                    </p>
+                                </div>
+                            </div>
 
                             <p>
                                 📅 Scheduled:
                                 <span class="font-semibold">
-                                    ${formatDate(booking.scheduled_date)}
+                                    ${formatDate(
+                                        booking.scheduled_date ||
+                                        booking.date ||
+                                        booking.scheduledDate ||
+                                        booking.start_date
+                                    )}
                                 </span>
                             </p>
 
                             <p>
                                 💰 Amount:
                                 <span class="font-semibold text-green-600">
-                                    ₦${formatMoney(booking.total_price)}
+                                    ₦${formatMoney(
+                                        booking.total_price ||
+                                        booking.amount ||
+                                        booking.price
+                                    )}
                                 </span>
                             </p>
 
@@ -310,7 +383,7 @@ async function loadBookings() {
                         <div class="mt-6 flex gap-3 flex-wrap">
 
                             <a
-                                href="service-details.html?id=${booking.service_id}"
+                                href="service-details.html?id=${serviceId || booking.service_id}"
                                 class="bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700"
                             >
                                 View Service
@@ -320,8 +393,8 @@ async function loadBookings() {
                                 <button
                                     class="leave-review-btn bg-purple-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-purple-700"
                                     data-booking-id="${booking.id}"
-                                    data-provider-id="${booking.provider_id}"
-                                    data-service-id="${booking.service_id}"
+                                    data-provider-id="${providerId || ''}"
+                                    data-service-id="${serviceId || ''}"
                                 >
                                     Leave Review
                                 </button>

@@ -161,6 +161,10 @@
         <div class="mb-8">
             <h1 class="text-4xl font-extrabold text-gray-900 mb-2">🏆 Request Pool</h1>
             <p class="text-gray-600">Browse open service requests and submit your offers</p>
+            <div id="browsePoolReviewStats" class="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
+                <span class="text-blue-600">⏳</span>
+                Loading provider ratings...
+            </div>
         </div>
 
         <!-- Filters & Search -->
@@ -306,8 +310,7 @@
             </div>
         </div>
     </div>
-
-    <script src="./firebase-config.js" type="module"></script>
+    
     <script src="./browse-pool.js" type="module"></script>
     <script src="./menu.js" type="module"></script>
     <script src="./main.js" type="module"></script>
@@ -337,5 +340,3 @@ s0.parentNode.insertBefore(s1,s0);
 </script>
 </body>
 </html>
->
-
