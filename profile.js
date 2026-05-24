@@ -306,10 +306,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function checkUserServices() {
 
         try {
+            console.log("🔍 checkUserServices() called");
 
             if (!backToDashboardBtn) {
+                console.warn("Back to Dashboard button not found in DOM");
                 return;
             }
+
+            console.log("Checking services for user:", currentUser.id);
 
             const { data, error } = await supabase
                 .from("services")
@@ -319,20 +323,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 );
 
             if (error) {
+                console.error("Services query error:", error);
                 throw error;
             }
 
+            console.log("Services found:", data?.length || 0, data);
+
             if (data && data.length > 0) {
+                console.log("✅ Showing Back to Dashboard button");
                 backToDashboardBtn.classList.remove("hidden");
                 backToDashboardBtn.style.display = "block";
             } else {
+                console.log("❌ No services found - hiding Back to Dashboard button");
                 backToDashboardBtn.classList.add("hidden");
                 backToDashboardBtn.style.display = "none";
             }
 
         } catch (error) {
 
-            console.error(error);
+            console.error("❌ checkUserServices error:", error);
 
             if (backToDashboardBtn) {
                 backToDashboardBtn.classList.add("hidden");
