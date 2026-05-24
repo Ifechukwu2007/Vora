@@ -339,13 +339,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 backToDashboardBtn.style.display = "none";
             }
         }
-
-                    <button
-              class="edit-btn flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm"
-              data-id="${service.id}"
-            >
-              Edit
-            </button>
     }
 
     // =========================
