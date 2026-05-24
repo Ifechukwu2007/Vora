@@ -166,14 +166,6 @@ async function loadReviews(providerId) {
     reviewCount += 1;
 
     const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-        <div class="flex items-center mb-2">
-          <span class="text-yellow-400 text-lg">${stars}</span>
-          <span class="ml-2 text-sm text-gray-600">${date}</span>
-        </div>
-        <p class="text-gray-700">${review.comment || 'No comment'}</p>
-      </div>
-    `;
-  }
 
   const averageRating = (totalRating / reviewCount).toFixed(1);
   const averageStars = '★'.repeat(Math.round(averageRating)) + '☆'.repeat(5 - Math.round(averageRating));
@@ -230,3 +222,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     serviceProviderContainer.innerHTML = '<p>Error loading details. Please check your connection and try again.</p>';
   }
 });
+}
