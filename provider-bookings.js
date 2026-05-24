@@ -187,7 +187,7 @@ async function loadProviderBookings(providerId) {
                     .eq("id", booking.service_id)
                     .maybeSingle();
 
-                service = serviceData;
+                service = serviceData; 
             }
 
             // ====================================
