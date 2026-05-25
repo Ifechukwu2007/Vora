@@ -114,23 +114,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Update service
+      // Let RLS policy handle provider ownership check
       const { error: updateErr } = await supabase
         .from('services')
         .update(payloadBase)
-        .eq('id', serviceId)
-        .eq('provider_id', authData.user.id);
+        .eq('id', serviceId);
 
       if (updateErr) {
         console.error('Update error:', updateErr);
+        console.error('Error code:', updateErr.code);
+        console.error('Error message:', updateErr.message);
         console.error('Payload sent:', payloadBase);
         console.error('Service ID:', serviceId);
-        console.error('Provider ID:', authData.user.id);
         throw updateErr;
       }
 
       alert('Service updated successfully!');
       // Redirect back to a page (adjust if you have a specific route)
-      window.location.href = 'home.html';
+      window.location.href = 'my-services.html';
     } catch (err) {
       console.error('Full error:', err);
       alert(`Failed to update service: ${err.message || 'Please try again.'}`);
