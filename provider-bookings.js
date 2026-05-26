@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { updateProfilePictureInHeader } from './auth.js';
 
 function normalizeProfile(profile) {
     if (!profile) return null;
@@ -16,6 +17,7 @@ let serviceReviewStats = {};
 // INIT
 // ===============================
 document.addEventListener("DOMContentLoaded", async () => {
+    await updateProfilePictureInHeader();
     await checkAuth();
     setupLogout();
 });
