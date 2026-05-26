@@ -3,6 +3,24 @@ import { supabase } from './supabase.js';
 document.addEventListener('DOMContentLoaded', async () => {
 
   // =========================
+  // AUTH CHECK
+  // =========================
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  // =========================
+  // REDIRECT IF LOGGED IN
+  // =========================
+
+  if (session) {
+    // User is already logged in, redirect to home
+    window.location.href = 'home.html';
+    return;
+  }
+
+  // =========================
   // DOM ELEMENTS
   // =========================
 
@@ -32,37 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const searchBtn =
     document.getElementById('indexSearchBtn');
-
-  // =========================
-  // AUTH CHECK
-  // =========================
-
-  const {
-    data: { session }
-  } = await supabase.auth.getSession();
-
-  // =========================
-  // SHOW/HIDE UI
-  // =========================
-
-  if (session) {
-
-    // USER LOGGED IN
-    guestActions?.classList.add('hidden');
-    mobileGuestActions?.classList.add('hidden');
-
-    userActions?.classList.remove('hidden');
-    mobileUserActions?.classList.remove('hidden');
-
-  } else {
-
-    // GUEST
-    guestActions?.classList.remove('hidden');
-    mobileGuestActions?.classList.remove('hidden');
-
-    userActions?.classList.add('hidden');
-    mobileUserActions?.classList.add('hidden');
-  }
 
   // =========================
   // LOGOUT
@@ -106,43 +93,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================
 
   function handleSearch() {
+    const query = searchInput.value.trim();
 
-    const query =
-      searchInput.value.trim();
-
-    if (!query) {
-
-      alert(
-        'Enter a service to search'
-      );
-
-      return;
-    }
-
-    window.location.href =
-      `browse.html?search=${encodeURIComponent(query)}`;
+    loadFeaturedServices(query);
   }
 
-  searchBtn?.addEventListener(
-    'click',
-    handleSearch
-  );
+  searchBtn?.addEventListener('click', handleSearch);
 
-  searchInput?.addEventListener(
-    'keypress',
-    (e) => {
-
-      if (e.key === 'Enter') {
-        handleSearch();
-      }
+  searchInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
     }
-  );
+  });
 
   // =========================
   // LOAD FEATURED SERVICES
   // =========================
 
-  async function loadFeaturedServices() {
+  async function loadFeaturedServices(searchQuery = '') {
 
     try {
 
@@ -152,16 +120,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      const {
-        data: services,
-        error
-      } = await supabase
+      let query = supabase
         .from('services')
         .select('*')
         .order('created_at', {
           ascending: false
         })
         .limit(8);
+
+      if (searchQuery) {
+        const normalized = searchQuery.trim();
+        query = query.or(
+          `title.ilike.%${normalized}%,description.ilike.%${normalized}%,category.ilike.%${normalized}%`
+        );
+      }
+
+      const { 
+        data: services,
+        error
+      } = await query;
 
       if (error) {
         throw error;
@@ -172,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         servicesGrid.innerHTML = `
           <div class="col-span-full text-center py-10 text-gray-500">
-            No services available
+            ${searchQuery ? 'No services matched your search.' : 'No services available'}
           </div>
         `;
 
@@ -218,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <p class="text-sm text-gray-500 mt-1">
               ${service.category || 'General'}
             </p>
-
+ 
             <p class="text-gray-700 text-sm mt-3 line-clamp-2">
               ${service.description || ''}
             </p>
@@ -249,7 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           () => {
 
             window.location.href =
-              `Register.html?service_id=${service.id}`;
+              `register.html?service_id=${service.id}`;
           }
         );
 
