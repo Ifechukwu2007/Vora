@@ -327,47 +327,59 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function checkUserServices() {
 
         try {
-            console.log("🔍 checkUserServices() called");
+
+            console.log("🔍 Checking user services...");
 
             if (!backToDashboardBtn) {
-                console.warn("Back to Dashboard button not found in DOM");
+                console.warn("Back To Dashboard button not found");
                 return;
             }
-
-            console.log("Checking services for user:", currentUser.id);
-
-            const { data, error } = await supabase
+ 
+            // =========================
+            // CHECK SERVICES TABLE
+            // =========================
+            const {
+                data: services,
+                error
+            } = await supabase
                 .from("services")
                 .select("id")
-                .or(
-                    `provider_id.eq.${currentUser.id},user_id.eq.${currentUser.id},providerId.eq.${currentUser.id},userId.eq.${currentUser.id}`
-                );
+                .eq("provider_id", currentUser.id);
 
             if (error) {
-                console.error("Services query error:", error);
+                console.error("Service check error:", error);
                 throw error;
             }
 
-            console.log("Services found:", data?.length || 0, data);
+            console.log("Services found:", services);
 
-            if (data && data.length > 0) {
-                console.log("✅ Showing Back to Dashboard button");
+            // =========================
+            // SHOW BUTTON IF USER HAS SERVICES
+            // =========================
+            if (services && services.length > 0) {
+
+                console.log("✅ User has services");
+
                 backToDashboardBtn.classList.remove("hidden");
-                backToDashboardBtn.style.display = "block";
+
+                backToDashboardBtn.style.display = "flex";
+
             } else {
-                console.log("❌ No services found - hiding Back to Dashboard button");
+
+                console.log("❌ User has no services");
+
                 backToDashboardBtn.classList.add("hidden");
+
                 backToDashboardBtn.style.display = "none";
             }
- 
+
         } catch (error) {
 
-            console.error("❌ checkUserServices error:", error);
+            console.error("❌ checkUserServices failed:", error);
 
-            if (backToDashboardBtn) {
-                backToDashboardBtn.classList.add("hidden");
-                backToDashboardBtn.style.display = "none";
-            }
+            backToDashboardBtn.classList.add("hidden");
+
+            backToDashboardBtn.style.display = "none";
         }
     }
 
