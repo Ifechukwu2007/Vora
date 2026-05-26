@@ -1,8 +1,8 @@
 import { LoadingSpinner } from './loading-utils.js';
 import { supabase } from './supabase.js';
-import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-document.addEventListener('DOMContentLoaded', () => {
+import { updateProfilePictureInHeader } from './auth.js';
+document.addEventListener('DOMContentLoaded', async () => {
+    await updateProfilePictureInHeader();
     const payoutForm = document.getElementById('payout-settings-form');
     const bankNameInput = document.getElementById('bank-name');
     const accountNumberInput = document.getElementById('account-number');
