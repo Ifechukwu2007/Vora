@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             await supabase.auth.signOut();
-            window.location.href = 'login.html';
+            window.location.href = 'login';
         });
     });
 

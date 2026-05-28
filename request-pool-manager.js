@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentUser = userData.user;
 
     if (!currentUser) {
-        window.location.href = "login.html";
+        window.location.href = "login";
         return;
     }
 

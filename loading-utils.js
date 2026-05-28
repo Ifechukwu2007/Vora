@@ -41,14 +41,16 @@ export const LoadingSpinner = {
 
   /**
    * Show spinner and navigate after an optional delay
-   * @param {string} url - The URL to navigate to
+   * @param {string} url - The URL to navigate to (with or without .html)
    * @param {number} delay - Delay in ms before navigation (default: 0)
    */
   navigateTo(url, delay = 0) {
     this.show();
 
     const navigate = () => {
-      window.location.href = url;
+      // Ensure .html extension is added for actual navigation
+      const actualUrl = url.endsWith('.html') ? url : url + '.html';
+      window.location.href = actualUrl;
     };
 
     if (delay > 0) {

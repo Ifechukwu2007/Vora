@@ -42,7 +42,7 @@ function setupLogout() {
 
         await supabase.auth.signOut();
 
-        window.location.href = 'login.html';
+        window.location.href = 'login';
     }
 
     if (logoutBtn) {
@@ -755,7 +755,7 @@ async function submitOffer(e) {
 
         alert('Please login first');
 
-        window.location.href = 'login.html';
+        window.location.href = 'login';
 
         return;
     }

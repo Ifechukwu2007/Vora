@@ -154,7 +154,7 @@ if (loginForm) {
       // Update profile picture in header before redirecting
       await updateProfilePictureInHeader();
 
-      window.location.href = "home.html";
+      window.location.href = "home";
     } catch (error) {
       console.error("Login error:", error);
 
@@ -321,7 +321,7 @@ if (registerForm) {
       updateStrengthUI(0);
 
       setTimeout(() => {
-        window.location.href = "login.html";
+        window.location.href = "login";
       }, 2000);
     } catch (error) {
       console.error("Registration error:", error);
@@ -356,7 +356,7 @@ async function handleLogout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
-    window.location.href = "index.html";
+    window.location.href = "index";
   } catch (error) {
     console.error("Logout error:", error);
     showError("Logout failed. Please try again.");

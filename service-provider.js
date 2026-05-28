@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (document.referrer && document.referrer.includes('service.html')) {
         window.history.back();
       } else {
-        window.location.href = 'browse.html';
+        window.location.href = 'browse';
       }
     });
   }

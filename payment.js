@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (authError || !authData?.user) {
     alert('Please login first');
-    window.location.href = 'login.html';
+    window.location.href = 'login';
     return;
   }
 
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
               alert('Payment successful');
 
-              window.location.href = 'my-bookings.html';
+              window.location.href = 'my-bookings';
 
             } catch (err) {
               console.error(err);
