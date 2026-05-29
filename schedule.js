@@ -1,78 +1,282 @@
-import { LoadingSpinner } from './loading-utils.js';
 import { supabase } from './supabase.js';
 
-let currentUser = null;
-
-async function initSchedule() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    LoadingSpinner.navigateTo('login.html');
-    return;
-  }
-
-  currentUser = user;
-  setupLogout(); 
-}
-
-function setupLogout() {
-  const logoutBtns = document.querySelectorAll('#logoutBtn, #logoutBtn2');
-  const logout = async () => {
-    await supabase.auth.signOut();
-    LoadingSpinner.navigateTo('index.html');
-  };
-  logoutBtns.forEach(btn => {
-    if (btn) btn.addEventListener('click', logout);
-  });
-}
-
+/**
+ * =========================
+ * STATE
+ * =========================
+ */
 let currentDate = new Date();
 let bookings = [];
 let availability = [];
+let currentUser = null;
 
-async function loadBookings() {
-  const { data, error } = await supabase
+/**
+ * =========================
+ * INIT
+ * =========================
+ */
+document.addEventListener('DOMContentLoaded', async () => {
+  await initUser();
+  await loadData();
+
+  setupProfileImage();
+  setupHamburgerMenu();
+
+  renderCalendar();
+  renderStats();
+  renderUpcomingBookings();
+
+  setupForm();
+  setupCalendarButtons();
+});
+
+/**
+ * =========================
+ * GET USER
+ * =========================
+ */
+async function initUser() {
+  const { data } = await supabase.auth.getUser();
+  currentUser = data?.user || null;
+
+  if (!currentUser) {
+    window.location.href = 'login.html';
+  }
+}
+
+/**
+ * =========================
+ * LOAD DATA
+ * =========================
+ */
+async function loadData() {
+  if (!currentUser) return;
+
+  const userId = currentUser.id;
+
+  const { data: bookingData } = await supabase
     .from('bookings')
     .select('*')
-    .eq('provider_id', currentUser.id)
-    .order('created_at', { ascending: false });
+    .eq('provider_id', userId);
 
-  if (error) console.error('Error loading bookings:', error);
-  bookings = data || [];
-}
-
-async function loadAvailability() {
-  const { data, error } = await supabase
-    .from('provider_availability')
+  const { data: availabilityData } = await supabase
+    .from('availability')
     .select('*')
-    .eq('provider_id', currentUser.id);
+    .eq('provider_id', userId);
 
-  if (error) console.error('Error loading availability:', error);
-  availability = data || [];
+  bookings = bookingData || [];
+  availability = availabilityData || [];
 }
 
-async function saveAvailability(day, startTime, endTime) {
-  const { error } = await supabase
-    .from('provider_availability')
-    .upsert({
-      provider_id: currentUser.id,
-      day_of_week: day,
-      start_time: startTime,
-      end_time: endTime,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'provider_id,day_of_week' });
+/**
+ * =========================
+ * PROFILE IMAGE FIX
+ * =========================
+ */
+function setupProfileImage() {
+  const profileIcon = document.querySelector('[data-profile-icon="true"]');
 
-  if (error) console.error('Error saving availability:', error);
-  else await loadAvailability();
+  if (!profileIcon || !currentUser) return;
+
+  const avatar =
+    currentUser.user_metadata?.avatar_url ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      currentUser.email || 'User'
+    )}`;
+
+  profileIcon.innerHTML = `
+    <img 
+      src="${avatar}" 
+      class="w-10 h-10 rounded-full object-cover"
+    />
+  `;
 }
 
-async function deleteAvailability(id) {
-  const { error } = await supabase
-    .from('provider_availability')
-    .delete()
-    .eq('id', id);
+/**
+ * =========================
+ * HAMBURGER MENU FIX
+ * =========================
+ */
+function setupHamburgerMenu() {
+  const hamburger = document.getElementById('hamburger');
+  const sideMenu = document.getElementById('sideMenu');
+  const closeMenu = document.getElementById('closeMenu');
+  const overlay = document.getElementById('menuOverlay');
 
-  if (error) console.error('Error deleting availability:', error);
-  else await loadAvailability();
+  if (!hamburger || !sideMenu || !closeMenu || !overlay) return;
+
+  const openMenu = () => {
+    sideMenu.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden');
+  };
+
+  const close = () => {
+    sideMenu.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+  };
+
+  hamburger.addEventListener('click', openMenu);
+  closeMenu.addEventListener('click', close);
+  overlay.addEventListener('click', close);
 }
 
-initSchedule(); 
+/**
+ * =========================
+ * CALENDAR
+ * =========================
+ */
+function renderCalendar() {
+  const calendar = document.getElementById('calendarDays');
+  const monthYear = document.getElementById('monthYear');
+
+  if (!calendar || !monthYear) return;
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  monthYear.innerText = currentDate.toLocaleString('default', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  calendar.innerHTML = '';
+
+  for (let i = 0; i < firstDay; i++) {
+    calendar.innerHTML += `<div></div>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    const hasBooking = bookings.some(b => b.date === dateStr);
+    const isAvailable = availability.some(a => a.date === dateStr);
+
+    let bg = 'bg-gray-100';
+
+    if (hasBooking) bg = 'bg-blue-500 text-white';
+    else if (isAvailable) bg = 'bg-green-500 text-white';
+
+    calendar.innerHTML += `
+      <div class="p-2 text-center rounded cursor-pointer ${bg}">
+        ${day}
+      </div>
+    `;
+  }
+}
+
+/**
+ * =========================
+ * NAV MONTH
+ * =========================
+ */
+function setupCalendarButtons() {
+  document.getElementById('prevMonth')?.addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() - 1);
+    renderCalendar();
+  });
+
+  document.getElementById('nextMonth')?.addEventListener('click', () => {
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    renderCalendar();
+  });
+}
+
+/**
+ * =========================
+ * AVAILABILITY FORM
+ * =========================
+ */
+function setupForm() {
+  const form = document.getElementById('availabilityForm');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const date = document.getElementById('availabilityDate').value;
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+
+    if (!currentUser) return;
+
+    const { error } = await supabase
+      .from('availability')
+      .insert([
+        {
+          provider_id: currentUser.id,
+          date,
+          start_time: startTime,
+          end_time: endTime
+        }
+      ]);
+
+    if (error) {
+      alert('Failed to set availability');
+      return;
+    }
+
+    alert('Availability updated!');
+
+    await loadData();
+    renderCalendar();
+  });
+}
+
+/**
+ * =========================
+ * STATS
+ * =========================
+ */
+function renderStats() {
+  const total = bookings.length;
+  const pending = bookings.filter(b => b.status === 'pending').length;
+  const confirmed = bookings.filter(b => b.status === 'confirmed').length;
+  const completed = bookings.filter(b => b.status === 'completed').length;
+
+  const set = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = value;
+  };
+
+  set('totalBookings', total);
+  set('pendingBookings', pending);
+  set('confirmedBookings', confirmed);
+  set('completedBookings', completed);
+}
+
+/**
+ * =========================
+ * UPCOMING BOOKINGS
+ * =========================
+ */
+function renderUpcomingBookings() {
+  const container = document.getElementById('upcomingBookings');
+
+  if (!container) return;
+
+  if (!bookings.length) {
+    container.innerHTML = `<p class="text-gray-500 text-center py-8">No upcoming bookings</p>`;
+    return;
+  }
+
+  const upcoming = bookings
+    .filter(b => b.status !== 'completed')
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  container.innerHTML = upcoming.map(b => `
+    <div class="border p-4 rounded-lg flex justify-between items-center">
+
+      <div>
+        <p class="font-bold">${b.service_name || 'Service'}</p>
+        <p class="text-gray-600">${b.date} • ${b.time || ''}</p>
+      </div>
+
+      <span class="px-3 py-1 rounded bg-gray-200 text-sm">
+        ${b.status}
+      </span>
+
+    </div>
+  `).join('');
+}

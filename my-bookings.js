@@ -1,26 +1,61 @@
 import { supabase } from "./supabase.js";
 
 let currentUser = null;
+let bookingReviewStats = {};
+
+function normalizeProfile(profile) {
+    if (!profile) return null;
+    return Array.isArray(profile) ? profile[0] : profile;
+}
+
+// ==========================
+// REVIEW STATE
+// ==========================
+let currentBookingForReview = null;
 let selectedRating = 0;
-let selectedBooking = null;
 
 // ==========================
 // INIT
 // ==========================
 document.addEventListener("DOMContentLoaded", async () => {
 
-    const { data: sessionData } = await supabase.auth.getSession();
+    try {
 
-    if (!sessionData.session) {
-        window.location.href = "login.html";
-        return;
+        // ==========================
+        // CHECK SESSION
+        // ==========================
+        const { data: sessionData, error: sessionError } =
+            await supabase.auth.getSession();
+
+        if (sessionError) {
+            throw sessionError;
+        }
+
+        if (!sessionData.session) {
+            window.location.href = "login.html";
+            return;
+        }
+
+        currentUser = sessionData.session.user;
+
+        // ==========================
+        // SETUP
+        // ==========================
+        setupLogout();
+        setupReviewButtons();
+        setupReviewModal();
+
+        // ==========================
+        // LOAD BOOKINGS
+        // ==========================
+        await loadBookings();
+
+    } catch (error) {
+
+        console.error("INIT ERROR:", error);
+
+        alert(error.message);
     }
-
-    currentUser = sessionData.session.user;
-
-    await loadBookings();
-    setupReviewModal();
-    setupLogout();
 });
 
 // ==========================
@@ -41,9 +76,13 @@ function setupLogout() {
         window.location.href = "login.html";
     }
 
-    logoutBtn?.addEventListener("click", logout);
+    if (logoutBtn) {
+        logoutBtn.onclick = logout;
+    }
 
-    logoutBtnSideMenu?.addEventListener("click", logout);
+    if (logoutBtnSideMenu) {
+        logoutBtnSideMenu.onclick = logout;
+    }
 }
 
 // ==========================
@@ -54,51 +93,93 @@ async function loadBookings() {
     const container =
         document.getElementById("bookingsContainer");
 
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow text-center">
+            Loading bookings...
+        </div>
+    `;
+
     try {
 
-        // LOADING
-        container.innerHTML = `
-            <div class="bg-white rounded-xl p-10 text-center shadow">
+        // ==========================
+        // GET BOOKINGS
+        // ==========================
+        const { data: bookings, error } =
+            await supabase
+                .from("bookings")
+                .select(`
+                    *,
+                    profiles:provider_id (
+                        id,
+                        email,
+                        full_name,
+                        profile_picture
+                    )
+                `)
+                .or(
+                    `user_id.eq.${currentUser.id},userId.eq.${currentUser.id}`
+                )
+                .order("created_at", {
+                    ascending: false
+                });
 
-                <div class="text-5xl mb-4">
-                    ⏳
-                </div>
-
-                <p class="text-gray-600 text-lg">
-                    Loading bookings...
-                </p>
-
-            </div>
-        `;
+        if (error) {
+            throw error;
+        }
 
         // ==========================
-        // FETCH BOOKINGS
-        // ==========================
-        const { data: bookings, error } = await supabase
-            .from("bookings")
-            .select("*")
-            .eq("user_id", currentUser.id)
-            .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
         // EMPTY STATE
+        // ==========================
+        const bookingServiceIds = [...new Set(bookings
+            .map(b => b.service_id || b.serviceId)
+            .filter(Boolean)
+        )];
+
+        if (bookingServiceIds.length) {
+            const { data: reviews, error: reviewError } = await supabase
+                .from('reviews')
+                .select('service_id, rating')
+                .in('service_id', bookingServiceIds);
+
+            if (!reviewError && reviews) {
+                bookingReviewStats = reviews.reduce((map, review) => {
+                    const id = review.service_id;
+                    if (!map[id]) map[id] = { sum: 0, count: 0 };
+                    map[id].sum += Number(review.rating || 0);
+                    map[id].count += 1;
+                    return map;
+                }, {});
+
+                Object.keys(bookingReviewStats).forEach(id => {
+                    const stats = bookingReviewStats[id];
+                    stats.avg = stats.count ? stats.sum / stats.count : 0;
+                });
+            }
+        }
+
         if (!bookings || bookings.length === 0) {
 
             container.innerHTML = `
-                <div class="bg-white rounded-xl p-10 text-center shadow">
+                <div class="bg-white p-10 rounded-xl shadow text-center">
 
                     <div class="text-6xl mb-4">
                         📭
                     </div>
 
-                    <h2 class="text-2xl font-bold text-gray-800 mb-3">
-                        No Bookings Yet
+                    <h2 class="text-2xl font-bold mb-2">
+                        No bookings yet
                     </h2>
 
-                    <p class="text-gray-500">
-                        Your bookings will appear here.
+                    <p class="text-gray-500 mb-6">
+                        You have not booked any service.
                     </p>
+
+                    <a href="browse.html"
+                        class="bg-blue-600 text-white px-6 py-3 rounded-lg inline-block">
+                        Browse Services
+                    </a>
 
                 </div>
             `;
@@ -106,294 +187,220 @@ async function loadBookings() {
             return;
         }
 
-        // ==========================
-        // FETCH PROVIDERS
-        // ==========================
-        const providerIds = [
-            ...new Set(
-                bookings
-                    .map(b => b.provider_id)
-                    .filter(Boolean)
-            )
-        ];
-
-        let providersById = {};
-
-        if (providerIds.length > 0) {
-
-            const {
-                data: providers,
-                error: providersError
-            } = await supabase
-                .from("users")
-                .select(`
-                    id,
-                    full_name,
-                    email,
-                    location,
-                    profile_picture
-                `)
-                .in("id", providerIds);
-
-            if (providersError) {
-                console.error(
-                    "Providers fetch error:",
-                    providersError
-                );
-            }
-
-            providersById = Object.fromEntries(
-                (providers || []).map(provider => [
-                    String(provider.id),
-                    provider
-                ])
-            );
-
-            console.log("Providers fetched:", providers);
-            console.log("ProvidersById object:", providersById);
-        }
-
-        // ==========================
-        // FETCH SERVICES
-        // ==========================
-        const serviceIds = bookings
-            .map(b => b.service_id)
-            .filter(Boolean);
-
-        let servicesById = {};
-
-        if (serviceIds.length > 0) {
-
-            const { data: services } = await supabase
-                .from("services")
-                .select(`
-                    id,
-                    title,
-                    description,
-                    location,
-                    price
-                `)
-                .in("id", serviceIds);
-
-            servicesById = Object.fromEntries(
-                (services || []).map(service => [
-                    service.id,
-                    service
-                ])
-            );
-        }
-
-        // ==========================
-        // FETCH REQUESTS
-        // ==========================
-        const requestIds = bookings
-            .map(b => b.request_id)
-            .filter(Boolean);
-
-        let requestsById = {};
-
-        if (requestIds.length > 0) {
-
-            const { data: requests } = await supabase
-                .from("requests")
-                .select(`
-                    id,
-                    title,
-                    description,
-                    location,
-                    budget
-                `)
-                .in("id", requestIds);
-
-            requestsById = Object.fromEntries(
-                (requests || []).map(request => [
-                    request.id,
-                    request
-                ])
-            );
-        }
-
-        // CLEAR CONTAINER
         container.innerHTML = "";
 
         // ==========================
+        // ==========================
         // LOOP BOOKINGS
         // ==========================
-        bookings.forEach(booking => {
+        for (const booking of bookings) {
 
-            console.log("Current booking:", booking);
-            console.log("Provider ID from booking:", booking.provider_id);
+            let service = null;
+            let provider = normalizeProfile(booking.profiles);
 
-            // SERVICE / REQUEST
-            const serviceDetails =
-                servicesById[booking.service_id];
+            // ==========================
+            // GET SERVICE
+            // ==========================
+            const serviceId =
+                booking.service_id || booking.serviceId;
 
-            const requestDetails =
-                requestsById[booking.request_id];
+            const providerId =
+                booking.provider_id || booking.providerId;
 
-            const details =
-                serviceDetails ||
-                requestDetails ||
-                {};
+            if (serviceId) {
 
-            // PROVIDER
-            const provider =
-                providersById[String(booking.provider_id)] || null;
+                const {
+                    data: serviceData,
+                    error: serviceError
+                } = await supabase
+                    .from("services")
+                    .select("*")
+                    .eq("id", serviceId)
+                    .maybeSingle();
 
-            console.log(`Looking for provider with ID: ${String(booking.provider_id)}, found:`, provider);
+                if (!serviceError) {
+                    service = serviceData;
+                }
+            }
+
+            // ==========================
+            // DISPLAY VALUES
+            // ==========================
+            const image =
+                service?.image_url ||
+                service?.imageUrl ||
+                "https://placehold.co/600x400?text=Vora";
 
             const providerName =
                 provider?.full_name ||
+                provider?.email ||
                 "Unknown Provider";
 
             const providerEmail =
-                provider?.email ||
-                "No Email";
-
-            const providerLocation =
-                provider?.location ||
-                "Location not available";
+                provider?.email || "unknown@email.com";
 
             const providerPicture =
-                provider?.profile_picture &&
-                provider.profile_picture.trim() !== ""
-                    ? provider.profile_picture
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
+                provider?.profile_picture ||
+                "https://ui-avatars.com/api/?name=User";
 
-            // CARD
+            const serviceTitle =
+                service?.title ||
+                service?.name ||
+                "Service";
+
+            const category =
+                service?.category ||
+                "General";
+
+            const status =
+                booking.status ||
+                booking.state ||
+                "pending";
+
+            let statusColor =
+                "bg-yellow-100 text-yellow-700";
+
+            if (status === "confirmed") {
+                statusColor =
+                    "bg-green-100 text-green-700";
+            }
+
+            if (status === "cancelled") {
+                statusColor =
+                    "bg-red-100 text-red-700";
+            }
+
+            // ==========================
+            // CREATE CARD
+            // ==========================
             const card =
                 document.createElement("div");
 
             card.className = `
                 bg-white
                 rounded-2xl
-                shadow-md
-                p-6
-                hover:shadow-xl
+                shadow-sm
+                overflow-hidden
+                hover:shadow-lg
                 transition
             `;
 
             card.innerHTML = `
-                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                <div class="md:flex">
 
-                    <!-- LEFT -->
-                    <div class="flex-1">
+                    <!-- IMAGE -->
+                    <div class="md:w-72 h-60">
 
-                        <!-- PROVIDER -->
-                        <div class="flex items-center gap-4 mb-5">
-
-                            <img
-                                src="${providerPicture}"
-                                alt="${providerName}"
-                                class="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                                onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}'"
-                            >
-
-                            <div class="flex-1">
-
-                                <p class="text-sm text-gray-500">
-                                    Service Provider
-                                </p>
-
-                                <h2 class="text-xl font-bold text-gray-900">
-                                    ${providerName}
-                                </h2>
-
-                                <p class="text-blue-600 text-sm break-all">
-                                    ${providerEmail}
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        <!-- TITLE -->
-                        <h3 class="text-2xl font-bold text-gray-900 mb-3">
-                            ${details.title || "Untitled Booking"}
-                        </h3>
-
-                        <!-- DESCRIPTION -->
-                        <p class="text-gray-600 leading-relaxed mb-5">
-                            ${details.description || "No description"}
-                        </p>
-
-                        <!-- DETAILS -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                            <!-- LOCATION -->
-                            <div class="bg-gray-50 rounded-xl p-4">
-
-                                <p class="text-sm text-gray-500 mb-1">
-                                    📍 Location
-                                </p>
-
-                                <p class="font-semibold text-gray-900">
-                                    ${details.location || "No location"}
-                                </p>
-
-                            </div>
-
-                            <!-- PRICE -->
-                            <div class="bg-gray-50 rounded-xl p-4">
-
-                                <p class="text-sm text-gray-500 mb-1">
-                                    💰 Agreed Price
-                                </p>
-
-                                <p class="font-bold text-green-600 text-xl">
-                                    ₦${Number(
-                                        booking.total_price ||
-                                        details.price ||
-                                        details.budget ||
-                                        0
-                                    ).toLocaleString()}
-                                </p>
-
-                            </div>
-
-                            <!-- PROVIDER LOCATION -->
-                            <div class="bg-gray-50 rounded-xl p-4">
-
-                                <p class="text-sm text-gray-500 mb-1">
-                                    🌍 Provider Location
-                                </p>
-
-                                <p class="font-semibold text-gray-900">
-                                    ${providerLocation}
-                                </p>
-
-                            </div>
-
-                            <!-- BOOKING DATE -->
-                            <div class="bg-gray-50 rounded-xl p-4">
-
-                                <p class="text-sm text-gray-500 mb-1">
-                                    📅 Booking Date
-                                </p>
-
-                                <p class="font-semibold text-gray-900">
-                                    ${new Date(
-                                        booking.created_at
-                                    ).toLocaleDateString()}
-                                </p>
-
-                            </div>
-
-                        </div>
+                        <img
+                            src="${image}"
+                            class="w-full h-full object-cover"
+                        />
 
                     </div>
 
-                    <!-- RIGHT -->
-                    <div class="flex flex-col gap-3 w-full lg:w-56">
+                    <!-- CONTENT -->
+                    <div class="flex-1 p-6">
 
-                        <button
-                            class="review-btn bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-xl font-semibold transition"
-                            data-booking="${booking.id}"
-                            data-service="${booking.service_id || ''}"
-                            data-provider="${booking.provider_id || ''}"
-                        >
-                            Leave Review
-                        </button>
+                        <div class="flex items-start justify-between gap-4">
+
+                            <div>
+
+                                <h2 class="text-2xl font-bold text-gray-900">
+                                    ${serviceTitle}
+                                </h2>
+
+                                <p class="text-gray-500 mt-1">
+                                    ${category}
+                                </p>
+
+                                ${(() => {
+                                    const stats = bookingReviewStats[serviceId];
+                                    if (stats && stats.count) {
+                                        const avg = stats.avg.toFixed(1);
+                                        return `
+                                            <div class="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                                                <span class="text-yellow-500">${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))}</span>
+                                                <span>${avg}/5 · ${stats.count} review${stats.count > 1 ? 's' : ''}</span>
+                                            </div>
+                                        `;
+                                    }
+                                    return `
+                                        <div class="mt-3 text-sm text-gray-400">No reviews yet for this service</div>
+                                    `;
+                                })()}
+
+                            </div>
+
+                            <span class="px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
+                                ${status}
+                            </span>
+
+                        </div>
+
+                        <!-- INFO -->
+                        <div class="mt-5 space-y-4 text-gray-700">
+
+                            <div class="flex items-center gap-3">
+                                <img
+                                    src="${providerPicture}"
+                                    alt="Provider avatar"
+                                    class="w-12 h-12 rounded-full object-cover border border-gray-200"
+                                />
+                                <div>
+                                    <p class="text-sm text-gray-500">Service Provider</p>
+                                    <p class="font-semibold text-gray-900">
+                                        ${providerEmail}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p>
+                                📅 Scheduled:
+                                <span class="font-semibold">
+                                    ${formatDate(
+                                        booking.scheduled_date ||
+                                        booking.date ||
+                                        booking.scheduledDate ||
+                                        booking.start_date
+                                    )}
+                                </span>
+                            </p>
+
+                            <p>
+                                💰 Amount:
+                                <span class="font-semibold text-green-600">
+                                    ₦${formatMoney(
+                                        booking.total_price ||
+                                        booking.amount ||
+                                        booking.price
+                                    )}
+                                </span>
+                            </p>
+
+                        </div>
+
+                        <!-- BUTTONS -->
+                        <div class="mt-6 flex gap-3 flex-wrap">
+
+                            <a
+                                href="service-details.html?id=${serviceId || booking.service_id}"
+                                class="bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700"
+                            >
+                                View Service
+                            </a>
+
+                            ${status === "confirmed" ? `
+                                <button
+                                    class="leave-review-btn bg-purple-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-purple-700"
+                                    data-booking-id="${booking.id}"
+                                    data-provider-id="${providerId || ''}"
+                                    data-service-id="${serviceId || ''}"
+                                >
+                                    Leave Review
+                                </button>
+                            ` : ""}
+
+                        </div>
 
                     </div>
 
@@ -401,45 +408,24 @@ async function loadBookings() {
             `;
 
             container.appendChild(card);
-        });
-
-        // ==========================
-        // REVIEW BUTTONS
-        // ==========================
-        document.querySelectorAll(".review-btn")
-        .forEach(button => {
-
-            button.addEventListener("click", () => {
-
-                selectedBooking =
-                    button.dataset.booking;
-
-                openReviewModal(
-                    button.dataset.provider,
-                    button.dataset.service
-                );
-            });
-        });
+        }
 
     } catch (error) {
 
-        console.error(
-            "Load bookings error:",
-            error
-        );
+        console.error("LOAD BOOKINGS ERROR:", error);
 
         container.innerHTML = `
-            <div class="bg-white rounded-xl p-10 text-center shadow">
+            <div class="bg-white p-10 rounded-xl shadow text-center">
 
                 <div class="text-6xl mb-4">
                     ❌
                 </div>
 
-                <h2 class="text-2xl font-bold text-red-600 mb-3">
+                <h2 class="text-2xl font-bold text-red-600 mb-2">
                     Failed to load bookings
                 </h2>
 
-                <p class="text-gray-500">
+                <p class="text-gray-500 break-all">
                     ${error.message}
                 </p>
 
@@ -449,148 +435,252 @@ async function loadBookings() {
 }
 
 // ==========================
-// REVIEW MODAL
+// FORMAT DATE
 // ==========================
-function setupReviewModal() {
+function formatDate(dateString) {
 
-    const modal =
-        document.getElementById("reviewModal");
+    if (!dateString) return "N/A";
 
-    const closeBtn =
-        document.getElementById("closeReviewModal");
-
-    const cancelBtn =
-        document.getElementById("cancelReview");
-
-    const submitBtn =
-        document.getElementById("submitReview");
-
-    const stars =
-        document.querySelectorAll(".star");
-
-    // CLOSE MODAL
-    function closeModal() {
-
-        modal.classList.add("hidden");
-
-        selectedRating = 0;
-
-        document.getElementById(
-            "reviewComment"
-        ).value = "";
-
-        stars.forEach(star => {
-
-            star.classList.remove("text-yellow-400");
-            star.classList.add("text-gray-300");
-        });
-    }
-
-    closeBtn?.addEventListener("click", closeModal);
-
-    cancelBtn?.addEventListener("click", closeModal);
-
-    // STAR RATING
-    stars.forEach(star => {
-
-        star.addEventListener("click", () => {
-
-            selectedRating =
-                Number(star.dataset.rating);
-
-            stars.forEach(s => {
-
-                const rating =
-                    Number(s.dataset.rating);
-
-                if (rating <= selectedRating) {
-
-                    s.classList.remove("text-gray-300");
-                    s.classList.add("text-yellow-400");
-
-                } else {
-
-                    s.classList.remove("text-yellow-400");
-                    s.classList.add("text-gray-300");
-                }
-            });
-        });
-    });
-
-    // SUBMIT REVIEW
-    submitBtn?.addEventListener("click", async () => {
-
-        try {
-
-            if (!selectedRating) {
-                alert("Please select a rating");
-                return;
+    return new Date(dateString)
+        .toLocaleDateString(
+            "en-NG",
+            {
+                year: "numeric",
+                month: "long",
+                day: "numeric"
             }
+        );
+}
 
-            const comment =
-                document.getElementById(
-                    "reviewComment"
-                ).value;
+// ==========================
+// FORMAT MONEY
+// ==========================
+function formatMoney(amount) {
 
-            const providerId =
-                modal.dataset.provider;
+    return Number(amount || 0)
+        .toLocaleString("en-NG");
+}
 
-            const serviceId =
-                modal.dataset.service;
+// ==========================
+// REVIEW BUTTONS
+// ==========================
+function setupReviewButtons() {
 
-            submitBtn.disabled = true;
+    document.addEventListener("click", (e) => {
 
-            submitBtn.textContent =
-                "Submitting...";
+        if (
+            e.target.classList.contains(
+                "leave-review-btn"
+            )
+        ) {
 
-            const { error } = await supabase
-                .from("reviews")
-                .insert({
-                    booking_id: selectedBooking,
-                    user_id: currentUser.id,
-                    provider_id: providerId,
-                    service_id: serviceId,
-                    rating: selectedRating,
-                    comment
-                });
+            currentBookingForReview = {
+                id: e.target.dataset.bookingId,
+                provider_id:
+                    e.target.dataset.providerId,
+                service_id:
+                    e.target.dataset.serviceId
+            };
 
-            if (error) throw error;
-
-            alert(
-                "Review submitted successfully!"
-            );
-
-            closeModal();
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert(error.message);
-
-        } finally {
-
-            submitBtn.disabled = false;
-
-            submitBtn.textContent =
-                "Submit Review";
+            openReviewModal();
         }
     });
 }
 
 // ==========================
-// OPEN REVIEW MODAL
+// REVIEW MODAL
 // ==========================
-function openReviewModal(providerId, serviceId) {
+function setupReviewModal() {
 
-    const modal =
-        document.getElementById("reviewModal");
+    const stars =
+        document.querySelectorAll(
+            "#reviewModal .star"
+        );
 
-    modal.dataset.provider =
-        providerId;
+    stars.forEach(star => {
 
-    modal.dataset.service =
-        serviceId;
+        star.addEventListener("click", () => {
 
-    modal.classList.remove("hidden");
+            selectedRating =
+                parseInt(star.dataset.rating);
+
+            updateStars();
+        });
+    });
+
+    document
+        .getElementById("closeReviewModal")
+        ?.addEventListener(
+            "click",
+            closeReviewModal
+        );
+
+    document
+        .getElementById("cancelReview")
+        ?.addEventListener(
+            "click",
+            closeReviewModal
+        );
+
+    document
+        .getElementById("submitReview")
+        ?.addEventListener(
+            "click",
+            submitReview
+        );
+}
+
+// ==========================
+// OPEN MODAL
+// ==========================
+function openReviewModal() {
+
+    document
+        .getElementById("reviewModal")
+        ?.classList.remove("hidden");
+
+    document
+        .getElementById("reviewComment")
+        .value = "";
+
+    selectedRating = 0;
+
+    updateStars();
+}
+
+// ==========================
+// CLOSE MODAL
+// ==========================
+function closeReviewModal() {
+
+    document
+        .getElementById("reviewModal")
+        ?.classList.add("hidden");
+
+    selectedRating = 0;
+
+    currentBookingForReview = null;
+}
+
+// ==========================
+// UPDATE STARS
+// ==========================
+function updateStars() {
+
+    const stars =
+        document.querySelectorAll(
+            "#reviewModal .star"
+        );
+
+    stars.forEach((star, idx) => {
+
+        if (idx < selectedRating) {
+
+            star.classList.add(
+                "text-yellow-400"
+            );
+
+            star.classList.remove(
+                "text-gray-300"
+            );
+
+        } else {
+
+            star.classList.remove(
+                "text-yellow-400"
+            );
+
+            star.classList.add(
+                "text-gray-300"
+            );
+        }
+    });
+}
+
+// ==========================
+// SUBMIT REVIEW
+// ==========================
+async function submitReview() {
+
+    if (!selectedRating) {
+
+        alert("Please select a rating");
+
+        return;
+    }
+
+    try {
+
+        const comment =
+            document
+                .getElementById("reviewComment")
+                .value
+                .trim();
+
+        // ==========================
+        // CHECK EXISTING REVIEW
+        // ==========================
+        const {
+            data: existingReview
+        } = await supabase
+            .from("reviews")
+            .select("id")
+            .eq(
+                "booking_id",
+                currentBookingForReview.id
+            )
+            .maybeSingle();
+
+        if (existingReview) {
+
+            alert(
+                "You already reviewed this booking"
+            );
+
+            closeReviewModal();
+
+            return;
+        }
+
+        // ==========================
+        // INSERT REVIEW
+        // ==========================
+        const { error } = await supabase
+            .from("reviews")
+            .insert({
+                booking_id:
+                    currentBookingForReview.id,
+
+                service_id:
+                    currentBookingForReview.service_id,
+
+                user_id: currentUser.id,
+
+                provider_id:
+                    currentBookingForReview.provider_id,
+
+                rating: selectedRating,
+
+                comment: comment
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        alert(
+            "Review submitted successfully!"
+        );
+
+        closeReviewModal();
+
+    } catch (error) {
+
+        console.error(
+            "REVIEW ERROR:",
+            error
+        );
+
+        alert(error.message);
+    }
 }
