@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service | Vora</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-10">
+        <a href="home.html" class="text-2xl font-extrabold text-blue-600">Vora</a>
+        <nav class="hidden lg:flex items-center gap-6">
+          <a href="home.html" class="font-semibold text-black-600">Home</a>
+          <a href="browse.html" class="block font-semibold text-black-800">Browse</a>
+          <a href="how-it-works.html" class="block font-semibold text-black-800">How it Works</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="profile.html" data-profile-icon="true" class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition">👤</a>
+        <button id="logoutBtn" class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">Logout</button>
+        <button id="hamburger" class="lg:hidden text-2xl">☰</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu" class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50 transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+  <div class="flex items-center justify-between p-4 border-b">
+    <h2 class="text-xl font-bold">Menu</h2>
+    <button id="closeMenu" class="text-2xl">✕</button>
+  </div>
+  <div class="p-4 space-y-5">
+    <a href="home.html" class="block font-semibold text-black-800">Home</a>
+    <a href="browse.html" class="block font-semibold text-black-800">Browse</a>
+    <a href="how-it-works.html" class="block font-semibold text-black-800">How it Works</a>
+    <a href="add-service.html" class="block font-semibold text-black-800">Become a Provider</a>
+    <button id="logoutBtnSideMenu" class="block text-red-600 font-semibold">Logout</button>
+  </div>
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"></div>
+
+<!-- ================= CONTENT ================= -->
+<main class="pt-28 pb-20 px-6">
+  <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8">
+    <h1 class="text-4xl font-bold mb-8">Terms of Service</h1>
+    <p class="text-gray-600 mb-6"><strong>Last Updated:</strong> May 31, 2026</p>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">1. Acceptance of Terms</h2>
+      <p class="text-gray-700">
+        By accessing and using the Vora platform ("Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this Service.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">2. Use License</h2>
+      <p class="text-gray-700 mb-4">
+        Permission is granted to temporarily download one copy of the materials (information or software) on the Vora website for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
+      </p>
+      <ul class="list-disc list-inside text-gray-700 space-y-2 mb-4">
+        <li>Modifying or copying the materials</li>
+        <li>Using the materials for any commercial purpose or for any public display</li>
+        <li>Attempting to decompile or reverse engineer any software contained on the Vora website</li>
+        <li>Removing any copyright or other proprietary notations from the materials</li>
+        <li>Transferring the materials to another person or "mirroring" the materials on any other server</li>
+      </ul>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">3. Disclaimer</h2>
+      <p class="text-gray-700 mb-4">
+        The materials on the Vora website are provided on an 'as is' basis. Vora makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability, fitness for a particular purpose, or non-infringement of intellectual property or other violation of rights.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">4. User Responsibilities</h2>
+      <p class="text-gray-700 mb-4">As a user of Vora, you are responsible for:</p>
+      <ul class="list-disc list-inside text-gray-700 space-y-2 mb-4">
+        <li>Maintaining the confidentiality of your account information</li>
+        <li>Maintaining accurate and complete information in your account</li>
+        <li>Notifying us immediately of any unauthorized use of your account</li>
+        <li>Complying with all applicable laws and regulations</li>
+        <li>Not engaging in any form of harassment, abuse, or illegal activity</li>
+        <li>Providing truthful and accurate information about services offered</li>
+      </ul>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">5. Limitations of Liability</h2>
+      <p class="text-gray-700">
+        In no event shall Vora or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit, or due to business interruption) arising out of the use or inability to use the materials on the Vora website, even if Vora or an authorized representative has been notified orally or in writing of the possibility of such damage.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">6. Accuracy of Materials</h2>
+      <p class="text-gray-700">
+        The materials appearing on the Vora website could include technical, typographical, or photographic errors. Vora does not warrant that any of the materials on its website are accurate, complete, or current. Vora may make changes to the materials contained on its website at any time without notice.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">7. Links</h2>
+      <p class="text-gray-700">
+        Vora has not reviewed all of the sites linked to its website and is not responsible for the contents of any such linked site. The inclusion of any link does not imply endorsement by Vora of the site. Use of any such linked website is at the user's own risk.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">8. Modifications</h2>
+      <p class="text-gray-700">
+        Vora may revise these Terms of Service for its website at any time without notice. By using this website, you are agreeing to be bound by the then current version of these Terms of Service.
+      </p>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">9. Governing Law</h2>
+      <p class="text-gray-700">
+        These Terms and Conditions and any separate agreements we provide to use the Service are governed by and construed in accordance with the laws of the jurisdiction in which Vora operates, and you irrevocably submit to the exclusive jurisdiction of the courts located in that area.
+      </p>
+    </section>
+  </div>
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="bg-gray-900 text-gray-300 py-12 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div>
+        <h3 class="text-white font-bold mb-4">Vora</h3>
+        <p class="text-sm">Connecting trusted providers with customers for any service needed.</p>
+      </div>
+      <div>
+        <h3 class="text-white font-bold mb-4">Quick Links</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="home.html" class="hover:text-white transition">Home</a></li>
+          <li><a href="browse.html" class="hover:text-white transition">Browse Services</a></li>
+          <li><a href="how-it-works.html" class="hover:text-white transition">How it Works</a></li>
+          <li><a href="add-service.html" class="hover:text-white transition">Become a Provider</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="text-white font-bold mb-4">Legal</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="privacy-policy.html" class="hover:text-white transition">Privacy Policy</a></li>
+          <li><a href="terms-of-service.html" class="hover:text-white transition">Terms of Service</a></li>
+        </ul>
+      </div>
+      </div>
+    </div>
+    <div class="border-t border-gray-700 pt-8 text-center text-sm">
+      <p>&copy; 2026 Vora. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="./auth.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+
+</body>
+</html>

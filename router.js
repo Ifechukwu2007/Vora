@@ -37,6 +37,9 @@ class SPA_Router {
       'notifications': 'notifications.html',
       'payout-settings': 'payout-settings.html',
       'post-request': 'post-request.html',
+      'privacy-policy': 'privacy-policy.html',
+      'terms-of-service': 'terms-of-service.html',
+      'how-it-works': 'how-it-works.html',
       '404': '404.html'
     };
     this.currentPageFile = null;
