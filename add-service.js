@@ -10,12 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const imagePreview = document.getElementById('image-preview');
     const previewImg = document.getElementById('preview-img');
     const removeImageBtn = document.getElementById('remove-image-btn');
- 
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            LoadingSpinner.navigateTo('browse.html');
-        });
-    } 
 
     // Handle image preview
     if (imageInput) {
