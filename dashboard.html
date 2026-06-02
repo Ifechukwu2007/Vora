@@ -230,10 +230,10 @@
       <h2 id="totalRevenue" class="text-3xl font-bold text-gray-900 mt-2">₦0</h2>
     </div>
 
-    <!-- Active Services -->
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-purple-500">
-      <p class="text-sm text-gray-600 font-medium">Active Services</p>
-      <h2 id="activeServices" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    <!-- Your Services -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-indigo-500">
+      <p class="text-sm text-gray-600 font-medium">Your Services</p>
+      <h2 id="yourServices" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
     </div>
 
     <!-- Success Rate -->
@@ -245,19 +245,7 @@
   </div>
 
   <!-- OFFERS STATS (Second Row) -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-    <!-- Total Offers -->
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <p class="text-sm text-gray-600 font-medium">Total Offers</p>
-      <h2 id="totalOffers" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
-    </div>
-
-    <!-- Wins -->
-    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <p class="text-sm text-gray-600 font-medium">Wins</p>
-      <h2 id="totalWins" class="text-3xl font-bold text-green-600 mt-2">0</h2>
-    </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
     <!-- Completed Jobs -->
     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -279,41 +267,8 @@
           <h2 class="text-lg font-bold text-gray-900">Today's Bookings</h2>
           <a href="provider-bookings.html" class="text-blue-600 text-sm font-medium hover:underline">View All</a>
         </div>
-        <div id="todayBookings" class="space-y-3">
-          <p class="text-gray-500 text-sm text-center py-4">No bookings scheduled for today</p>
-        </div>
-      </div>
-
-      <!-- ACTIVE OFFERS -->
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-900">🎯 Active Offers</h2>
-
-        </div>
-        <div id="activeOffersList" class="space-y-3">
-          <p class="text-gray-500 text-sm text-center py-4">No active offers</p>
-        </div>
-      </div>
-
-      <!-- UPCOMING BOOKINGS -->
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-900">Upcoming Bookings</h2>
-          <a href="provider-bookings.html" class="text-blue-600 text-sm font-medium hover:underline">View All</a>
-        </div>
         <div id="upcomingBookings" class="space-y-3">
-          <p class="text-gray-500 text-sm text-center py-4">No upcoming bookings</p>
-        </div>
-      </div>
-
-      <!-- RECENT SERVICES -->
-      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-900">Your Services</h2>
-          <a href="my-services.html" class="text-blue-600 text-sm font-medium hover:underline">Manage</a>
-        </div>
-        <div id="recentServices" class="space-y-3">
-          <p class="text-gray-500 text-sm text-center py-4">No services added yet</p>
+          <p class="text-gray-500 text-sm text-center py-4">No bookings for today</p>
         </div>
       </div>
 
@@ -365,17 +320,6 @@
 
 </div>
 </main>
-
-<!-- OFFER DETAILS MODAL -->
-<div id="offerDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold">Offer Details</h2>
-            <button id="closeOfferModal" class="text-2xl text-gray-500 hover:text-gray-700">✕</button>
-        </div>
-        <div id="offerDetailsContent"></div>
-    </div>
-</div>
 
 <script src="./auth.js" type="module"></script>
 <script src="./menu.js" type="module"></script>

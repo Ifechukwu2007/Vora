@@ -10,18 +10,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const totalBookings = document.getElementById('totalBookings');
     const totalRevenue = document.getElementById('totalRevenue');
-    const activeServices = document.getElementById('activeServices');
+    const yourServices = document.getElementById('yourServices');
     const successRate = document.getElementById('successRate');
 
-    const totalOffers = document.getElementById('totalOffers');
-    const totalWins = document.getElementById('totalWins');
     const totalCompleted = document.getElementById('totalCompleted');
 
-    const todayBookings = document.getElementById('todayBookings');
     const upcomingBookings = document.getElementById('upcomingBookings');
-    const recentServices = document.getElementById('recentServices');
     const activityFeed = document.getElementById('activityFeed');
-    const activeOffersList = document.getElementById('activeOffersList');
 
     const noServiceOverlay = document.getElementById('noServiceOverlay');
 
@@ -100,48 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (noServiceOverlay) noServiceOverlay.classList.add('hidden');
         }
 
-        // ACTIVE SERVICES COUNT
-        if (activeServices) activeServices.textContent = services.length;
-
-        // RENDER SERVICES
-        if (services.length === 0) {
-
-            recentServices.innerHTML = `
-                <p class="text-gray-500 text-sm text-center py-4">
-                    No services added yet
-                </p>
-            `;
-
-        } else {
-
-            if (recentServices) recentServices.innerHTML = '';
-
-            services.slice(0, 5).forEach(service => {
-
-                const div = document.createElement('div');
-
-                div.className =
-                    'border rounded-lg p-4 flex items-center justify-between';
-
-                div.innerHTML = `
-                    <div>
-                        <h3 class="font-semibold text-gray-900">
-                            ${service.title || 'Untitled Service'}
-                        </h3>
-
-                        <p class="text-sm text-gray-500">
-                            ${service.category || 'General'}
-                        </p>
-                    </div>
-
-                    <span class="text-sm font-semibold text-green-600">
-                        Active
-                    </span>
-                `;
-
-                if (recentServices) recentServices.appendChild(div);
-            });
-        }
+        // YOUR SERVICES COUNT
+        if (yourServices) yourServices.textContent = services.length;
 
         return services;
     }
@@ -195,27 +150,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (winRatePercent) winRatePercent.textContent = rate;
         if (winRateBar) winRateBar.style.width = `${rate}%`;
 
-        // TODAY BOOKINGS
+        // TODAY'S BOOKINGS
         const today = new Date().toISOString().split('T')[0];
-
-        const todays = bookings.filter(booking => {
-
-            if (!booking.booking_date) return false;
-
-            return booking.booking_date === today;
-        });
-
-        renderBookings(todayBookings, todays, 'No bookings scheduled for today');
-
-        // UPCOMING
-        const upcoming = bookings.filter(booking => {
+        const todayBookings = bookings.filter(booking => {
 
             if (!booking.booking_date) return false;
 
-            return booking.booking_date > today;
+            // Handle booking_date with or without time component
+            const bookingDate = booking.booking_date.split('T')[0];
+            return bookingDate === today;
         });
 
-        renderBookings(upcomingBookings, upcoming, 'No upcoming bookings');
+        renderBookings(upcomingBookings, todayBookings, 'No bookings for today');
 
         // ACTIVITY
         renderActivity(bookings);
@@ -275,84 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // =========================
-    // LOAD OFFERS
-    // =========================
-    async function loadOffers() {
 
-        const { data: offers, error } = await supabase
-            .from('offers')
-            .select('*')
-            .eq('provider_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error(error);
-            return [];
-        }
-
-        if (totalOffers) totalOffers.textContent = offers.length;
-
-        const wins = offers.filter(
-            offer => offer.status === 'accepted'
-        );
-
-        if (totalWins) totalWins.textContent = wins.length;
-
-        // ACTIVE OFFERS
-        if (!offers || offers.length === 0) {
-
-            activeOffersList.innerHTML = `
-                <p class="text-gray-500 text-sm text-center py-4">
-                    No active offers
-                </p>
-            `;
-
-        } else {
-
-            if (activeOffersList) activeOffersList.innerHTML = '';
-
-            offers.slice(0, 5).forEach(offer => {
-
-                const div = document.createElement('div');
-
-                div.className =
-                    'border rounded-lg p-4';
-
-                div.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-
-                        <h3 class="font-semibold text-gray-900">
-                            ${offer.request_title || 'Service Request'}
-                        </h3>
-
-                        <span class="text-xs px-2 py-1 rounded-full
-                            ${offer.status === 'accepted'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-yellow-100 text-yellow-700'}">
-
-                            ${offer.status || 'pending'}
-                        </span>
-
-                    </div>
-
-                    <p class="text-sm text-gray-500 mb-2">
-                        ₦${Number(offer.price || 0).toLocaleString()}
-                    </p>
-
-                    <button
-                        class="view-offer-btn text-blue-600 text-sm font-medium"
-                        data-id="${offer.id}">
-                        View Details
-                    </button>
-                `;
-
-                if (activeOffersList) activeOffersList.appendChild(div);
-            });
-        }
-
-        return offers;
-    }
 
     // =========================
     // ACTIVITY FEED
@@ -399,111 +268,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =========================
-    // OFFER MODAL
-    // =========================
-    const offerModal =
-        document.getElementById('offerDetailsModal');
-
-    const offerContent =
-        document.getElementById('offerDetailsContent');
-
-    const closeOfferModal =
-        document.getElementById('closeOfferModal');
-
-    document.addEventListener('click', async (e) => {
-
-        if (!e.target.classList.contains('view-offer-btn'))
-            return;
-
-        const offerId = e.target.dataset.id;
-
-        const { data: offer, error } = await supabase
-            .from('offers')
-            .select('*')
-            .eq('id', offerId)
-            .single();
-
-        if (error || !offer) {
-            alert('Failed to load offer');
-            return;
-        }
-
-        offerContent.innerHTML = `
-            <div class="space-y-4">
-
-                <div>
-                    <p class="text-sm text-gray-500">
-                        Request
-                    </p>
-
-                    <h3 class="font-semibold text-lg">
-                        ${offer.request_title || 'Service Request'}
-                    </h3>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">
-                        Your Price
-                    </p>
-
-                    <p class="font-bold text-green-600 text-xl">
-                        ₦${Number(offer.price || 0).toLocaleString()}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">
-                        Message
-                    </p>
-
-                    <p class="text-gray-800">
-                        ${offer.message || 'No message'}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">
-                        Availability
-                    </p>
-
-                    <p class="text-gray-800 capitalize">
-                        ${offer.availability || 'Flexible'}
-                    </p>
-                </div>
-
-                <div>
-                    <p class="text-sm text-gray-500">
-                        Status
-                    </p>
-
-                    <p class="capitalize font-semibold">
-                        ${offer.status || 'pending'}
-                    </p>
-                </div>
-
-            </div>
-        `;
-
-        offerModal.classList.remove('hidden');
-    });
-
-    closeOfferModal.addEventListener('click', () => {
-        offerModal.classList.add('hidden');
-    });
-
-    offerModal.addEventListener('click', (e) => {
-
-        if (e.target === offerModal) {
-            offerModal.classList.add('hidden');
-        }
-    });
- 
-    // =========================
     // INIT
     // =========================
     await loadUserProfile();
     await loadServices();
     await loadBookings();
-    await loadOffers();
 
-}); 
+});
