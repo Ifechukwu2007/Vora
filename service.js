@@ -147,7 +147,7 @@ async function loadService() {
         </div>
 
         <div class="text-right">
-          <p class="text-sm text-gray-500">Price</p>
+          <p class="text-sm text-gray-500">Price Per Person</p>
           <p class="text-2xl font-extrabold text-green-600">
             ₦${service.price || 0}
           </p>
@@ -180,9 +180,7 @@ async function loadService() {
     const bookNowBtn = document.getElementById('bookNowBtn');
     if (bookNowBtn) {
       bookNowBtn.onclick = () => {
-        LoadingSpinner.navigateTo(
-          `payment.html?serviceId=${service.id}&providerId=${providerId}`
-        );
+        openBookingModal(service, providerId);
       };
     }
 
@@ -283,6 +281,156 @@ function renderReviews(reviews, usersById) {
 
     reviewsContainer.appendChild(card);
   });
+}
+
+// ============================
+// BOOKING MODAL
+// ============================
+
+function openBookingModal(service, providerId) {
+  const modalHTML = `
+    <div id="bookingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full max-h-96 overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+          <h2 class="text-2xl font-bold">Book Service</h2>
+          <button onclick="document.getElementById('bookingModal').remove()" class="text-2xl">✕</button>
+        </div>
+        
+        <form id="bookingForm" class="p-6 space-y-6">
+          
+          <!-- NUMBER OF PEOPLE -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-3">Number of People</label>
+            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+              <button type="button" onclick="updatePeople(-1, ${service.price})" class="bg-red-600 hover:bg-red-700 text-white w-10 h-10 rounded-lg font-bold text-lg" title="Remove person">−</button>
+              <span id="peopleCount" class="text-2xl font-bold">1</span>
+              <button type="button" onclick="updatePeople(1, ${service.price})" class="bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-lg font-bold text-lg" title="Add person">+</button>
+            </div>
+            <p class="text-xs text-gray-600 mt-2">Price per person: ₦${service.price}</p>
+          </div>
+
+          <!-- TOTAL PRICE DISPLAY -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-700 font-semibold">Total Price:</span>
+              <span id="totalDisplay" class="text-2xl font-bold text-green-600">₦${service.price}</span>
+            </div>
+          </div>
+
+          <!-- SCHEDULE ARRIVAL DATE -->
+          <div>
+            <label for="scheduleDate" class="block text-sm font-semibold text-gray-900 mb-2">Select Date</label>
+            <input type="date" id="scheduleDate" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          </div>
+
+          <!-- SCHEDULE ARRIVAL TIME -->
+          <div>
+            <label for="scheduleTime" class="block text-sm font-semibold text-gray-900 mb-2">Select Time</label>
+            <input type="time" id="scheduleTime" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          </div>
+
+          <!-- SERVICE LOCATION -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-900 mb-3">Service Location</label>
+            <div class="space-y-2">
+              <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="serviceLocation" value="provider" class="h-4 w-4" checked>
+                <span class="ml-3 text-gray-900">I will come to the provider</span>
+              </label>
+              <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="serviceLocation" value="customer" class="h-4 w-4" onchange="updateTravelFee(${service.price})">
+                <span class="ml-3 text-gray-900">Provider should come to me</span>
+              </label>
+            </div>
+            <div id="travelFeeDiv" class="hidden mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p class="text-sm text-orange-800"><strong>Travel Fee:</strong> <span id="travelFeeAmount">₦2,000</span></p>
+            </div>
+          </div>
+
+          <!-- SPECIAL INSTRUCTIONS -->
+          <div>
+            <label for="specialInstructions" class="block text-sm font-semibold text-gray-900 mb-2">Special Instructions (Optional)</label>
+            <textarea id="specialInstructions" placeholder="e.g., Please bring extra lighting equipment" class="w-full border border-gray-300 rounded-lg p-3 h-20 focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+          </div>
+
+          <!-- SUBMIT BUTTON -->
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
+            Proceed to Payment
+          </button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Set minimum date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('scheduleDate').min = today;
+
+  const form = document.getElementById('bookingForm');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitBooking(service, providerId);
+  });
+}
+
+function updatePeople(change, pricePerPerson) {
+  let count = parseInt(document.getElementById('peopleCount').textContent);
+  count = Math.max(1, count + change);
+  document.getElementById('peopleCount').textContent = count;
+  updateTotalPrice(pricePerPerson);
+}
+
+function updateTravelFee(pricePerPerson) {
+  const location = document.querySelector('input[name="serviceLocation"]:checked').value;
+  const travelFeeDiv = document.getElementById('travelFeeDiv');
+  
+  if (location === 'customer') {
+    travelFeeDiv.classList.remove('hidden');
+  } else {
+    travelFeeDiv.classList.add('hidden');
+  }
+  
+  updateTotalPrice(pricePerPerson);
+}
+
+function updateTotalPrice(pricePerPerson) {
+  const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
+  const location = document.querySelector('input[name="serviceLocation"]:checked').value;
+  const travelFee = location === 'customer' ? 2000 : 0;
+  
+  const total = (peopleCount * pricePerPerson) + travelFee;
+  document.getElementById('totalDisplay').textContent = `₦${total.toLocaleString()}`;
+}
+
+function submitBooking(service, providerId) {
+  const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
+  const scheduleDate = document.getElementById('scheduleDate').value;
+  const scheduleTime = document.getElementById('scheduleTime').value;
+  const serviceLocation = document.querySelector('input[name="serviceLocation"]:checked').value;
+  const specialInstructions = document.getElementById('specialInstructions').value;
+  const travelFee = serviceLocation === 'customer' ? 2000 : 0;
+  const totalPrice = (peopleCount * service.price) + travelFee;
+
+  if (!scheduleDate || !scheduleTime) {
+    alert('Please select both date and time');
+    return;
+  }
+
+  const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
+
+  const params = new URLSearchParams();
+  params.append('serviceId', service.id);
+  params.append('providerId', providerId);
+  params.append('numberOfPeople', peopleCount);
+  params.append('scheduledDate', scheduledDateTime);
+  params.append('serviceLocation', serviceLocation);
+  params.append('travelFee', travelFee);
+  params.append('specialInstructions', specialInstructions);
+  params.append('totalPrice', totalPrice);
+
+  LoadingSpinner.navigateTo(`payment.html?${params.toString()}`);
 }
 
 // ============================

@@ -49,6 +49,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   let totalPrice =
     Number(params.get('totalPrice')) || 0;
 
+  // NEW BOOKING FIELDS
+  const numberOfPeople = parseInt(params.get('numberOfPeople')) || 1;
+  const serviceLocation = params.get('serviceLocation') || 'provider';
+  const travelFee = parseInt(params.get('travelFee')) || 0;
+  const specialInstructions = params.get('specialInstructions') || '';
+
   // =========================
   // VALIDATION
   // =========================
@@ -165,6 +171,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       providerPictureEl.src = providerPicture;
     }
 
+    // =========================
+    // DISPLAY BOOKING DETAILS
+    // =========================
+    // Format scheduled date and time
+    const scheduledDateTime = new Date(scheduledDate);
+    const dateStr = scheduledDateTime.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const timeStr = scheduledDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const bookingPeopleEl = document.getElementById('booking-people');
+    const bookingDateEl = document.getElementById('booking-date');
+    const bookingTimeEl = document.getElementById('booking-time');
+    const bookingLocationEl = document.getElementById('booking-location');
+    const bookingInstructionsEl = document.getElementById('booking-instructions');
+    const bookingInstructionsDivEl = document.getElementById('booking-instructions-div');
+    const bookingTravelFeeEl = document.getElementById('booking-travel-fee');
+    const travelFeeAmountEl = document.getElementById('travel-fee-amount');
+    const travelFeeRowEl = document.getElementById('travel-fee-row');
+    const travelFeeDisplayEl = document.getElementById('travel-fee-display');
+
+    if (bookingPeopleEl) bookingPeopleEl.textContent = numberOfPeople;
+    if (bookingDateEl) bookingDateEl.textContent = dateStr;
+    if (bookingTimeEl) bookingTimeEl.textContent = timeStr;
+    if (bookingLocationEl) bookingLocationEl.textContent = serviceLocation === 'provider' ? 'Provider\'s Location' : 'My Location';
+
+    if (specialInstructions) {
+      if (bookingInstructionsEl) bookingInstructionsEl.textContent = specialInstructions;
+      if (bookingInstructionsDivEl) bookingInstructionsDivEl.classList.remove('hidden');
+    }
+
+    if (travelFee > 0) {
+      if (bookingTravelFeeEl) bookingTravelFeeEl.classList.remove('hidden');
+      if (travelFeeAmountEl) travelFeeAmountEl.textContent = `₦${travelFee.toLocaleString()}`;
+      if (travelFeeRowEl) travelFeeRowEl.classList.remove('hidden');
+      if (travelFeeDisplayEl) travelFeeDisplayEl.textContent = `NGN ${formatNGN(travelFee)}`;
+    }
+
   } catch (err) {
     console.error(err);
     alert('Failed to load service');
@@ -214,6 +256,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         status: 'pending_payment',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        number_of_people: numberOfPeople,
+        price_per_person: (totalPrice - travelFee) / numberOfPeople,
+        service_location: serviceLocation,
+        travel_fee: travelFee,
+        special_instructions: specialInstructions,
         ...(serviceId ? { service_id: serviceId } : {}),
         ...(requestId ? { request_id: requestId } : {})
       };

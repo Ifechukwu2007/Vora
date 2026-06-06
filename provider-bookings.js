@@ -366,6 +366,32 @@ async function loadProviderBookings(providerId) {
                                 </span>
                             </p>
 
+                            <!-- BOOKING DETAILS -->
+                            ${booking.scheduled_date || booking.number_of_people ? `
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                              <p class="font-semibold text-gray-900 mb-3">Booking Details</p>
+                              <div class="grid grid-cols-2 gap-3 text-sm">
+                                ${booking.number_of_people ? `<div>
+                                  <p class="text-gray-600">Number of People</p>
+                                  <p class="font-semibold text-gray-900">${booking.number_of_people}</p>
+                                </div>` : ''}
+                                ${booking.scheduled_date ? `<div>
+                                  <p class="text-gray-600">Scheduled Date & Time</p>
+                                  <p class="font-semibold text-gray-900">${formatDate(booking.scheduled_date)}</p>
+                                </div>` : ''}
+                                ${booking.service_location ? `<div>
+                                  <p class="text-gray-600">Location</p>
+                                  <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'My Location' : 'Customer Location'}</p>
+                                </div>` : ''}
+                                ${booking.travel_fee ? `<div>
+                                  <p class="text-gray-600">Travel Fee</p>
+                                  <p class="font-semibold text-gray-900">₦${booking.travel_fee.toLocaleString()}</p>
+                                </div>` : ''}
+                              </div>
+                              ${booking.special_instructions ? `<p class="text-xs text-gray-600 mt-3"><strong>Special Instructions:</strong> ${booking.special_instructions}</p>` : ''}
+                            </div>
+                            ` : ''}
+
                         </div>
 
                         <!-- ACTIONS -->

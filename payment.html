@@ -94,12 +94,46 @@
                     </div>
                 </div>
             </div>
+
+            <!-- BOOKING DETAILS -->
+            <div class="mt-6 pt-6 border-t">
+              <h3 class="font-semibold text-gray-900 mb-4">Booking Details</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Number of People</p>
+                  <p class="font-semibold text-gray-900" id="booking-people">1</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Scheduled Date</p>
+                  <p class="font-semibold text-gray-900" id="booking-date">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Scheduled Time</p>
+                  <p class="font-semibold text-gray-900" id="booking-time">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Service Location</p>
+                  <p class="font-semibold text-gray-900" id="booking-location">-</p>
+                </div>
+              </div>
+              <div id="booking-travel-fee" class="hidden mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p class="text-sm text-orange-800"><strong>Travel Fee:</strong> <span id="travel-fee-amount">₦2,000</span></p>
+              </div>
+              <div id="booking-instructions-div" class="hidden mt-3">
+                <p class="text-xs text-gray-600 mb-1">Special Instructions</p>
+                <p class="text-sm text-gray-700 bg-gray-50 rounded p-2" id="booking-instructions">-</p>
+              </div>
+            </div>
             
             <!-- Price Breakdown -->
             <div class="mt-6 pt-6 border-t space-y-2">
                 <div class="flex justify-between text-gray-700">
                     <span>Service Price:</span>
                     <span id="base-price">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-gray-700" id="travel-fee-row" class="hidden">
+                    <span>Travel Fee:</span>
+                    <span id="travel-fee-display">NGN 0</span>
                 </div>
                 <div class="flex justify-between text-gray-700" id="fee-row" class="fee-row">
                     <span>Service Fee:</span>

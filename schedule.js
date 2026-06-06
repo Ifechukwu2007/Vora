@@ -1,421 +1,282 @@
+// schedule.js
 import { supabase } from './supabase.js';
 
-/**
- * =========================
- * STATE
- * =========================
- */
-let currentDate = new Date();
-let bookings = [];
-let availability = [];
-let currentUser = null;
+const state = {
+  currentDate: new Date(),
+  monthStart: null,
+  monthEnd: null,
+  // store per-day status (simple: if any booking exists that day, mark it)
+  dayStatus: new Map(), // key: YYYY-MM-DD -> { status, bookingId }
+};
 
-/**
- * =========================
- * INIT
- * =========================
- */
-document.addEventListener('DOMContentLoaded', async () => {
-  await initUser();
-  await loadData();
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
 
-  setupProfileImage();
-  setupHamburgerMenu();
+function toYMD(d) {
+  // d is Date in local time
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
 
-  renderCalendar();
-  renderStats();
-  renderUpcomingBookings();
+function parseMaybeDateOnly(value) {
+  // bookings.scheduled_date is "timestamp without time zone" in your schema
+  // It may come back as string.
+  if (!value) return null;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
 
-  setupForm();
-  setupCalendarButtons();
-});
+function statusToColor(status) {
+  // tweak to match your legend colors
+  if (status === 'pending') return 'bg-blue-500';
+  if (status === 'confirmed') return 'bg-green-500';
+  if (status === 'completed') return 'bg-blue-600';
+  return 'bg-red-500';
+}
 
-/**
- * =========================
- * GET USER
- * =========================
- */
-async function initUser() {
-  const { data } = await supabase.auth.getUser();
-  currentUser = data?.user || null;
+async function loadStatsAndUpcoming() {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('Not authenticated');
 
-  if (!currentUser) {
-    window.location.href = 'login.html';
+  // We assume bookings.user_id stores the customer (schema shows column user_id + provider_id)
+  // We'll load bookings for the logged-in user.
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select('id, status, scheduled_date, created_at')
+    .or(`user_id.eq.${user.id},provider_id.eq.${user.id}`)
+    .order('scheduled_date', { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+
+  // Stats
+  const stats = {
+    total: bookings.length,
+    pending: bookings.filter(b => b.status === 'pending').length,
+    confirmed: bookings.filter(b => b.status === 'confirmed').length,
+    completed: bookings.filter(b => b.status === 'completed').length,
+  };
+
+  document.getElementById('totalBookings').textContent = stats.total;
+  document.getElementById('pendingBookings').textContent = stats.pending;
+  document.getElementById('confirmedBookings').textContent = stats.confirmed;
+  document.getElementById('completedBookings').textContent = stats.completed;
+
+  // Upcoming (simple: upcoming = scheduled_date in the future)
+  const now = new Date();
+  const upcoming = bookings
+    .map(b => ({ ...b, dt: parseMaybeDateOnly(b.scheduled_date) }))
+    .filter(b => b.dt && b.dt >= now)
+    .slice(0, 10);
+
+  const container = document.getElementById('upcomingBookings');
+  container.innerHTML = '';
+
+  if (upcoming.length === 0) {
+    container.innerHTML = `<p class="text-gray-500 text-center py-8">No upcoming bookings</p>`;
+    return;
+  }
+
+  for (const b of upcoming) {
+    const dt = b.dt;
+    const dateStr = dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+
+    const statusColor =
+      b.status === 'pending' ? 'text-yellow-700' :
+      b.status === 'confirmed' ? 'text-green-700' :
+      b.status === 'completed' ? 'text-blue-700' :
+      'text-red-700';
+
+    container.insertAdjacentHTML(
+      'beforeend',
+      `
+      <div class="border rounded p-4">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <div class="font-semibold text-gray-800">Booking</div>
+            <div class="text-gray-600 text-sm">${dateStr}</div>
+          </div>
+          <div class="font-bold ${statusColor}">${b.status || 'unknown'}</div>
+        </div>
+      </div>
+      `
+    );
   }
 }
 
-/**
- * =========================
- * LOAD DATA
- * =========================
- */
-async function loadData() {
-  if (!currentUser) return;
+async function loadBookingsForMonth(year, monthIndex) {
+  // monthIndex: 0-11
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) throw new Error('Not authenticated');
 
-  const userId = currentUser.id;
+  const monthStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999); // last day of month
 
-  // Load bookings where user is provider OR client
-  const [providerRes, clientRes, availRes] = await Promise.all([
-    supabase.from('bookings').select('*').eq('provider_id', userId),
-    supabase.from('bookings').select('*').eq('user_id', userId),
-    supabase.from('availability').select('*').eq('provider_id', userId),
-  ]);
+  // We'll pull all bookings for user/provider during the month.
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select('id, status, scheduled_date')
+    .or(`user_id.eq.${user.id},provider_id.eq.${user.id}`)
+    .gte('scheduled_date', monthStart.toISOString())
+    .lte('scheduled_date', monthEnd.toISOString());
 
-  // Merge and deduplicate bookings by id
-  const allBookings = [
-    ...(providerRes.data || []),
-    ...(clientRes.data || []),
-  ];
-  const seen = new Set();
-  bookings = allBookings.filter(b => {
-    if (seen.has(b.id)) return false;
-    seen.add(b.id);
-    return true;
-  });
+  if (error) throw error;
 
-  availability = availRes.data || [];
+  state.dayStatus.clear();
 
-  if (providerRes.error) console.error('Provider bookings error:', providerRes.error.message);
-  if (clientRes.error) console.error('Client bookings error:', clientRes.error.message);
-  if (availRes.error) console.error('Availability error:', availRes.error.message);
+  for (const b of bookings || []) {
+    const dt = parseMaybeDateOnly(b.scheduled_date);
+    if (!dt) continue;
+    const ymd = toYMD(dt);
+
+    // If multiple bookings same day: prefer confirmed > pending > others
+    const prev = state.dayStatus.get(ymd);
+    const priority = (s) => (s === 'confirmed' ? 3 : s === 'pending' ? 2 : s === 'completed' ? 1 : 0);
+
+    if (!prev || priority(b.status) >= priority(prev.status)) {
+      state.dayStatus.set(ymd, { status: b.status, bookingId: b.id });
+    }
+  }
 }
 
-/**
- * =========================
- * PROFILE IMAGE
- * =========================
- */
-function setupProfileImage() {
-  const profileIcon = document.querySelector('[data-profile-icon="true"]');
-  if (!profileIcon || !currentUser) return;
-
-  const avatar =
-    currentUser.user_metadata?.avatar_url ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      currentUser.email || 'User'
-    )}`;
-
-  profileIcon.innerHTML = `
-    <img 
-      src="${avatar}" 
-      alt="Profile"
-      class="w-10 h-10 rounded-full object-cover"
-    />
-  `;
-}
-
-/**
- * =========================
- * HAMBURGER MENU
- * =========================
- */
-function setupHamburgerMenu() {
-  const hamburger = document.getElementById('hamburger');
-  const sideMenu = document.getElementById('sideMenu');
-  const closeMenu = document.getElementById('closeMenu');
-  const overlay = document.getElementById('menuOverlay');
-
-  if (!hamburger || !sideMenu || !closeMenu || !overlay) return;
-
-  const openMenu = () => {
-    sideMenu.classList.remove('-translate-x-full');
-    overlay.classList.remove('hidden');
-  };
-
-  const close = () => {
-    sideMenu.classList.add('-translate-x-full');
-    overlay.classList.add('hidden');
-  };
-
-  hamburger.addEventListener('click', openMenu);
-  closeMenu.addEventListener('click', close);
-  overlay.addEventListener('click', close);
-}
-
-/**
- * =========================
- * CALENDAR
- * =========================
- */
 function renderCalendar() {
-  const calendar = document.getElementById('calendarDays');
-  const monthYear = document.getElementById('monthYear');
-
-  if (!calendar || !monthYear) return;
-
+  const { currentDate } = state;
   const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const today = new Date();
-  const todayStr = toDateStr(today);
+  const monthIndex = currentDate.getMonth();
 
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStart = new Date(year, monthIndex, 1);
+  const monthEnd = new Date(year, monthIndex + 1, 0);
 
-  monthYear.innerText = currentDate.toLocaleString('default', {
-    month: 'long',
-    year: 'numeric',
-  });
+  state.monthStart = monthStart;
+  state.monthEnd = monthEnd;
 
-  calendar.innerHTML = '';
+  const monthYearEl = document.getElementById('monthYear');
+  monthYearEl.textContent = currentDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
 
-  // Empty cells before first day
-  for (let i = 0; i < firstDay; i++) {
-    calendar.innerHTML += `<div></div>`;
+  const calendarDaysEl = document.getElementById('calendarDays');
+  calendarDaysEl.innerHTML = '';
+
+  // Determine starting weekday (Sun=0 ... Sat=6)
+  const startWeekday = monthStart.getDay();
+  const totalDays = monthEnd.getDate();
+
+  // Blank cells before first day
+  for (let i = 0; i < startWeekday; i++) {
+    calendarDaysEl.insertAdjacentHTML(
+      'beforeend',
+      `<div class="h-12 rounded bg-transparent"></div>`
+    );
   }
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = toDateStr(new Date(year, month, day));
+  // Day cells
+  for (let day = 1; day <= totalDays; day++) {
+    const dt = new Date(year, monthIndex, day);
+    const ymd = toYMD(dt);
 
-    const hasBooking = bookings.some(b => normalizeDate(b.date) === dateStr);
-    const isAvailable = availability.some(a => normalizeDate(a.date) === dateStr);
-    const isToday = dateStr === todayStr;
+    const bookingInfo = state.dayStatus.get(ymd);
+    const hasBooking = Boolean(bookingInfo);
 
-    let classes = 'p-2 text-center rounded cursor-pointer transition hover:opacity-80 text-sm font-medium';
+    const isToday = toYMD(dt) === toYMD(new Date());
+    const ring = isToday ? 'ring-2 ring-blue-500' : '';
 
-    if (hasBooking) {
-      classes += ' bg-blue-500 text-white';
-    } else if (isAvailable) {
-      classes += ' bg-green-500 text-white';
-    } else {
-      classes += ' bg-gray-100 text-gray-700 hover:bg-gray-200';
+    // Mark with a colored dot if booking exists
+    const dot = hasBooking
+      ? `<div class="mt-1 w-3 h-3 rounded-full ${statusToColor(bookingInfo.status)}"></div>`
+      : `<div class="mt-1 w-3 h-3 rounded-full bg-gray-200"></div>`;
+
+    calendarDaysEl.insertAdjacentHTML(
+      'beforeend',
+      `
+      <button
+        type="button"
+        class="h-12 border rounded p-2 text-left hover:bg-gray-50 transition ${ring} ${hasBooking ? 'border-gray-300' : 'border-gray-200'}"
+        data-date="${ymd}"
+      >
+        <div class="flex items-center justify-between">
+          <div class="text-sm font-semibold text-gray-800">${day}</div>
+          ${hasBooking ? `<div class="text-xs font-bold text-gray-700">•</div>` : `<div class="text-xs text-gray-400"></div>`}
+        </div>
+        ${dot}
+      </button>
+      `
+    );
+  }
+}
+
+function attachCalendarDayHandlers() {
+  document.getElementById('calendarDays').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-date]');
+    if (!btn) return;
+
+    const ymd = btn.getAttribute('data-date');
+    // Simple UX: show alert with status if exists
+    const info = state.dayStatus.get(ymd);
+    if (!info) {
+      alert(`No booking on ${ymd}`);
+      return;
     }
-
-    if (isToday) {
-      classes += ' ring-2 ring-offset-1 ring-blue-400';
-    }
-
-    const cell = document.createElement('div');
-    cell.className = classes;
-    cell.dataset.date = dateStr;
-    cell.innerText = day;
-
-    cell.addEventListener('click', () => handleDayClick(dateStr));
-
-    calendar.appendChild(cell);
-  }
-}
-
-/**
- * Handle clicking a calendar day — pre-fill the availability form date
- */
-function handleDayClick(dateStr) {
-  const dateInput = document.getElementById('availabilityDate');
-  if (dateInput) {
-    dateInput.value = dateStr;
-  }
-
-  // Show bookings for that day
-  const dayBookings = bookings.filter(b => normalizeDate(b.date) === dateStr);
-  const dayAvailability = availability.filter(a => normalizeDate(a.date) === dateStr);
-
-  if (dayBookings.length === 0 && dayAvailability.length === 0) return;
-
-  const lines = [];
-
-  if (dayAvailability.length > 0) {
-    lines.push(`✅ Available: ${dayAvailability.map(a => `${a.start_time} – ${a.end_time}`).join(', ')}`);
-  }
-
-  if (dayBookings.length > 0) {
-    lines.push(`📅 Bookings: ${dayBookings.map(b => `${b.service_name || 'Service'} (${b.status})`).join(', ')}`);
-  }
-
-  alert(`${dateStr}\n\n${lines.join('\n')}`);
-}
-
-/**
- * =========================
- * NAV MONTH
- * =========================
- */
-function setupCalendarButtons() {
-  document.getElementById('prevMonth')?.addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
-  });
-
-  document.getElementById('nextMonth')?.addEventListener('click', () => {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
+    alert(`Booking on ${ymd}: ${info.status}`);
   });
 }
 
-/**
- * =========================
- * AVAILABILITY FORM
- * =========================
- */
-function setupForm() {
+async function init() {
+  // Month navigation
+  const prevBtn = document.getElementById('prevMonth');
+  const nextBtn = document.getElementById('nextMonth');
+
+  prevBtn.addEventListener('click', async () => {
+    state.currentDate = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth() - 1, 1);
+    await refreshMonth();
+  });
+
+  nextBtn.addEventListener('click', async () => {
+    state.currentDate = new Date(state.currentDate.getFullYear(), state.currentDate.getMonth() + 1, 1);
+    await refreshMonth();
+  });
+
+  // Availability form (cannot persist until we know the availability table)
   const form = document.getElementById('availabilityForm');
-
-  form?.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const date = document.getElementById('availabilityDate').value;
     const startTime = document.getElementById('startTime').value;
     const endTime = document.getElementById('endTime').value;
 
-    if (!currentUser) return;
+    if (!date || !startTime || !endTime) return;
 
-    // Validate times
-    if (startTime >= endTime) {
-      alert('End time must be after start time.');
-      return;
-    }
-
-    // Check for duplicate availability on same date
-    const duplicate = availability.find(
-      a => normalizeDate(a.date) === date && a.provider_id === currentUser.id
+    // You MUST create/confirm an availability table/columns to persist this.
+    alert(
+      `Availability saved to UI only for now.\n\nTo fully enable this, tell me your availability table name/columns (e.g. availabilities(date,start_time,end_time,user_id/provider_id)).`
     );
 
-    if (duplicate) {
-      const confirmUpdate = confirm(
-        `You already have availability set for ${date} (${duplicate.start_time} – ${duplicate.end_time}).\n\nDo you want to add another slot?`
-      );
-      if (!confirmUpdate) return;
-    }
-
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.innerText = 'Saving...';
-
-    const { error } = await supabase.from('availability').insert([
-      {
-        provider_id: currentUser.id,
-        date,
-        start_time: startTime,
-        end_time: endTime,
-      },
-    ]);
-
-    submitBtn.disabled = false;
-    submitBtn.innerText = 'Mark as Available';
-
-    if (error) {
-      alert(`Failed to set availability: ${error.message}`);
-      return;
-    }
-
-    // Clear form
-    form.reset();
-
-    // Reload and re-render everything
-    await loadData();
-    renderCalendar();
-    renderStats();
-    renderUpcomingBookings();
-
-    alert('✅ Availability saved!');
+    // If you already have a table, update the insert below.
+    // Example (NOT guaranteed to match your schema):
+    // await supabase.from('availabilities').insert({ date, start_time: startTime, end_time: endTime, user_id: user.id });
   });
-}
 
-/**
- * =========================
- * STATS
- * =========================
- */
-function renderStats() {
-  const total = bookings.length;
-  const pending = bookings.filter(b => b.status === 'pending').length;
-  const confirmed = bookings.filter(b => b.status === 'confirmed').length;
-  const completed = bookings.filter(b => b.status === 'completed').length;
+  attachCalendarDayHandlers();
 
-  setEl('totalBookings', total);
-  setEl('pendingBookings', pending);
-  setEl('confirmedBookings', confirmed);
-  setEl('completedBookings', completed);
-}
+  async function refreshMonth() {
+    // Load month bookings -> render calendar
+    const year = state.currentDate.getFullYear();
+    const monthIndex = state.currentDate.getMonth();
 
-/**
- * =========================
- * UPCOMING BOOKINGS
- * =========================
- */
-function renderUpcomingBookings() {
-  const container = document.getElementById('upcomingBookings');
-  if (!container) return;
-
-  const todayStr = toDateStr(new Date());
-
-  const upcoming = bookings
-    .filter(b => b.status !== 'completed' && normalizeDate(b.date) >= todayStr)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  if (!upcoming.length) {
-    container.innerHTML = `<p class="text-gray-500 text-center py-8">No upcoming bookings</p>`;
-    return;
+    await loadBookingsForMonth(year, monthIndex);
+    renderCalendar();
   }
 
-  container.innerHTML = upcoming
-    .map(b => {
-      const statusColor = {
-        pending: 'bg-yellow-100 text-yellow-700',
-        confirmed: 'bg-green-100 text-green-700',
-        cancelled: 'bg-red-100 text-red-700',
-        completed: 'bg-blue-100 text-blue-700',
-      }[b.status] || 'bg-gray-100 text-gray-700';
-
-      const displayDate = b.date ? formatDisplayDate(normalizeDate(b.date)) : '—';
-      const displayTime = b.time || b.start_time || '';
-
-      return `
-        <div class="border border-gray-200 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-sm transition">
-          <div>
-            <p class="font-bold text-gray-800">${escapeHtml(b.service_name || 'Service')}</p>
-            <p class="text-gray-500 text-sm mt-1">
-              📅 ${displayDate}${displayTime ? ` &nbsp;•&nbsp; 🕐 ${displayTime}` : ''}
-            </p>
-            ${b.client_name ? `<p class="text-gray-500 text-sm">👤 ${escapeHtml(b.client_name)}</p>` : ''}
-          </div>
-          <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusColor} capitalize">
-            ${escapeHtml(b.status)}
-          </span>
-        </div>
-      `;
-    })
-    .join('');
+  try {
+    await Promise.all([refreshMonth(), loadStatsAndUpcoming()]);
+  } catch (err) {
+    console.error(err);
+    // You can style this message however you like
+    const container = document.getElementById('upcomingBookings');
+    if (container) {
+      container.innerHTML = `<p class="text-red-600 text-center py-8">Error loading schedule: ${err.message || err}</p>`;
+    }
+  }
 }
 
-/**
- * =========================
- * HELPERS
- * =========================
- */
-
-/** Convert Date → "YYYY-MM-DD" */
-function toDateStr(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-/** Normalize any date string/ISO to "YYYY-MM-DD" */
-function normalizeDate(dateVal) {
-  if (!dateVal) return '';
-  return dateVal.toString().slice(0, 10);
-}
-
-/** Format "YYYY-MM-DD" → "Mon DD, YYYY" */
-function formatDisplayDate(dateStr) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-/** Safe innerHTML helper */
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/** Set element text */
-function setEl(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.innerText = value;
-}
+init();

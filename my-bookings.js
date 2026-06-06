@@ -165,6 +165,33 @@ async function loadBookings() {
                         </div>
                         <h3 class="text-2xl font-bold text-gray-900 mb-3">${details.title || "Untitled Booking"}</h3>
                         <p class="text-gray-600 leading-relaxed mb-5">${details.description || "No description"}</p>
+                        
+                        <!-- BOOKING DETAILS -->
+                        ${booking.scheduled_date || booking.number_of_people ? `
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5">
+                          <p class="font-semibold text-gray-900 mb-3">Booking Details</p>
+                          <div class="grid grid-cols-2 gap-3">
+                            ${booking.number_of_people ? `<div>
+                              <p class="text-xs text-gray-600">People</p>
+                              <p class="font-semibold text-gray-900">${booking.number_of_people}</p>
+                            </div>` : ''}
+                            ${booking.scheduled_date ? `<div>
+                              <p class="text-xs text-gray-600">Scheduled</p>
+                              <p class="font-semibold text-gray-900">${new Date(booking.scheduled_date).toLocaleDateString()} ${new Date(booking.scheduled_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                            </div>` : ''}
+                            ${booking.service_location ? `<div>
+                              <p class="text-xs text-gray-600">Location</p>
+                              <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'Provider Location' : 'My Location'}</p>
+                            </div>` : ''}
+                            ${booking.travel_fee ? `<div>
+                              <p class="text-xs text-gray-600">Travel Fee</p>
+                              <p class="font-semibold text-gray-900">₦${booking.travel_fee.toLocaleString()}</p>
+                            </div>` : ''}
+                          </div>
+                          ${booking.special_instructions ? `<p class="text-xs text-gray-600 mt-3">Special Instructions: ${booking.special_instructions}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="bg-gray-50 rounded-xl p-4">
                                 <p class="text-sm text-gray-500 mb-1">📍 Location</p>
