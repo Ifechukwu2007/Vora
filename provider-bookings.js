@@ -381,7 +381,7 @@ async function loadProviderBookings(providerId) {
                                 </div>` : ''}
                                 ${booking.service_location ? `<div>
                                   <p class="text-gray-600">Location</p>
-                                  <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'My Location' : 'Customer Location'}</p>
+                                  <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'My Location' : (booking.customer_location || 'Customer Location')}</p>
                                 </div>` : ''}
                                 ${booking.travel_fee ? `<div>
                                   <p class="text-gray-600">Travel Fee</p>
@@ -423,6 +423,11 @@ async function loadProviderBookings(providerId) {
                                     data-id="${booking.id}">
                                     ▶️ Start Work
                                 </button>
+                                <button
+                                    class="cancel-booking-btn bg-red-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+                                    data-id="${booking.id}">
+                                    ❌ Cancel Booking
+                                </button>
                             ` : ""}
 
                             ${status === "in_progress" ? `
@@ -430,6 +435,11 @@ async function loadProviderBookings(providerId) {
                                     class="mark-complete-btn bg-purple-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
                                     data-id="${booking.id}">
                                     ✅ Mark Job Completed
+                                </button>
+                                <button
+                                    class="cancel-booking-btn bg-red-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
+                                    data-id="${booking.id}">
+                                    ❌ Cancel Booking
                                 </button>
                             ` : ""}
 
@@ -453,6 +463,9 @@ async function loadProviderBookings(providerId) {
 
                             ${status === "disputed" ? `
                                 <span class="px-4 py-3 rounded-lg bg-orange-50 text-orange-700 font-semibold">
+                                    ⚠️ Reported
+                                </span>
+                            ` : ""}
                                     Disputed
                                 </span>
                             ` : ""}
@@ -627,6 +640,27 @@ function setupBookingActions() {
                 await updateBookingStatus(
                     bookingId,
                     "completed_by_provider"
+                );
+            });
+        });
+
+    // CANCEL BOOKING
+    document.querySelectorAll(".cancel-booking-btn")
+        .forEach((btn) => {
+
+            btn.addEventListener("click", async () => {
+
+                const bookingId = btn.dataset.id;
+
+                const confirmed = confirm(
+                    "Are you sure you want to cancel this booking? This cannot be undone."
+                );
+
+                if (!confirmed) return;
+
+                await updateBookingStatus(
+                    bookingId,
+                    "cancelled"
                 );
             });
         });

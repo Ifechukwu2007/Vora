@@ -9,7 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const categoryInput = document.getElementById('service-category');
   const priceInput = document.getElementById('service-price');
   const locationInput = document.getElementById('service-location');
+  const travelPriceInput = document.getElementById('travel-price');
   const imageInput = document.getElementById('service-image');
+  const submitBtn = document.getElementById('submit-btn');
 
   if (!form || !serviceId) {
     console.error('Missing form or service id');
@@ -23,8 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
       descInput.value = svc.description ?? '';
       categoryInput.value = svc.category ?? '';
       priceInput.value = svc.price ?? '';
-      locationInput.value = svc.location ?? '';
-      // image_url not placed into UI inputs automatically (file input can’t be pre-filled)
+      locationInput.value = svc.location ?? '';      travelPriceInput.value = svc.travel_price ?? '';      // image_url not placed into UI inputs automatically (file input can’t be pre-filled)
     })
     .catch((err) => {
       console.error(err);
@@ -68,7 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
       location,
 
     };
-
+    // Add travel price if provided
+    const travelPriceValue = travelPriceInput.value.trim();
+    if (travelPriceValue && !isNaN(parseFloat(travelPriceValue))) {
+      payloadBase.travel_price = parseFloat(travelPriceValue);
+    }
     try {
       let imageUrl = null;
 
@@ -113,6 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      // Show updating status
+      const originalBtnText = submitBtn?.textContent || 'Update Service';
+      if (submitBtn) {
+        submitBtn.textContent = 'Updating...';
+        submitBtn.disabled = true;
+      }
+
       // Update service
       // Let RLS policy handle provider ownership check
       const { error: updateErr } = await supabase
@@ -126,6 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error message:', updateErr.message);
         console.error('Payload sent:', payloadBase);
         console.error('Service ID:', serviceId);
+        
+        // Restore button
+        if (submitBtn) {
+          submitBtn.textContent = originalBtnText;
+          submitBtn.disabled = false;
+        }
+        
         throw updateErr;
       }
 
@@ -154,7 +173,7 @@ async function loadService(serviceId) {
   // Select only columns we care about
   const { data, error } = await supabase
     .from('services')
-    .select('id, provider_id, title, description, category, price, location, image_url')
+    .select('id, provider_id, title, description, category, price, location, travel_price, image_url')
     .eq('id', serviceId)
     .single();
 

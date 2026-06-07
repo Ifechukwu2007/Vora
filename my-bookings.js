@@ -162,6 +162,25 @@ async function loadBookings() {
                                 <h2 class="text-xl font-bold text-gray-900">${providerName}</h2>
                                 <p class="text-blue-600 text-sm break-all">${providerEmail}</p>
                             </div>
+                            <div>
+                                ${(() => {
+                                    let statusColor = "bg-gray-100 text-gray-700";
+                                    let statusText = booking.status || "pending";
+                                    
+                                    if (booking.status === "pending_payment") statusColor = "bg-yellow-100 text-yellow-700";
+                                    if (booking.status === "paid") statusColor = "bg-blue-100 text-blue-700";
+                                    if (booking.status === "accepted") statusColor = "bg-green-100 text-green-700";
+                                    if (booking.status === "in_progress") statusColor = "bg-indigo-100 text-indigo-700";
+                                    if (booking.status === "completed_by_provider") statusColor = "bg-purple-100 text-purple-700";
+                                    if (booking.status === "completed") statusColor = "bg-emerald-100 text-emerald-700";
+                                    if (booking.status === "cancelled") statusColor = "bg-red-100 text-red-700";
+                                    if (booking.status === "disputed") statusColor = "bg-orange-100 text-orange-700";
+                                    
+                                    if (booking.status === "disputed") statusText = "Reported";
+                                    
+                                    return `<span class="px-3 py-2 rounded-lg text-sm font-semibold ${statusColor}">${statusText.charAt(0).toUpperCase() + statusText.slice(1).replace(/_/g, ' ')}</span>`;
+                                })()}
+                            </div>
                         </div>
                         <h3 class="text-2xl font-bold text-gray-900 mb-3">${details.title || "Untitled Booking"}</h3>
                         <p class="text-gray-600 leading-relaxed mb-5">${details.description || "No description"}</p>
@@ -181,7 +200,7 @@ async function loadBookings() {
                             </div>` : ''}
                             ${booking.service_location ? `<div>
                               <p class="text-xs text-gray-600">Location</p>
-                              <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'Provider Location' : 'My Location'}</p>
+                              <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'Provider Location' : (booking.customer_location || 'Customer Location')}</p>
                             </div>` : ''}
                             ${booking.travel_fee ? `<div>
                               <p class="text-xs text-gray-600">Travel Fee</p>

@@ -146,6 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 location: document.getElementById('service-location').value.trim()
             };
 
+            // Add travel price if provided
+            const travelPrice = document.getElementById('travel-price').value.trim();
+            if (travelPrice && !isNaN(parseFloat(travelPrice))) {
+                serviceData.travel_price = parseFloat(travelPrice);
+            }
+
             // Add image URL if uploaded
             if (imageUrl) {
                 serviceData.image_url = imageUrl;

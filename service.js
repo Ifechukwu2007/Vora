@@ -332,17 +332,25 @@ function openBookingModal(service, providerId) {
           <!-- SERVICE LOCATION -->
           <div>
             <label class="block text-sm font-semibold text-gray-900 mb-3">Service Location</label>
-            <div class="space-y-2">
-              <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input type="radio" name="serviceLocation" value="provider" class="h-4 w-4" checked>
-                <span class="ml-3 text-gray-900">I will come to the provider</span>
+            <div class="space-y-3">
+              <label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="serviceLocation" value="provider" class="h-4 w-4" checked onchange="updateTravelFee(${service.price})">
+                <span class="ml-3 text-gray-900 font-medium">I will come to the provider</span>
               </label>
-              <label class="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input type="radio" name="serviceLocation" value="customer" class="h-4 w-4" onchange="updateTravelFee(${service.price})">
-                <span class="ml-3 text-gray-900">Provider should come to me</span>
+                <span class="ml-3 text-gray-900 font-medium">Provider should come to me</span>
               </label>
             </div>
-            <div id="travelFeeDiv" class="hidden mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+            
+            <!-- CUSTOMER LOCATION INPUT -->
+            <div id="customerLocationDiv" class="hidden mt-4">
+              <label for="customerLocation" class="block text-sm font-semibold text-gray-900 mb-2">📍 Your Location (Required)</label>
+              <input type="text" id="customerLocation" placeholder="e.g., Lagos, Ikoyi" class="w-full border border-blue-300 rounded-lg p-3 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition">
+              <p class="text-xs text-gray-600 mt-1">Tell the provider where to come</p>
+            </div>
+            
+            <div id="travelFeeDiv" class="hidden mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
               <p class="text-sm text-orange-800"><strong>Travel Fee:</strong> <span id="travelFeeAmount">₦2,000</span></p>
             </div>
           </div>
@@ -385,11 +393,14 @@ function updatePeople(change, pricePerPerson) {
 function updateTravelFee(pricePerPerson) {
   const location = document.querySelector('input[name="serviceLocation"]:checked').value;
   const travelFeeDiv = document.getElementById('travelFeeDiv');
+  const customerLocationDiv = document.getElementById('customerLocationDiv');
   
   if (location === 'customer') {
     travelFeeDiv.classList.remove('hidden');
+    customerLocationDiv.classList.remove('hidden');
   } else {
     travelFeeDiv.classList.add('hidden');
+    customerLocationDiv.classList.add('hidden');
   }
   
   updateTotalPrice(pricePerPerson);
@@ -410,11 +421,17 @@ function submitBooking(service, providerId) {
   const scheduleTime = document.getElementById('scheduleTime').value;
   const serviceLocation = document.querySelector('input[name="serviceLocation"]:checked').value;
   const specialInstructions = document.getElementById('specialInstructions').value;
+  const customerLocation = document.getElementById('customerLocation').value;
   const travelFee = serviceLocation === 'customer' ? 2000 : 0;
   const totalPrice = (peopleCount * service.price) + travelFee;
 
   if (!scheduleDate || !scheduleTime) {
     alert('Please select both date and time');
+    return;
+  }
+
+  if (serviceLocation === 'customer' && !customerLocation.trim()) {
+    alert('Please enter your location');
     return;
   }
 
@@ -426,6 +443,7 @@ function submitBooking(service, providerId) {
   params.append('numberOfPeople', peopleCount);
   params.append('scheduledDate', scheduledDateTime);
   params.append('serviceLocation', serviceLocation);
+  params.append('customerLocation', customerLocation);
   params.append('travelFee', travelFee);
   params.append('specialInstructions', specialInstructions);
   params.append('totalPrice', totalPrice);
@@ -438,3 +456,12 @@ function submitBooking(service, providerId) {
 // ============================
 
 loadService();
+
+// ============================
+// EXPOSE FUNCTIONS TO WINDOW
+// ============================
+window.updatePeople = updatePeople;
+window.updateTravelFee = updateTravelFee;
+window.updateTotalPrice = updateTotalPrice;
+window.submitBooking = submitBooking;
+window.openBookingModal = openBookingModal;

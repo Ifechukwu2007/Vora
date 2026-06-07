@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // NEW BOOKING FIELDS
   const numberOfPeople = parseInt(params.get('numberOfPeople')) || 1;
   const serviceLocation = params.get('serviceLocation') || 'provider';
+  const customerLocation = params.get('customerLocation') || '';
   const travelFee = parseInt(params.get('travelFee')) || 0;
   const specialInstructions = params.get('specialInstructions') || '';
 
@@ -193,7 +194,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (bookingPeopleEl) bookingPeopleEl.textContent = numberOfPeople;
     if (bookingDateEl) bookingDateEl.textContent = dateStr;
     if (bookingTimeEl) bookingTimeEl.textContent = timeStr;
-    if (bookingLocationEl) bookingLocationEl.textContent = serviceLocation === 'provider' ? 'Provider\'s Location' : 'My Location';
+    if (bookingLocationEl) {
+      if (serviceLocation === 'provider') {
+        bookingLocationEl.textContent = 'Provider\'s Location';
+      } else {
+        bookingLocationEl.textContent = customerLocation || 'Customer Location';
+      }
+    }
 
     if (specialInstructions) {
       if (bookingInstructionsEl) bookingInstructionsEl.textContent = specialInstructions;
@@ -259,6 +266,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         number_of_people: numberOfPeople,
         price_per_person: (totalPrice - travelFee) / numberOfPeople,
         service_location: serviceLocation,
+        customer_location: customerLocation,
         travel_fee: travelFee,
         special_instructions: specialInstructions,
         ...(serviceId ? { service_id: serviceId } : {}),
