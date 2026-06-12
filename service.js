@@ -350,7 +350,7 @@ function openBookingModal(service, providerId) {
             <!-- CUSTOMER LOCATION INPUT -->
             <div id="customerLocationDiv" class="hidden mt-4">
               <label for="customerLocation" class="block text-sm font-semibold text-gray-900 mb-2">📍 Your Location (Required)</label>
-              <input type="text" id="customerLocation" placeholder="e.g., Lagos, Ikoyi" class="w-full border border-blue-300 rounded-lg p-3 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition">
+              <input type="text" id="customerLocation" placeholder="e.g., 15 Admiralty Way, Lekki Phase 1, Lagos, Nigeria" class="w-full border border-blue-300 rounded-lg p-3 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition">
               <p class="text-xs text-gray-600 mt-1">Tell the provider where to come</p>
             </div>
             
