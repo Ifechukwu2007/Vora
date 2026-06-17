@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Booking | Vora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+  </div>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+    <main class="md:ml-72 pt-24 max-w-2xl mx-auto py-12 px-4">
+        <div class="mb-6 flex items-center gap-4">
+        <button id="backBtn" type="button" onclick="window.history.back()"
+          class="text-blue-600 hover:text-blue-800 font-semibold">
+          ← Back 
+        </button>
+            <h1 class="text-3xl font-extrabold text-gray-900">Complete Your Booking</h1>
+        </div> 
+        <div id="booking-summary" class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Booking Summary</h2>
+            <div id="user-info" class="mb-4 text-sm text-gray-500"></div>
+            <div id="service-details" class="space-y-3">
+                <!-- Service details will be loaded here -->
+                <p class="text-gray-600"><strong class="font-medium text-gray-900">Service:</strong> <span id="service-title"></span></p>
+                <div class="flex items-center gap-3 mt-4">
+                    <img
+                        id="provider-picture"
+                        src="https://ui-avatars.com/api/?name=User"
+                        alt="Provider avatar"
+                        class="w-12 h-12 rounded-full object-cover border border-gray-200"
+                    />
+                    <div>
+                        <p class="text-sm text-gray-500">Service Provider</p>
+                        <p class="font-semibold text-gray-900" id="provider-name"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOOKING DETAILS -->
+            <div class="mt-6 pt-6 border-t">
+              <h3 class="font-semibold text-gray-900 mb-4">Booking Details</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Number of People</p>
+                  <p class="font-semibold text-gray-900" id="booking-people">1</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Scheduled Date</p>
+                  <p class="font-semibold text-gray-900" id="booking-date">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Scheduled Time</p>
+                  <p class="font-semibold text-gray-900" id="booking-time">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-3">
+                  <p class="text-xs text-gray-600">Service Location</p>
+                  <p class="font-semibold text-gray-900" id="booking-location">-</p>
+                </div>
+              </div>
+              <div id="booking-travel-fee" class="hidden mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p class="text-sm text-orange-800"><strong>Travel Fee:</strong> <span id="travel-fee-amount">₦2,000</span></p>
+              </div>
+              <div id="booking-instructions-div" class="hidden mt-3">
+                <p class="text-xs text-gray-600 mb-1">Special Instructions</p>
+                <p class="text-sm text-gray-700 bg-gray-50 rounded p-2" id="booking-instructions">-</p>
+              </div> 
+            </div>
+            
+            <!-- Price Breakdown -->
+            <div class="mt-6 pt-6 border-t space-y-2">
+                <div id="original-price-row" class="hidden flex justify-between text-gray-500 line-through">
+                    <span>Original Service Price:</span>
+                    <span id="original-price">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-gray-700">
+                    <span>Discounted Service Price:</span>
+                    <span id="base-price">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-gray-700" id="per-person-row">
+                    <span>Price per person:</span>
+                    <span id="per-person-price">NGN 0</span>
+                </div>
+                <div id="travel-fee-row" class="hidden flex justify-between text-gray-700">
+                    <span>Travel Fee:</span>
+                    <span id="travel-fee-display">NGN 0</span>
+                </div>
+                <div id="discount-info" class="text-sm text-green-700"></div>
+                <div class="flex justify-between text-gray-700" id="fee-row" class="fee-row">
+                    <span>Service Fee:</span>
+                    <span id="service-fee">NGN 0</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold text-gray-900 pt-2">
+                    <span>Total Amount:</span>
+                    <span id="service-price" class="text-green-600">NGN 0</span>
+                </div>
+                <p class="text-xs text-gray-500 italic mt-2">Service fee helps support the platform</p>
+            </div>
+        </div>
+
+        <div id="payment-options" class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Select Payment Method</h2>
+            <div class="space-y-4">
+                <label class="flex items-center p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="radio" name="paymentMethod" value="paystack" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" checked>
+                    <span class="ml-3 text-lg font-medium text-gray-800">Pay with Paystack (Card, Bank Transfer)</span>
+                </label>
+            </div>
+            <button id="confirm-booking-btn" class="w-full mt-6 py-3 px-6 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Confirm & Pay
+            </button>
+        </div>
+    </main>
+    <script src="./payment.js" type="module"></script>
+    <script src="./auth.js" type="module"></script>
+    <script src="./menu.js" type="module"></script>       
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="./notifications.js" type="module"></script>
+    <script src="./notification-service.js" type="module"></script>
+
+        <script type="module">
+      import { supabase } from './supabase.js'
+
+      console.log(supabase)
+    </script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+</body>
+</html>

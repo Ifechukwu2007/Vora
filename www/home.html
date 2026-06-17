@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Home</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+          <a href="home.html"
+            class="font-semibold text-black-600">
+            Home
+          </a>
+
+          <a href="browse.html"
+            class="block font-semibold text-black-800">
+            Browse
+          </a>  
+
+          <a href="my-bookings.html"
+            class="block font-semibold text-black-800">
+            My Bookings
+          </a>
+
+          <a href="my-messages.html"
+            class="block font-semibold text-black-600">
+            My Messages
+          </a>
+
+          <a href="customer-reviews.html"
+            class="block font-semibold text-black-800">
+            Customer Reviews
+          </a>
+
+          <a href="add-service.html"
+            class="font-medium text-black-700 hover:text-black-600 transition">
+            Become a Provider
+          </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="home.html"
+      class="block font-semibold text-black-800">
+      Home
+    </a>
+
+    <a href="browse.html"
+      class="block font-semibold text-black-800">
+      Browse
+    </a>
+
+    <a href="my-bookings.html"
+      class="block font-semibold text-black-800">
+      My Bookings
+    </a>
+
+    <a href="my-messages.html"
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="customer-reviews.html"
+      class="block font-semibold text-black-800">
+      Customer Reviews
+    </a>
+
+    <a href="add-service.html"
+      class="block font-semibold text-black-800">
+      Become a Provider
+    </a>
+
+    <button id="logoutBtnSideMenu"
+      class="block text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<!-- ================= HERO ================= -->
+<section class="pt-28 pb-20 px-6 text-center bg-white">
+
+  <h1 class="text-4xl md:text-5xl font-bold mb-4">
+    Find the Right Service, Fast
+  </h1>
+
+  <p class="text-gray-600 max-w-xl mx-auto mb-6">
+    Connect with trusted providers for any service you need anytime, anywhere.
+  </p>
+
+  <!-- SEARCH -->
+  <div class="flex max-w-xl mx-auto">
+
+    <input
+      type="text"
+      id="homeSearchInput"
+      placeholder="What service do you need?"
+      class="w-full p-4 border rounded-l-md focus:outline-none"
+    >
+
+    <button
+      id="homeSearchBtn"
+      class="bg-black text-white px-6 rounded-r-md">
+      Search
+    </button>
+
+  </div>
+
+</section>
+
+<!-- ================= CATEGORIES ================= -->
+<section class="px-4 md:px-6 py-16 bg-gray-50"> 
+
+  <div class="max-w-6xl mx-auto">
+
+    <h2 class="text-3xl font-bold mb-10">
+      Explore by Category
+    </h2>
+
+    <div id="categoriesContainer"
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+
+      <p class="col-span-full text-center text-gray-500">
+        Loading categories...
+      </p>
+
+    </div>
+
+    <div class="text-center mt-10">
+
+      <a href="browse.html"
+        class="inline-block bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">
+        Explore More →
+      </a>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="bg-white py-16 px-6">
+
+  <h2 class="text-3xl font-bold text-center mb-12">
+    How Vora Works
+  </h2>
+
+  <div class="grid md:grid-cols-3 gap-10 max-w-5xl mx-auto text-center">
+
+    <div>
+
+      <div class="text-5xl mb-4">🔍</div>
+
+      <h3 class="font-bold text-xl mb-2">
+        Browse
+      </h3>
+
+      <p class="text-gray-600">
+        Find the exact service you need
+      </p>
+
+    </div>
+
+    <div>
+
+      <div class="text-5xl mb-4">📅</div>
+
+      <h3 class="font-bold text-xl mb-2">
+        Book
+      </h3>
+
+      <p class="text-gray-600">
+        Choose provider and time
+      </p>
+
+    </div>
+
+    <div>
+
+      <div class="text-5xl mb-4">✅</div>
+
+      <h3 class="font-bold text-xl mb-2">
+        Get It Done
+      </h3>
+
+      <p class="text-gray-600">
+        Complete the service easily
+      </p>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ================= CTA ================= -->
+<section class="bg-black text-white py-20 text-center px-6">
+
+  <h2 class="text-4xl font-bold mb-4">
+    Start earning with Vora
+  </h2>
+
+  <p class="mb-8 text-gray-300">
+    Become a provider and grow your business today
+  </p>
+
+  <div class="flex flex-col sm:flex-row justify-center gap-4">
+
+    <a href="add-service.html"
+      class="bg-white text-black px-8 py-3 rounded-lg font-semibold">
+      Become a Provider
+    </a>
+
+    <a href="browse.html"
+      class="bg-white text-black px-8 py-3 rounded-lg font-semibold">
+      Browse Services
+    </a>
+
+  </div>
+
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="bg-gray-900 text-gray-300 py-12 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div>
+        <h3 class="text-white font-bold mb-4">Vora</h3>
+        <p class="text-sm">Connecting trusted providers with customers for any service needed.</p>
+      </div>
+      <div>
+        <h3 class="text-white font-bold mb-4">Quick Links</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="home.html" class="hover:text-white transition">Home</a></li>
+          <li><a href="browse.html" class="hover:text-white transition">Browse Services</a></li>
+          <li><a href="how-it-works.html" class="hover:text-white transition">How it Works</a></li>
+          <li><a href="add-service.html" class="hover:text-white transition">Become a Provider</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="text-white font-bold mb-4">Legal</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="privacy-policy.html" class="hover:text-white transition">Privacy Policy</a></li>
+          <li><a href="terms-of-service.html" class="hover:text-white transition">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div>
+      </div>
+    </div>
+    <div class="border-t border-gray-700 pt-8 text-center text-sm">
+      <p>&copy; 2026 Vora. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="./home.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
+
+  console.log(supabase)
+</script>
+
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
+
+</body>
+</html>

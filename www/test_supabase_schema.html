@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Schema Test</title>
+</head>
+<body>
+    <h1>Supabase Schema Test</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { supabase } from './supabase.js'; 
+
+        const output = document.getElementById('output');
+
+        async function testSchema() { 
+            try {
+                output.innerHTML += '<p>Testing connection...</p>';
+
+                // Try to select from users table
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(1);
+
+                if (error) {
+                    output.innerHTML += `<p>Error: ${error.message}</p>`;
+                    output.innerHTML += `<p>Error details: ${JSON.stringify(error)}</p>`;
+                } else {
+                    output.innerHTML += '<p>Users table exists!</p>';
+                    output.innerHTML += `<p>Sample data: ${JSON.stringify(data)}</p>`;
+                }
+
+                // Try to get column info using RPC if available
+                try {
+                    const { data: columns, error: colError } = await supabase.rpc('get_table_columns', { table_name: 'users' });
+                    if (colError) {
+                        output.innerHTML += `<p>Could not get columns via RPC: ${colError.message}</p>`;
+                    } else {
+                        output.innerHTML += `<p>Columns: ${JSON.stringify(columns)}</p>`;
+                    }
+                } catch (rpcError) {
+                    output.innerHTML += `<p>RPC not available: ${rpcError.message}</p>`;
+                }
+
+                // Try to insert a test user to see what columns exist
+                try {
+                    const testUser = {
+                        id: '00000000-0000-0000-0000-000000000000',
+                        email: 'test@example.com',
+                        full_name: 'Test User'
+                    };
+                    const { data: insertData, error: insertError } = await supabase
+                        .from('users')
+                        .insert(testUser);
+
+                    if (insertError) {
+                        output.innerHTML += `<p>Insert error: ${insertError.message}</p>`;
+                        output.innerHTML += `<p>Insert details: ${JSON.stringify(insertError)}</p>`;
+                    } else {
+                        output.innerHTML += '<p>Test user inserted successfully!</p>';
+                        output.innerHTML += `<p>Insert result: ${JSON.stringify(insertData)}</p>`;
+                    }
+                } catch (insertErr) {
+                    output.innerHTML += `<p>Insert exception: ${insertErr.message}</p>`;
+                }
+
+            } catch (err) {
+                output.innerHTML += `<p>Exception: ${err.message}</p>`;
+            }
+        }
+
+        testSchema();
+    </script>
+</body>
+</html>

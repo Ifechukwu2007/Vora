@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Complete Your Booking | Vora</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
     <script src="https://js.paystack.co/v1/inline.js"></script>
@@ -21,9 +25,8 @@
       <div class="flex items-center gap-10">
 
         <!-- LOGO -->
-        <a href="home.html"
-          class="text-2xl font-extrabold text-blue-600">
-          Vora
+        <a href="home.html" class="flex items-center">
+          <img src="/vora-logo.png" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
         </a>
 
       </div>
@@ -127,14 +130,23 @@
             
             <!-- Price Breakdown -->
             <div class="mt-6 pt-6 border-t space-y-2">
+                <div id="original-price-row" class="hidden flex justify-between text-gray-500 line-through">
+                    <span>Original Service Price:</span>
+                    <span id="original-price">NGN 0</span>
+                </div>
                 <div class="flex justify-between text-gray-700">
-                    <span>Service Price:</span>
+                    <span>Discounted Service Price:</span>
                     <span id="base-price">NGN 0</span>
                 </div>
-                <div class="flex justify-between text-gray-700" id="travel-fee-row" class="hidden">
+                <div class="flex justify-between text-gray-700" id="per-person-row">
+                    <span>Price per person:</span>
+                    <span id="per-person-price">NGN 0</span>
+                </div>
+                <div id="travel-fee-row" class="hidden flex justify-between text-gray-700">
                     <span>Travel Fee:</span>
                     <span id="travel-fee-display">NGN 0</span>
                 </div>
+                <div id="discount-info" class="text-sm text-green-700"></div>
                 <div class="flex justify-between text-gray-700" id="fee-row" class="fee-row">
                     <span>Service Fee:</span>
                     <span id="service-fee">NGN 0</span>

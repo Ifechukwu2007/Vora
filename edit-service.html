@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Service | Vora</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -13,9 +17,8 @@
 
     <header class="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between p-4">
         <h1 class="text-xl font-bold">
-           <a href="home.html"
-          class="text-2xl font-extrabold text-blue-600">
-          Vora
+           <a href="home.html" class="flex items-center">
+          <img src="/vora-logo.png" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
         </a>
         </h1>
         <div class="md:hidden flex items-center gap-4">
@@ -104,6 +107,22 @@
             <div>
                 <label for="service-price" class="block text-sm font-medium text-gray-700">Price (NGN)</label>
                 <input type="number" id="service-price" name="service-price" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="deal-message" class="block text-sm font-medium text-gray-700">Deal Headline <span class="text-gray-500">(Optional)</span></label>
+                <input type="text" id="deal-message" name="deal-message" placeholder="e.g. Book 3 friends and each gets 20% off" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount</label>
+                    <input type="number" id="group-discount-threshold" name="group-discount-threshold" min="2" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent</label>
+                    <input type="number" id="group-discount-percent" name="group-discount-percent" min="1" max="100" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
             </div>
 
             <div>

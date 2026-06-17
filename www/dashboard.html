@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora | Provider Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-gray-50">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a> 
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600"> 
+      Provider Bookings
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="provider-reviews.html" 
+      class="block font-semibold text-black-600">
+      Provider Reviews
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn-payout-settings" data-logout
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a>
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600">
+      Provider Bookings
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="provider-reviews.html" 
+      class="block font-semibold text-black-600">
+      Provider Reviews
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+    <button id="logoutBtn" 
+      class="text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="pt-20 pb-12 px-4 md:px-6">
+<div class="max-w-7xl mx-auto">
+
+  <!-- NO SERVICE OVERLAY -->
+  <div id="noServiceOverlay" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-2xl text-center max-w-sm w-full">
+      <h2 class="text-xl font-bold mb-2">No Service Yet</h2>
+      <p class="text-gray-500 mb-4">You need to add a service before accessing your dashboard.</p>
+      
+      <a href="add-service.html" class="bg-blue-600 text-white px-5 py-2 rounded-lg inline-block hover:bg-blue-700">
+        Add Service
+      </a>
+    </div>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-extrabold text-gray-900">Provider Dashboard</h1>
+    <p class="text-gray-600 mt-1">Welcome back, <span id="providerName" class="font-semibold">Provider</span></p>
+  </div>
+
+  <!-- STATS GRID -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+    <!-- Total Bookings -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
+      <p class="text-sm text-gray-600 font-medium">Total Bookings</p>
+      <h2 id="totalBookings" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
+
+    <!-- Total Revenue -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-green-500">
+      <p class="text-sm text-gray-600 font-medium">Total Revenue</p>
+      <h2 id="totalRevenue" class="text-3xl font-bold text-gray-900 mt-2">₦0</h2>
+    </div>
+
+    <!-- Your Services -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-indigo-500">
+      <p class="text-sm text-gray-600 font-medium">Your Services</p>
+      <h2 id="yourServices" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
+
+    <!-- Success Rate -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-orange-500">
+      <p class="text-sm text-gray-600 font-medium">Success Rate</p>
+      <h2 id="successRate" class="text-3xl font-bold text-gray-900 mt-2">0%</h2>
+    </div>
+
+  </div>
+
+  <!-- OFFERS STATS (Second Row) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+    <!-- Completed Jobs -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <p class="text-sm text-gray-600 font-medium">Completed Jobs</p>
+      <h2 id="totalCompleted" class="text-3xl font-bold text-gray-900 mt-2">0</h2>
+    </div>
+
+  </div>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT COLUMN -->
+    <div class="lg:col-span-2 space-y-6">
+
+      <!-- TODAY'S BOOKINGS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-900">Today's Bookings</h2>
+          <a href="provider-bookings.html" class="text-blue-600 text-sm font-medium hover:underline">View All</a>
+        </div>
+        <div id="upcomingBookings" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No bookings for today</p>
+        </div>
+      </div> 
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="space-y-6">
+
+      <!-- ACTIVITY FEED -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Recent Activity</h2>
+        <div id="activityFeed" class="space-y-3">
+          <p class="text-gray-500 text-sm text-center py-4">No recent activity</p>
+        </div>
+      </div>
+
+      <!-- QUICK ACTIONS -->
+      <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+        <div class="space-y-2">
+          <a href="my-services.html" class="block w-full bg-blue-600 text-white py-2 rounded-lg text-center font-medium hover:bg-blue-700 transition">
+            My Services
+          </a>
+          <a href="provider-bookings.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Manage Bookings
+          </a>
+          <a href="payout-settings.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Payout Settings
+          </a>
+          <a href="profile.html" class="block w-full bg-gray-100 text-gray-900 py-2 rounded-lg text-center font-medium hover:bg-gray-200 transition">
+            Edit Profile
+          </a>
+        </div>
+      </div>
+
+      <!-- PERFORMANCE -->
+      <div class="bg-blue-600 text-white p-6 rounded-lg shadow-sm">
+        <h2 class="text-lg font-bold mb-3">📈 Performance</h2>
+        <p class="text-sm text-blue-100 mb-2">Win Rate</p>
+        <div class="bg-blue-400 h-3 rounded overflow-hidden">
+          <div id="winRateBar" class="bg-green-400 h-3 transition-all duration-300 w-0"></div>
+        </div>
+        <p class="text-sm text-blue-100 mt-2"><span id="winRatePercent">0</span>% success</p>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+</main>
+
+<script src="./auth.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./dashboard.js" type="module"></script>
+<script src="./notifications.js" type="module"></script>
+<script src="./notification-service.js" type="module"></script>
+<script src="./notification-badge.js" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
+
+  console.log(supabase)
+</script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date(); 
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+
+</body>
+</html>

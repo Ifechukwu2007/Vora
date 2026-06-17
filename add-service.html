@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Service | Vora</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,9 +15,8 @@
 
     <header class="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between p-4">
         <h1 class="text-xl font-bold">
-           <a href="home.html"
-          class="text-2xl font-extrabold text-blue-600">
-          Vora
+           <a href="home.html" class="flex items-center">
+          <img src="/vora-logo.png" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
         </a>
         </h1>
         <div class="md:hidden flex items-center gap-4">
@@ -75,20 +78,36 @@
             </div>
 
             <div>
+                <label for="deal-message" class="block text-sm font-medium text-gray-700">Deal Headline <span class="text-gray-500">(Optional)</span></label>
+                <input type="text" id="deal-message" name="deal-message" placeholder="e.g. Book 3 friends and each gets 20% off" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount</label>
+                    <input type="number" id="group-discount-threshold" name="group-discount-threshold" min="2" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent</label>
+                    <input type="number" id="group-discount-percent" name="group-discount-percent" min="1" max="100" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div>
                 <label for="service-location" class="block text-sm font-medium text-gray-700">Location</label>
                 <input type="text" id="service-location" name="service-location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 15 Admiralty Way, Lekki Phase 1, Lagos, Nigeria">
             </div>
 
             <div>
                 <label for="travel-price" class="block text-sm font-medium text-gray-700">Travel Price (NGN) <span class="text-gray-500">(Optional - charge if you travel to customer)</span></label>
-                <input type="number" id="travel-price" name="travel-price" placeholder="e.g., 2000" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="number" id="travel-price" name="travel-price" placeholder="e.g., 2000" min="0" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <div>
-                <label for="service-image" class="block text-sm font-medium text-gray-700">Service Image</label>
+                <label for="service-image" class="block text-sm font-medium text-gray-700">Service Image <span class="text-red-500">*</span></label>
                 <div class="mt-1 flex flex-col">
-                    <input type="file" id="service-image" name="service-image" accept="image/*" class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or WebP. Max 10MB</p>
+                    <input type="file" id="service-image" name="service-image" accept="image/*" required class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or WebP. Max 10MB - <span class="text-red-500 font-semibold">Required</span></p>
                     <div id="image-preview" class="mt-4 hidden">
                         <img id="preview-img" src="" alt="Preview" class="h-32 w-32 object-cover rounded-md border border-gray-300">
                         <button type="button" id="remove-image-btn" class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">Remove Image</button>

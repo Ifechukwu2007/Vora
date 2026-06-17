@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Provider Reviews | Vora</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+
+        <!-- LOGO -->
+        <a href="home.html"
+          class="text-2xl font-extrabold text-blue-600">
+          Vora
+        </a>
+
+        <!-- DESKTOP NAV -->
+        <nav class="hidden lg:flex items-center gap-6">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a> 
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600"> 
+      Provider Bookings
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="provider-reviews.html" 
+      class="block font-semibold text-black-600">
+      Provider Reviews
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn"
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu"
+  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <!-- TOP -->
+  <div class="flex items-center justify-between p-4 border-b">
+
+    <h2 class="text-xl font-bold">
+      Menu
+    </h2>
+
+    <button id="closeMenu" class="text-2xl">
+      ✕
+    </button>
+
+  </div>
+
+  <!-- LINKS -->
+  <div class="p-4 space-y-5">
+
+    <a href="dashboard.html" 
+      class="block font-semibold text-black-600">
+      Dashboard
+    </a>
+
+    <a href="browse.html" 
+      class="block font-semibold text-black-600">
+      Browse
+    </a>
+
+    <a href="my-services.html" 
+      class="block font-semibold text-black-600">
+      My Services
+    </a>
+
+    <a href="add-service.html" 
+      class="block font-semibold text-black-600">
+      Become a Provider
+    </a>
+
+    <a href="provider-bookings.html" 
+      class="block font-semibold text-black-600">
+      Provider Bookings
+    </a>
+
+    <a href="my-messages.html" 
+      class="block font-semibold text-black-600">
+      My Messages
+    </a>
+
+    <a href="provider-reviews.html" 
+      class="block font-semibold text-black-600">
+      Provider Reviews
+    </a>
+
+    <a href="payout-settings.html" 
+      class="block font-semibold text-black-600">
+      Payout
+    </a>
+
+    <button id="logoutBtnSideMenu" 
+      class="text-red-600 font-semibold">
+      Logout
+    </button>
+
+  </div>
+
+</div>
+
+<div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"></div>
+
+<main class="pt-28 px-4 max-w-5xl mx-auto">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Provider Reviews</h1>
+      <p class="text-gray-600 mt-2">See all reviews left by customers for your services.</p>
+    </div>
+  </div>
+  <div id="providerReviewsContainer" class="space-y-6"></div>
+</main>
+
+<script src="./auth.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./provider-reviews.js" type="module"></script>
+</body>
+</html>  
