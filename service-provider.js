@@ -143,8 +143,8 @@ async function loadReviews(providerId) {
       <div class="border-b py-4 flex gap-3">
         <img src="${profilePic}" alt="${reviewer?.full_name || 'Reviewer'}" class="w-10 h-10 rounded-full object-cover" />
         <div class="flex-1">
-          <p class="font-semibold text-gray-900">${reviewer?.full_name || 'Anonymous'}</p>
-          <div class="flex items-center gap-2 text-sm text-gray-600">
+          <p class="font-semibold text-black-900">${reviewer?.full_name || 'Anonymous'}</p>
+          <div class="flex items-center gap-2 text-sm text-yellow-600">
             <span>${stars}</span>
             <span>${new Date(review.created_at).toLocaleDateString()}</span>
           </div>
