@@ -6,27 +6,27 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/how-it-works.html</loc>
+    <loc>https://vora.com.ng/how-it-works</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/login.html</loc>
+    <loc>https://vora.com.ng/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/register.html</loc>
+    <loc>https://vora.com.ng/register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/privacy-policy.html</loc>
+    <loc>https://vora.com.ng/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/terms-of-service.html</loc>
+    <loc>https://vora.com.ng/terms-of-service</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
