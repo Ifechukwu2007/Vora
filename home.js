@@ -13,14 +13,15 @@ const categoryEmojis = {
     'Home Services': '🏠',
     'Repairs & Maintenance': '🛠️',
     'Beauty & Personal Care': '💄',
-    'Wellness & Therapy': '🧖',
+    'Health & Medical': '🏥',
     'Fitness & Sports': '💪',
     'Food & Catering': '🍽️',
+    'Transportation & Logistics': '🚚',
     'Education & Tutoring': '📚',
-    'Photography & Videography': '📷',
-    'Events & Event Services': '🎉',
-    'Tailoring & Fashion Design': '🧵',
-    'Art & Illustration': '🎨',
+    'Photography & Videography': '📸',
+    'Media & Entertainment': '🎬',
+    'Fashion & Apparel': '👗',
+    'Art & Design': '🎨',
 };
 
 // Color palette for categories
@@ -28,14 +29,15 @@ const categoryColors = {
     'Home Services': 'from-orange-400 to-orange-600',
     'Repairs & Maintenance': 'from-amber-400 to-amber-600',
     'Beauty & Personal Care': 'from-pink-400 to-pink-600',
-    'Wellness & Therapy': 'from-red-400 to-red-600',
+    'Health & Medical': 'from-red-400 to-red-600',
     'Fitness & Sports': 'from-orange-500 to-red-500',
     'Food & Catering': 'from-yellow-400 to-orange-500',
+    'Transportation & Logistics': 'from-sky-400 to-blue-600',
     'Education & Tutoring': 'from-indigo-400 to-blue-600',
     'Photography & Videography': 'from-fuchsia-400 to-purple-500',
-    'Events & Event Services': 'from-violet-400 to-fuchsia-600',
-    'Tailoring & Fashion Design': 'from-rose-400 to-pink-600',
-    'Art & Illustration': 'from-fuchsia-400 to-pink-500',
+    'Media & Entertainment': 'from-violet-400 to-fuchsia-600',
+    'Fashion & Apparel': 'from-rose-400 to-pink-600',
+    'Art & Design': 'from-fuchsia-400 to-pink-500',
 };
 
 const DEFAULT_CATEGORIES = [
@@ -44,10 +46,7 @@ const DEFAULT_CATEGORIES = [
     'Food & Catering',
     'Transportation & Logistics',
     'Education & Tutoring',
-    'Wellness & Therapy',
-    'Events & Event Services',
-    'Tailoring & Fashion Design',
-    'Art & Illustration',
+    'Health & Medical',
 ];
 
 const preferredOrder = [
@@ -56,11 +55,7 @@ const preferredOrder = [
     'Food & Catering',
     'Transportation & Logistics',
     'Education & Tutoring',
-    'Wellness & Therapy',
-    'Events & Event Services',
-    'Tailoring & Fashion Design',
-    'Art & Illustration',
-    '',
+    'Health & Medical',
 ];
 
 async function fetchCategories() {
