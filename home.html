@@ -43,14 +43,12 @@
           </a>  
 
           <a href="my-bookings.html"
-            id="myBookingsLinkDesktop"
-            class="hidden font-semibold text-black-800">
+            class="block font-semibold text-black-800">
             My Bookings
           </a>
 
           <a href="my-messages.html"
-            id="myMessagesLinkDesktop"
-            class="hidden font-semibold text-black-600">
+            class="block font-semibold text-black-600">
             My Messages
           </a>
 
@@ -60,7 +58,6 @@
           </a>
 
           <a href="add-service.html"
-            id="becomeProviderLinkDesktop"
             class="font-medium text-black-700 hover:text-black-600 transition">
             Become a Provider
           </a>
@@ -72,24 +69,18 @@
       <!-- RIGHT -->
       <div class="flex items-center gap-4">
 
-        <!-- PROFILE (logged-in only) -->
+        <!-- PROFILE -->
         <a href="profile.html"
-          id="profileIcon"
           data-profile-icon="true"
-          class="hidden w-10 h-10 rounded-full bg-gray-300
+          class="w-10 h-10 rounded-full bg-gray-300
           flex items-center justify-center
           hover:bg-gray-400 transition">
+
           👤
+
         </a>
 
-        <!-- LOGIN (guests only) -->
-        <a href="login.html"
-          id="loginLink"
-          class="hidden lg:block bg-blue-600 text-white px-5 py-2 rounded-md font-semibold hover:bg-blue-700 transition">
-          Login
-        </a>
-
-        <!-- LOGOUT (logged-in only) -->
+        <!-- LOGOUT -->
         <button id="logoutBtn"
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
@@ -141,14 +132,12 @@
     </a>
 
     <a href="my-bookings.html"
-      id="myBookingsLinkMobile"
-      class="hidden font-semibold text-black-800">
+      class="block font-semibold text-black-800">
       My Bookings
     </a>
 
     <a href="my-messages.html"
-      id="myMessagesLinkMobile"
-      class="hidden font-semibold text-black-600">
+      class="block font-semibold text-black-600">
       My Messages
     </a>
 
@@ -158,19 +147,12 @@
     </a>
 
     <a href="add-service.html"
-      id="becomeProviderLinkMobile"
       class="block font-semibold text-black-800">
       Become a Provider
     </a>
 
-    <a href="login.html"
-      id="loginLinkMobile"
-      class="hidden font-semibold text-blue-600">
-      Login
-    </a>
-
     <button id="logoutBtnSideMenu"
-      class="hidden text-red-600 font-semibold">
+      class="block text-red-600 font-semibold">
       Logout
     </button>
 
@@ -314,7 +296,6 @@
   <div class="flex flex-col sm:flex-row justify-center gap-4">
 
     <a href="add-service.html"
-      id="becomeProviderLinkCTA"
       class="bg-white text-black px-8 py-3 rounded-lg font-semibold">
       Become a Provider
     </a>
@@ -362,9 +343,8 @@
 </footer>
 
 <!-- ================= SCRIPTS ================= -->
-<script src="./home.js?v=3" type="module"></script>
+<script src="./home.js?v=2" type="module"></script>
 <script src="./auth.js?v=2" type="module"></script>
-<script src="./login.js?v=2" type="module"></script>
 <script src="./menu.js?v=2" type="module"></script>
 <script src="./notifications.js?v=2" type="module"></script>
 <script src="./notification-service.js?v=2" type="module"></script>
@@ -401,4 +381,4 @@ s0.parentNode.insertBefore(s1,s0);
 </script>
 
 </body>
-            </html>
+      </html>
