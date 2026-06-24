@@ -86,7 +86,7 @@ async function renderProvider(user, providerId, container) {
               <p class="text-sm text-indigo-600 font-semibold mb-2">${service.deal_message || `Book ${service.group_discount_threshold}+ and save ${service.group_discount_percent}%`}</p>
             ` : ''}
             <p class="text-gray-600 mb-4">${(service.description || '').substring(0, 100)}...</p>
-            <a href="service.html?id=${service.id}" class="text-blue-600 hover:underline">View Details</a>
+            <a href="service?id=${service.id}" class="text-blue-600 hover:underline">View Details</a>
           </div>
         `;
       })
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (document.referrer && document.referrer.includes('service.html')) {
         window.history.back();
       } else {
-        window.location.href = 'browse.html';
+        window.location.href = 'browse';
       }
     });
   }

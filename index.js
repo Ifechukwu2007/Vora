@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('Logged out successfully');
 
       window.location.href =
-        'login.html';
+        'index.html';
 
     } catch (err) {
 

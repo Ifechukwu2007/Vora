@@ -103,7 +103,7 @@ function setupLogout() {
 
   async function doLogout() {
     await supabase.auth.signOut();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   }
 
   if (logoutBtn) logoutBtn.addEventListener('click', doLogout);

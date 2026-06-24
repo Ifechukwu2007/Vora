@@ -14,7 +14,7 @@ async function initPayoutSettings(form, bankInput, accountInput) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
         alert("You must be logged in to manage payout settings.");
-        LoadingSpinner.navigateTo('login.html?redirect=payout-settings.html');
+        LoadingSpinner.navigateTo('login.html?redirect=payout-settings');
         return;
     }
 
