@@ -200,6 +200,7 @@ async function loadBookings() {
                                 })()}
                             </div>
                         </div>
+                        ${details.image_url && details.image_url.trim() !== "" ? `<img src="${details.image_url}" alt="${details.title || 'Service'}" class="w-full h-48 object-cover rounded-xl mb-5" onerror="this.style.display='none'">` : ''}
                         <h3 class="text-2xl font-bold text-gray-900 mb-3">${details.title || "Untitled Booking"}</h3>
                         <p class="text-gray-600 leading-relaxed mb-5">${details.description || "No description"}</p>
                         
