@@ -52,10 +52,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================
   const params = new URLSearchParams(window.location.search);
 
-  const serviceId = params.get('serviceId');
-  const requestId = params.get('requestId');
-  const offerId = params.get('offerId');
-  const providerId = params.get('providerId');
+  let serviceId = params.get('serviceId');
+  let requestId = params.get('requestId');
+  let offerId = params.get('offerId');
+  let providerId = params.get('providerId');
 
   const bookingIdParam = params.get('bookingId') || '';
 
@@ -73,6 +73,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error loading pending booking:', bookingLookupError);
     } else {
       existingBooking = bookingData;
+      // Backfill when payment.html is opened using only bookingId
+      serviceId = serviceId || existingBooking?.service_id || null;
+      requestId =
+        requestId ||
+        existingBooking?.request_id ||
+        existingBooking?.requestId ||
+        null;
+      providerId =
+        providerId ||
+        existingBooking?.provider_id ||
+        existingBooking?.providerId ||
+        null;
+      offerId = offerId || existingBooking?.offer_id || existingBooking?.offerId || null;
     }
   }
 

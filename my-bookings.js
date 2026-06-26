@@ -279,9 +279,7 @@ async function loadBookings() {
             const provider = providersById[String(booking.provider_id)] || null;
             const providerName = provider?.full_name || "Unknown Provider";
             const providerEmail = provider?.email || "No Email";
-            const providerLocation = provider?.location || details?.location || booking?.service_location || "Location not available";
             const providerPicture = provider?.profile_picture && provider.profile_picture.trim() !== "" ? provider.profile_picture : `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
-            const completionAwaitingCustomer = ["completed_by_provider", "awaiting_customer_confirmation"].includes(booking.status);
             const servicePrice = Number(details.price || 0);
             const groupThreshold = Number(details.group_discount_threshold) || 0;
             const groupPercent = Number(details.group_discount_percent) || 0;
@@ -295,6 +293,12 @@ async function loadBookings() {
                     : `Group deal: Book ${groupThreshold}+ people to save ${groupPercent}% per person.`
                 : '';
             const bookingTotal = Number(booking.total_price || booking.amount || booking.price || 0);
+            const providerLocation = provider?.location || details?.location || null;
+            const bookingLocationText = booking.service_location === 'customer'
+                ? (booking.customer_location || details?.location || 'Customer Location')
+                : (providerLocation || details?.location || 'Provider Location');
+            const shouldRenderBookingDetails = booking.scheduled_date || booking.number_of_people || booking.service_location || booking.customer_location || booking.special_instructions || booking.travel_fee;
+            const completionAwaitingCustomer = ["completed_by_provider", "awaiting_customer_confirmation"].includes(booking.status);
 
             const card = document.createElement("div");
             card.className = `bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition`;
@@ -333,7 +337,7 @@ async function loadBookings() {
                         <p class="text-gray-600 leading-relaxed mb-5">${details.description || "No description"}</p>
                         
                         <!-- BOOKING DETAILS -->
-                        ${booking.scheduled_date || booking.number_of_people ? `
+                        ${shouldRenderBookingDetails ? `
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-5">
                           <p class="font-semibold text-gray-900 mb-3">Booking Details</p>
                           <div class="grid grid-cols-2 gap-3">
@@ -345,10 +349,10 @@ async function loadBookings() {
                               <p class="text-xs text-gray-600">Scheduled</p>
                               <p class="font-semibold text-gray-900">${new Date(booking.scheduled_date).toLocaleDateString()} ${new Date(booking.scheduled_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                             </div>` : ''}
-                            ${booking.service_location ? `<div>
-                              <p class="text-xs text-gray-600">Location</p>
-                              <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'Provider Location' : (booking.customer_location || 'Customer Location')}</p>
-                            </div>` : ''}
+                                                        ${booking.service_location ? `<div>
+                                                            <p class="text-xs text-gray-600">Location</p>
+                                                            <p class="font-semibold text-gray-900">${bookingLocationText}</p>
+                                                        </div>` : ''}
                             ${booking.travel_fee ? `<div>
                               <p class="text-xs text-gray-600">Travel Fee</p>
                               <p class="font-semibold text-gray-900">₦${booking.travel_fee.toLocaleString()}</p>
@@ -409,8 +413,11 @@ async function loadBookings() {
             const bookingId = mapNode.id.replace('booking-map-', '');
             const booking = bookings.find((item) => String(item.id) === String(bookingId));
             const provider = providersById[String(booking?.provider_id)] || null;
-            const providerLocation = provider?.location || 'Location not available';
-            renderBookingMap(mapNode, providerLocation);
+            const details = servicesById[booking.service_id] || requestsById[booking.request_id] || {};
+            const mapLocation = booking.service_location === 'customer'
+                ? booking.customer_location
+                : provider?.location || details?.location || null;
+            renderBookingMap(mapNode, mapLocation);
         });
     } catch (error) {
         console.error("Load bookings error:", error);
