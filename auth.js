@@ -154,7 +154,7 @@ if (loginForm) {
       // Update profile picture in header before redirecting
       await updateProfilePictureInHeader();
 
-      window.location.href = "home";
+      window.location.href = "home.html";
     } catch (error) {
       console.error("Login error:", error);
 
@@ -348,43 +348,160 @@ if (registerForm) {
 // LOGOUT FUNCTIONALITY
 // ===============================
 
-const logoutBtn = document.getElementById("logoutBtn");
-const logoutBtnSideMenu = document.getElementById("logoutBtnSideMenu");
+const PUBLIC_PAGES = ['login', 'register', 'home', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service'];
+
+function isFilePreview() {
+  return window.location.protocol === 'file:';
+}
+
+async function updateLogoutVisibility() {
+  const logoutElements = document.querySelectorAll('[data-logout], [id^="logoutBtn"]');
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isLoggedIn = !!sessionData?.session;
+
+    logoutElements.forEach((el) => {
+      el.style.display = isLoggedIn ? "" : "none";
+    });
+
+    updateAuthLinks(isLoggedIn);
+  } catch (error) {
+    console.error("Failed to update logout visibility:", error);
+  }
+}
+
+function isLogoutTarget(element) {
+  return element.closest('[data-logout], [id^="logoutBtn"]');
+}
+
+document.addEventListener('click', async (event) => {
+  const logoutElement = isLogoutTarget(event.target);
+  if (!logoutElement) return;
+
+  event.preventDefault();
+  await handleLogout();
+});
+
+function updateAuthLinks(isLoggedIn) {
+  const protectedLinks = document.querySelectorAll(
+    'a[href="my-bookings.html"], a[href="my-messages.html"]'
+  );
+  protectedLinks.forEach((link) => {
+    link.style.display = isLoggedIn ? "" : "none";
+  });
+
+  const profileIcons = document.querySelectorAll('[data-profile-icon="true"]');
+  profileIcons.forEach((icon) => {
+    const link = icon.closest('a');
+    if (link) {
+      if (isLoggedIn) {
+        link.href = 'profile.html';
+      } else {
+        link.href = 'login.html?redirect=profile.html';
+      }
+    }
+  });
+
+  const addServiceLinks = document.querySelectorAll('a[href="add-service.html"]');
+  addServiceLinks.forEach((link) => {
+    if (isLoggedIn) {
+      link.href = 'add-service.html';
+    } else {
+      link.href = 'login.html?redirect=add-service.html';
+    }
+  });
+}
+
+function ensureCustomerMenuLinks() {
+  const commonLinks = [
+    { href: 'home.html', label: 'Home' },
+    { href: 'my-bookings.html', label: 'My Bookings' },
+    { href: 'my-messages.html', label: 'My Messages' },
+    { href: 'browse.html#wishlistPanel', label: 'Wishlist' }
+  ];
+
+  const nav = document.querySelector('header nav');
+  if (nav) {
+    commonLinks.forEach((linkInfo) => {
+      if (!nav.querySelector(`a[href="${linkInfo.href}"]`)) {
+        const link = document.createElement('a');
+        link.href = linkInfo.href;
+        link.className = 'font-semibold text-black-600';
+        link.textContent = linkInfo.label;
+        nav.appendChild(link);
+      }
+    });
+  }
+
+  const sideMenuList = document.querySelector('#sideMenu .p-4');
+  if (sideMenuList) {
+    commonLinks.forEach((linkInfo) => {
+      if (!sideMenuList.querySelector(`a[href="${linkInfo.href}"]`)) {
+        const link = document.createElement('a');
+        link.href = linkInfo.href;
+        link.className = 'block font-semibold text-black-800';
+        link.textContent = linkInfo.label;
+        const logoutBtnSideMenu = sideMenuList.querySelector('#logoutBtnSideMenu');
+        if (logoutBtnSideMenu) {
+          logoutBtnSideMenu.insertAdjacentElement('beforebegin', link);
+        } else {
+          sideMenuList.appendChild(link);
+        }
+      }
+    });
+  }
+}
 
 async function handleLogout() {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
-    window.location.href = "index.html";
+    window.location.href = "home.html";
   } catch (error) {
     console.error("Logout error:", error);
     showError("Logout failed. Please try again.");
   }
 }
  
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", handleLogout);
-}
+// Logout buttons are handled globally via click delegation.
 
-if (logoutBtnSideMenu) {
-  logoutBtnSideMenu.addEventListener("click", handleLogout);
-}
+document.addEventListener("DOMContentLoaded", async () => {
+  await updateLogoutVisibility();
+  await redirectIfNotOnPublicPage();
+});
 
 // ===============================
 // GLOBAL AUTH STATE LISTENER
 // ===============================
 // Redirect to login if session is lost or user logs out
 
-supabase.auth.onAuthStateChange((event, session) => {
+async function redirectIfNotOnPublicPage() {
+  if (isFilePreview()) return;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const hasSession = !!sessionData?.session;
+  const currentPage = window.location.pathname;
+  const isPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
+
+  if (!hasSession && !isPublicPage) {
+    window.location.href = `login.html?redirect=${encodeURIComponent(currentPage.replace(/^\//, ''))}`;
+  }
+}
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+  await updateLogoutVisibility();
+
+  if (isFilePreview()) return;
+
   // If session is null and we're not already on public pages, redirect to login
   if (!session) {
     const currentPage = window.location.pathname;
-    const fullyPublicPages = ['login', 'register', 'index', 'home', 'how-it-works', 'privacy-policy', 'terms-of-service'];
-    const isFullyPublicPage = fullyPublicPages.some(page => currentPage.includes(page));
-    
+    const isFullyPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
+
     if (!isFullyPublicPage) {
-      window.location.href = 'index.html';
+      window.location.href = `login.html?redirect=${encodeURIComponent(currentPage.replace(/^\//, ''))}`;
     }
   }
 });
@@ -395,14 +512,15 @@ supabase.auth.onAuthStateChange((event, session) => {
 // After logout, any clicks redirect to login (except on fully public pages and info pages)
 
 document.addEventListener('click', async (e) => {
+  if (isFilePreview()) return;
+
   // Get current session
   const { data: sessionData } = await supabase.auth.getSession();
   const hasSession = !!sessionData?.session;
 
   // Check if user is on a public page
   const currentPage = window.location.pathname;
-  const fullyPublicPages = ['login', 'register', 'index', 'home', 'how-it-works', 'privacy-policy', 'terms-of-service'];
-  const isPublicPage = fullyPublicPages.some(page => currentPage.includes(page));
+  const isPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
 
   // Check if clicked element is a link to an info page
   const clickedElement = e.target.closest('a'); 
@@ -435,26 +553,48 @@ export async function updateProfilePictureInHeader() {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session?.user?.id) return;
 
-    const { data: userProfile, error } = await supabase
-      .from("users")
-      .select("profile_picture")
+    let userProfile = null;
+    let profileError = null;
+
+    const { data: profileData, error: profileFetchError } = await supabase
+      .from("profiles")
+      .select("profile_picture, full_name")
       .eq("id", sessionData.session.user.id)
       .single();
 
-    if (error || !userProfile) return;
+    if (!profileFetchError && profileData) {
+      userProfile = profileData;
+    } else {
+      const { data: userData, error: userFetchError } = await supabase
+        .from("users")
+        .select("profile_picture, full_name")
+        .eq("id", sessionData.session.user.id)
+        .single();
 
-    // Update all profile icon elements in headers
+      if (!userFetchError && userData) {
+        userProfile = userData;
+      } else {
+        profileError = profileFetchError || userFetchError;
+      }
+    }
+
+    if (profileError) {
+      console.error("Failed to fetch header profile:", profileError);
+    }
+
+    const displayName =
+      userProfile?.full_name ||
+      sessionData.session.user.user_metadata?.full_name ||
+      sessionData.session.user.email ||
+      'User';
+
+    const avatarSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&rounded=true`;
+    const profileSrc = userProfile?.profile_picture || avatarSrc;
+
     const profileIcons = document.querySelectorAll('[data-profile-icon="true"]');
     profileIcons.forEach(icon => {
-      if (userProfile.profile_picture) {
-        // Replace with image
-        icon.innerHTML = `<img src="${userProfile.profile_picture}" class="w-full h-full rounded-full object-cover" alt="Profile" />`;
-        icon.classList.remove('bg-gray-300');
-      } else {
-        // Keep default emoji if no picture
-        icon.innerHTML = '👤';
-        icon.classList.add('bg-gray-300');
-      }
+      icon.innerHTML = `<img src="${profileSrc}" class="w-full h-full rounded-full object-cover" alt="Profile" />`;
+      icon.classList.remove('bg-gray-300');
     });
   } catch (error) {
     console.error("Failed to update profile picture:", error);

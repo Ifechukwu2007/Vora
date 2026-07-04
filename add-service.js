@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { data: { user }, error: authError } = await supabase.auth.getUser();
             if (authError || !user) {
-                alert("You must be logged in to add a service.");
+                alert("You must be logged in to add a beauty service.");
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
                 LoadingSpinner.navigateTo('login.html');

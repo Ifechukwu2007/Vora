@@ -1,189 +1,280 @@
+// my-services.js
 import { supabase } from "./supabase.js";
-import { LoadingSpinner } from "./loading-utils.js";
-import { updateProfilePictureInHeader } from './auth.js';
-import { formatPrice } from './currency-utils.js';
 
-// =========================
-// AUTH + INIT
-// =========================
+const container = document.getElementById("myServicesContainer");
+if (!container) {
+  console.warn("Missing #myServicesContainer in my-services.html");
+}
 
-let currentUser = null;
+const els = {
+  logoutButtons: document.querySelectorAll("[data-logout], #logoutBtn-payout-settings"),
+};
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const container = document.getElementById("myServicesContainer");
-  await updateProfilePictureInHeader();
- 
-  // =========================
-  // GET USER
-  // =========================
-  const { data: { session } } = await supabase.auth.getSession();
+function moneyNGN(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "—";
+  return `₦${Math.round(num).toLocaleString("en-NG")}`;
+}
 
-  if (!session) {
-    window.location.href = "login.html";
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getInitials(name) {
+  const parts = String(name ?? "").trim().split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] ?? "V";
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (a + b).toUpperCase();
+}
+
+function avatarUrl(fullName) {
+  const initials = getInitials(fullName);
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0f172a&color=ffffff&rounded=true`;
+}
+
+function skeletonCards(count = 6) {
+  container.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < count; i++) {
+    const card = document.createElement("div");
+    card.className = "bg-white rounded-lg shadow-md p-4 animate-pulse";
+    card.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="h-12 w-12 rounded-full bg-gray-200"></div>
+        <div class="flex-1">
+          <div class="h-4 w-2/3 bg-gray-200 rounded"></div>
+          <div class="h-3 w-1/2 bg-gray-200 rounded mt-2"></div>
+        </div>
+      </div>
+      <div class="mt-4 h-28 bg-gray-100 rounded"></div>
+      <div class="mt-4 flex gap-3">
+        <div class="h-10 flex-1 bg-gray-200 rounded"></div>
+        <div class="h-10 flex-1 bg-gray-200 rounded"></div>
+      </div>
+    `;
+    frag.appendChild(card);
+  }
+  container.appendChild(frag);
+}
+
+let currentProfileId = null;
+
+function renderServiceCard(service) {
+  // Expected fields (some may not exist in your DB)
+  const id = service.id;
+  const title = service.title ?? "Untitled Service";
+  const category = service.category ?? "";
+  const price = service.price ?? service.base_price ?? null;
+  const image = service.image_url ?? service.image ?? "";
+
+  const card = document.createElement("div");
+  card.className = "bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition";
+
+  const imgEl = image
+    ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" class="h-24 w-full object-cover rounded-md border border-gray-200 mb-3" onerror="this.style.display='none'">`
+    : `<div class="h-24 w-full bg-gray-100 rounded-md mb-3 flex items-center justify-center border border-gray-200">
+         <span class="text-gray-400 font-semibold">No image</span>
+       </div>`;
+
+  // Change these URLs to match your app routes/pages:
+  const editUrl = `edit-service.html?service_id=${encodeURIComponent(id)}`;
+  const bookingUrl = `browse.html?service_id=${encodeURIComponent(id)}`;
+
+  card.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="h-12 w-12 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold">
+        ${escapeHtml(getInitials(title))}
+      </div>
+      <div class="flex-1">
+        <h3 class="text-lg font-bold text-gray-900 leading-tight">${escapeHtml(title)}</h3>
+        ${category ? `<p class="text-sm text-gray-500 mt-1">${escapeHtml(category)}</p>` : ""}
+        <p class="text-sm text-indigo-700 font-semibold mt-2">${price !== null ? moneyNGN(price) : "Price on request"}</p>
+      </div>
+    </div>
+
+    ${imgEl}
+
+    <div class="flex gap-3 mt-2">
+      <a href="${escapeHtml(editUrl)}" class="flex-1 text-center py-2 rounded-md border border-gray-200 text-gray-800 font-semibold hover:bg-gray-50 transition">
+        Edit
+      </a>
+      <button data-service-id="${escapeHtml(id)}" class="delete-service-btn flex-1 text-center py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+        Delete
+      </button>
+    </div>
+  `;
+
+  return card;
+}
+
+async function loadMyServices(profileId) {
+  // Prefer provider_id = profileId
+  const { data, error } = await supabase
+    .from("services")
+    .select("*")
+    .eq("provider_id", profileId)
+    .order("created_at", { ascending: false });
+
+  // If provider_id doesn't exist or doesn't match, this will error out.
+  if (error) throw error;
+  return data || [];
+}
+
+async function main() {
+  if (!container) return;
+
+  skeletonCards();
+
+  // Load auth user
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !authData?.user) {
+    window.location.href = "auth.html";
     return;
   }
 
-  currentUser = session.user;
+  // Load profile (we need the profile id for provider_id)
+  // Here we assume public.profiles.id matches provider_id.
+  const user = authData.user;
 
-  // =========================
-  // LOAD SERVICES
-  // =========================
-  await loadMyServices(container);
+  const { data: profile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  // =========================
-  // LOGOUT
-  // =========================
-  const logoutBtn = document.getElementById("logoutBtn-my-services");
-  const logoutBtnMobile = document.getElementById("logoutBtn");
+  if (profileErr) {
+    console.error(profileErr);
+    // Fallback attempt: sometimes profiles.id = auth user id
+    const { data: profileAlt, error: profileAltErr } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = "index.html";
-  }
-
-  if (logoutBtn) logoutBtn.onclick = logout;
-  if (logoutBtnMobile) logoutBtnMobile.onclick = logout;
-});
-
-// =========================
-// FETCH SERVICES
-// =========================
-
-async function loadMyServices(container) {
-  try {
-    container.innerHTML = `
-      <div class="text-center col-span-full text-gray-500">
-        Loading your services...
-      </div>
-    `;
-
-    const { data, error } = await supabase
-      .from("services")
-      .select("*")
-      .eq("provider_id", currentUser.id)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      container.innerHTML = `
-        <div class="text-center col-span-full text-gray-500">
-          You have not added any services yet.
-        </div>
-      `;
+    if (profileAltErr || !profileAlt) {
+      container.innerHTML = `<div class="bg-white rounded-lg shadow-md p-4 text-red-600 font-semibold">Failed to load profile.</div>`;
       return;
     }
 
+    // Use alt
+    const services = await loadMyServices(profileAlt.id);
     container.innerHTML = "";
+    if (services.length === 0) {
+      container.innerHTML = `<div class="bg-white rounded-lg shadow-md p-6 text-gray-600">No services found yet.</div>`;
+      return;
+    }
 
-    data.forEach(service => {
-      const card = document.createElement("div");
+    // Set current profile for delete permission checks
+    currentProfileId = profileAlt.id;
 
-      const image =
-        service.image_url ||
-        "https://placehold.co/600x400?text=No+Image";
+    services.forEach((s) => container.appendChild(renderServiceCard(s)));
 
-      card.className = `
-        bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition
-      `;
+    // Attach delete handler (event delegation)
+    container.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest && ev.target.closest('.delete-service-btn');
+      if (!btn) return;
+      const serviceId = btn.dataset.serviceId;
+      if (!serviceId) return;
 
-      card.innerHTML = `
-        <img src="${image}" class="h-40 w-full object-cover" />
+      const confirmed = confirm('Delete this service? This action cannot be undone.');
+      if (!confirmed) return;
 
-        <div class="p-4 space-y-2">
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
 
-          <h3 class="text-lg font-bold text-gray-900">
-            ${service.title}
-          </h3>
-
-          <p class="text-sm text-gray-500 line-clamp-2">
-            ${service.description || ""}
-          </p>
-
-          ${service.group_discount_threshold && service.group_discount_percent ? `
-            <p class="text-green-600 font-bold">
-              <span class="text-sm text-gray-500 line-through mr-2">${formatPrice(service.price || 0)}</span>
-              ${formatPrice(Math.round((Number(service.price) || 0) * (1 - Number(service.group_discount_percent) / 100)))}
-            </p>
-            <p class="text-sm text-indigo-600 font-semibold">
-              ${service.deal_message || `Book ${service.group_discount_threshold}+ and save ${service.group_discount_percent}%`}
-            </p>
-          ` : `
-            <p class="text-green-600 font-bold">${formatPrice(service.price || 0)}</p>
-          `}
-
-          <p class="text-xs text-gray-400">
-            📍 ${service.location || "No location"}
-          </p>
-
-          <div class="flex gap-2 pt-2">
-
-            <button 
-              class="edit-btn flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm"
-              data-id="${service.id}"
-            >
-              Edit 
-            </button>
-
-            <button
-              class="delete-btn flex-1 bg-red-600 text-white py-2 rounded-lg text-sm"
-              data-id="${service.id}"
-            >
-              Delete
-            </button>
-
-          </div>
-
-        </div>
-      `;
-
-      container.appendChild(card);
-    });
-
-    // =========================
-    // EDIT SERVICE
-    // =========================
-    document.querySelectorAll(".edit-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.id;
-        window.location.href = `edit-service.html?id=${id}`;
-      });
-    });
-
-    // =========================
-    // DELETE SERVICE
-    // =========================
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = btn.dataset.id;
-
-        const confirmDelete = confirm("Are you sure you want to delete this service?");
-        if (!confirmDelete) return;
-
+      try {
         const { error } = await supabase
-          .from("services")
+          .from('services')
           .delete()
-          .eq("id", id)
-          .eq("provider_id", currentUser.id); // security
+          .eq('id', serviceId)
+          .eq('provider_id', currentProfileId);
 
-        if (error) {
-          alert("Failed to delete service");
-          console.error(error);
-          return;
-        }
+        if (error) throw error;
 
-        alert("Service deleted successfully");
-        location.reload();
-      });
+        const card = btn.closest('.bg-white') || btn.closest('div');
+        if (card && card.parentNode) card.parentNode.removeChild(card);
+        alert('Service deleted');
+      } catch (err) {
+        console.error('Delete failed', err);
+        alert('Failed to delete service');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
     });
 
-  } catch (err) {
-    console.error(err);
-
-    container.innerHTML = `
-      <div class="text-center col-span-full text-red-500">
-        Failed to load services
-      </div>
-    `;
+    return;
   }
+
+  if (!profile) {
+    container.innerHTML = `<div class="bg-white rounded-lg shadow-md p-6 text-gray-600">No profile found. Please complete your profile.</div>`;
+    return;
+  }
+
+  const services = await loadMyServices(profile.id);
+
+  container.innerHTML = "";
+  if (services.length === 0) {
+    container.innerHTML = `<div class="bg-white rounded-lg shadow-md p-6 text-gray-600">No services found yet.</div>`;
+    return;
+  }
+
+  currentProfileId = profile.id;
+
+  services.forEach((s) => container.appendChild(renderServiceCard(s)));
+
+  // Attach delete handler (event delegation)
+  container.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest && ev.target.closest('.delete-service-btn');
+    if (!btn) return;
+    const serviceId = btn.dataset.serviceId;
+    if (!serviceId) return;
+
+    const confirmed = confirm('Delete this service? This action cannot be undone.');
+    if (!confirmed) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('provider_id', currentProfileId);
+
+      if (error) throw error;
+
+      // Remove card from DOM
+      const card = btn.closest('.bg-white') || btn.closest('div');
+      if (card && card.parentNode) card.parentNode.removeChild(card);
+      alert('Service deleted');
+    } catch (err) {
+      console.error('Delete failed', err);
+      alert('Failed to delete service');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  });
 }
+
+function bindLogout() {
+  els.logoutButtons.forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      window.location.href = "home.html";
+    });
+  });
+}
+
+bindLogout();
+main().catch((e) => {
+  console.error(e);
+  if (container) {
+    container.innerHTML = `<div class="bg-white rounded-lg shadow-md p-4 text-red-600 font-semibold">Failed to load services. Check console.</div>`;
+  }
+});

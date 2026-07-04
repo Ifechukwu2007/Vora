@@ -261,7 +261,7 @@ function setupLogout() {
     ChatService.unsubscribe(chatId);
     if (typingChannel) supabase.removeChannel(typingChannel);
     await supabase.auth.signOut();
-    window.location.href = 'index.html';
+    window.location.href = 'home.html';
   });
 }
 

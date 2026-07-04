@@ -424,7 +424,7 @@ async function handleLogout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
-    window.location.href = "index.html";
+    window.location.href = "home.html";
   } catch (error) {
     console.error("Logout error:", error);
     showError("Logout failed. Please try again.");

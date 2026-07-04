@@ -1,6 +1,8 @@
 import { supabase } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
 
+const FEATURED_CATEGORY = "Beauty & Personal Care";
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     // =========================
@@ -120,7 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             // VALIDATION
             // =========================
             if (!serviceType) {
-                alert("Please select a service type");
+                alert("Please select a beauty service");
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = "Post Request";
                 return;
@@ -173,7 +175,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // REQUEST
                 title: serviceType,
                 description: description,
-                category: serviceType,
+                category: FEATURED_CATEGORY,
                 budget: budget ? Number(budget) : null,
 
                 // LOCATION

@@ -30,6 +30,11 @@
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
 
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
         </nav>
 
       </div>
@@ -38,7 +43,7 @@
       <div class="flex items-center gap-4">
 
         <!-- PROFILE -->
-        <a href="profile"
+        <a href="profile.html"
           data-profile-icon="true"
           class="w-10 h-10 rounded-full bg-gray-300
           flex items-center justify-center
@@ -49,11 +54,16 @@
         </a>
 
         <!-- LOGOUT -->
-        <button id="logoutBtn"
+        <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
 
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
 
       </div>
 
@@ -63,10 +73,41 @@
 
 </header>
 
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  </div>
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
+    </a>
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
+    </a>
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
+    </a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
+
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
 
@@ -78,10 +119,57 @@
 <!-- MAIN CONTENT -->
 <main class="pt-24 px-4 max-w-4xl mx-auto">
         <div class="mb-6 flex items-center gap-4">
-        <button id="backBtn" type="button" onclick="window.history.back()"
-          class="text-blue-600 hover:text-blue-800 font-semibold">
-          ← Back 
-        </button>
+        <!-- Back icon button -->
+<button id="icon-back" aria-label="Go back" title="Back" style="
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  cursor:pointer;
+  padding:0;
+">
+  <!-- simple left chevron SVG -->
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M15 18L9 12L15 6" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<script>
+  // Robust back behavior with returnUrl fallback
+  (function(){
+    const btn = document.getElementById('icon-back');
+    function getParam(name) {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        return p.get(name);
+      } catch (e) {
+        return null;
+      }
+    }
+    const returnUrl = getParam('returnUrl');
+
+    btn.addEventListener('click', () => {
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      if (returnUrl) {
+        window.location.href = returnUrl;
+        return;
+      }
+      if (document.referrer && document.referrer !== window.location.href) {
+        window.location.href = document.referrer;
+        return;
+      }
+      window.location.href = '/my-bookings.html';
+    });
+  })();
+</script>
+
             <h1 class="text-3xl font-extrabold text-gray-900">Provider Profile</h1>
         </div>
 
@@ -129,34 +217,43 @@
   &copy; 2026 Vora. All rights reserved.
 </footer>
 
-<script src="./auth.js" type="module"></script>
-<script src="./service-provider.js" type="module"></script>
-<script src="./bookings.js" type="module"></script>
-<script src="./menu.js" type="module"></script>
-<script src="./router.js" type="module"></script>
-<script src="./notifications.js" type="module"></script>
-<script src="./notification-service.js" type="module"></script>
-<script src="./notification-badge.js" type="module"></script>
-<script src="./loading-utils.js" type="module"></script>
-    <script type="module">
-      import { supabase } from './supabase.js'
+    <!-- ================= SCRIPTS ================= -->
+<script src="./service-provider.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
 
-      console.log(supabase)
-    </script>
-
-<!--Start of Tawk.to Script-->
-<script type="text/javascript">
-var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-(function(){
-var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-s1.async=true;
-s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
-s1.charset='UTF-8';
-s1.setAttribute('crossorigin','*');
-s0.parentNode.insertBefore(s1,s0);
-})();
+  console.log(supabase)
 </script>
-<!--End of Tawk.to Script-->
+
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
 
 </body>
-</html>
+  </html>

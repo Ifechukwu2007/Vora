@@ -93,12 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
             clearInterval(countdown);
 
             window.location.href =
-                "index.html";
-        }
-
-    }, 1000);
-
-    // =========================
+                    "home.html";
     // ESC KEY CLOSES MENU
     // =========================
     document.addEventListener(

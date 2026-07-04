@@ -9,11 +9,18 @@
 <link rel="shortcut icon" href="/vora-logo.svg">
 <link rel="apple-touch-icon" href="/vora-logo.svg">
 <link rel="manifest" href="/manifest.json">
-
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .category-scroll {
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .category-scroll::-webkit-scrollbar {
+    display: none;
+  }
+</style>
 </head>
-
-<body class="bg-gray-100">
+<body class="bg-slate-50 text-slate-900">
 
 <!-- ================= HEADER ================= -->
 <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
@@ -29,39 +36,11 @@
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
 
-        <!-- DESKTOP NAV -->
-        <nav class="hidden lg:flex items-center gap-6">
-
-          <a href="home.html"
-            class="font-semibold text-black-600">
-            Home
-          </a>
-
-          <a href="browse.html"
-            class="block font-semibold text-black-800">
-            Browse 
-          </a>
-
-          <a href="my-bookings.html"
-            class="block font-semibold text-black-800">
-            My Bookings
-          </a>
-
-          <a href="my-messages.html"
-            class="block font-semibold text-black-600">
-            My Messages
-          </a>
-
-          <a href="customer-reviews.html"
-            class="block font-semibold text-black-800">
-            Customer Reviews
-          </a>
-
-          <a href="add-service.html"
-            class="font-medium text-black-700 hover:text-black-600 transition">
-            Become a Provider
-          </a>
-
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
         </nav>
 
       </div>
@@ -81,7 +60,7 @@
         </a>
 
         <!-- LOGOUT -->
-        <button id="logoutBtn"
+        <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
@@ -101,144 +80,127 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu"
-  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
-  <!-- TOP -->
-  <div class="flex items-center justify-between p-4 border-b">
-
-    <h2 class="text-xl font-bold">
-      Menu
-    </h2>
-
-    <button id="closeMenu" class="text-2xl">
-      ✕
-    </button>
-
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  <!-- LINKS -->
-  <div class="p-4 space-y-5">
-
-    <a href="home.html"
-      class="block font-semibold text-black-800">
-      Home
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
     </a>
-
-    <a href="browse.html"
-      class="block font-semibold text-black-800">
-      Browse
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
     </a>
-
-    <a href="my-bookings.html"
-      class="block font-semibold text-black-800">
-      My Bookings
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
     </a>
-
-    <a href="my-messages.html"
-      class="block font-semibold text-black-600">
-      My Messages
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
     </a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
 
-    <a href="customer-reviews.html"
-      class="block font-semibold text-black-800">
-      Customer Reviews
-    </a>
-
-    <a href="add-service.html"
-      class="block font-semibold text-black-800">
-      Become a Provider
-    </a>
-
-    <button id="logoutBtnSideMenu"
-      class="block text-red-600 font-semibold">
-      Logout
-    </button>
-
-  </div>
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
+<div id="menuOverlay" class="hidden fixed inset-0 z-40 bg-black bg-opacity-40 lg:hidden"></div>
 
-<!-- ================= OVERLAY ================= -->
-<div id="menuOverlay"
-  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
-</div>
-
-<!-- ================= MAIN CONTENT ================= -->
-<main class="pt-28 max-w-7xl mx-auto px-4">
-
-  <!-- SEARCH -->
-  <div class="mb-6 flex">
-
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="Search services..."
-      class="w-full p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:border-blue-500"
-    >
-
-    <button
-      id="searchButton"
-      class="bg-blue-600 text-white px-6 rounded-r-lg hover:bg-blue-700">
-      Search
-    </button>
-
-  </div>
-
-  <!-- CATEGORY -->
-  <div class="mb-8">
-    <label for="categorySelect" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-    <select
-      id="categorySelect"
-      class="w-full md:w-72 border border-gray-300 rounded-lg px-4 py-3">
-    <option value="">Select a category</option>
-    <option value="Home Services">Home Services</option>
-    <option value="Repairs & Maintenance">Repairs & Maintenance</option>
-    <option value="Beauty & Personal Care">Beauty & Personal Care</option>
-    <option value="Health & Medical">Health & Therapy</option>
-    <option value="Fitness & Sports">Fitness & Sports</option>
-    <option value="Food & Catering">Food & Catering</option>
-    <option value="Education & Tutoring">Education & Tutoring</option>
-    <option value="Photography & Videography">Photography & Videography</option>
-    <option value="Media & Entertainment">Events & Event Services</option>
-    <option value="Fashion & Apparel">Tailoring & Fashion Design</option>
-    <option value="Art & Design">Art & Illustration</option>
-    </select>
-
-  </div>
-
-  <!-- SERVICES -->
-  <section>
-
-    <div class="flex items-center justify-between mb-6">
-
-      <h2 class="text-3xl font-bold">
-        Services
-      </h2>
-
+<main class="pt-28 pb-16">
+  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="overflow-hidden rounded-[2rem] bg-gradient-to-r from-sky-600 via-cyan-600 to-blue-700 p-8 text-white shadow-2xl sm:p-12">
+      <div class="max-w-3xl">
+        <p class="text-sm uppercase tracking-[0.24em] text-cyan-100">Explore listings</p>
+        <h1 class="mt-4 text-4xl font-semibold sm:text-5xl">Discover local services</h1>
+        <p class="mt-4 text-base leading-7 text-cyan-100/90">Browse every category, compare top picks, and book faster with smart search and location-aware discovery.</p>
+      </div>
+      <div class="mt-10 grid gap-4 lg:grid-cols-[1.8fr_1fr] lg:items-end">
+        <div class="rounded-[1.75rem] bg-white p-5 shadow-xl">
+          <label for="searchInput" class="block text-sm font-semibold text-slate-700">Search services</label>
+          <div class="mt-3 flex gap-3">
+            <input id="searchInput" type="search" placeholder="e.g. photographer, cleaning, event planner" class="min-w-0 flex-1 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+            <button id="searchButton" class="rounded-[1.5rem] bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Search</button>
+          </div>
+          <div id="heroSearchSuggestions" class="mt-2 hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"></div>
+          <p id="searchSummary" class="mt-3 text-sm text-slate-500">Search by title, category, provider or location.</p>
+        </div>
+        <div class="grid gap-3">
+          <div class="rounded-[1.75rem] bg-white p-5 shadow-xl">
+            <label class="block text-sm font-semibold text-slate-700">Category</label>
+            <select id="filterCategory" class="mt-3 w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none">
+              <option value="All">All Categories</option>
+            </select>
+          </div>
+          <div class="rounded-[1.75rem] bg-white p-5 shadow-xl">
+            <label class="block text-sm font-semibold text-slate-700">Location</label>
+            <input id="filterLocation" type="text" placeholder="Enter city or area" class="mt-3 w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none" />
+          </div>
+          <div class="rounded-[1.75rem] bg-white p-5 shadow-xl">
+            <label class="block text-sm font-semibold text-slate-700">Max price</label>
+            <input id="filterMaxPrice" type="number" min="0" placeholder="All prices" class="mt-3 w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none" />
+          </div>
+          <div class="rounded-[1.75rem] bg-white p-5 shadow-xl">
+            <label class="block text-sm font-semibold text-slate-700">Sort by</label>
+            <select id="filterSort" class="mt-3 w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none">
+              <option value="newest">Newest</option>
+              <option value="rating">Top Rated</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+            </select>
+          </div>
+          <button id="clearFiltersBtn" class="rounded-[1.5rem] bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow transition hover:bg-slate-100">Reset filters</button>
+        </div>
+      </div>
     </div>
-
-    <div
-      id="servicesGrid"
-      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-    </div>
-
   </section>
 
+  <section class="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div id="categoryPills" class="category-scroll flex flex-nowrap gap-3 overflow-x-auto pb-2"> </div>
+  </section>
+
+  <section id="popularNearYouSection" class="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8"></section>
+
+  <section id="exploreCategoriesSection" class="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8"></section>
+
+  <section class="mx-auto mt-8 max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 class="text-3xl font-semibold">Recommended services</h2>
+        <p id="serviceCountText" class="mt-2 text-sm text-slate-500">Loading available services�</p>
+      </div>
+      <button id="applyLocationBtn" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">Use my location</button>
+    </div>
+    <div id="servicesGrid" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"></div>
+    <div class="mt-8 flex justify-center">
+      <button id="loadMoreBtn" class="hidden rounded-full bg-slate-900 px-8 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Load more services</button>
+    </div>
+    <div id="loadMoreTrigger" class="h-1"></div>
+  </section>
+
+  <section id="wishlistPanel" class="mx-auto mt-10 max-w-7xl px-4 sm:px-6 lg:px-8"></section>
 </main>
 
-<!-- ================= FOOTER ================= -->
-<footer class="bg-gray-900 text-gray-300 py-12 px-6 mt-16">
+<footer class="bg-slate-900 text-slate-300 py-12 px-6">
   <div class="max-w-6xl mx-auto">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <div class="grid gap-8 md:grid-cols-4 mb-8">
       <div>
-        <h3 class="text-white font-bold mb-4">Vora</h3>
+        <h3 class="mb-4 font-bold text-white">Vora</h3>
         <p class="text-sm">Connecting trusted providers with customers for any service needed.</p>
       </div>
       <div>
-        <h3 class="text-white font-bold mb-4">Quick Links</h3>
+        <h3 class="mb-4 font-bold text-white">Quick Links</h3>
         <ul class="space-y-2 text-sm">
           <li><a href="home.html" class="hover:text-white transition">Home</a></li>
           <li><a href="browse.html" class="hover:text-white transition">Browse Services</a></li>
@@ -247,54 +209,46 @@
         </ul>
       </div>
       <div>
-        <h3 class="text-white font-bold mb-4">Legal</h3>
+        <h3 class="mb-4 font-bold text-white">Legal</h3>
         <ul class="space-y-2 text-sm">
           <li><a href="privacy-policy.html" class="hover:text-white transition">Privacy Policy</a></li>
           <li><a href="terms-of-service.html" class="hover:text-white transition">Terms of Service</a></li>
         </ul>
       </div>
-      </div>
+      <div></div>
     </div>
-    <div class="border-t border-gray-700 pt-8 text-center text-sm">
+    <div class="border-t border-slate-700 pt-8 text-center text-sm">
       <p>&copy; 2026 Vora. All rights reserved.</p>
     </div>
   </div>
 </footer>
 
-<!-- ================= SCRIPTS ================= -->
 <script type="module">
-
-// MOBILE MENU
-const hamburger = document.querySelector(".hamburger-menu");
-const mobileMenu = document.querySelector(".side-menu");
-const closeMenu = document.querySelector(".close-menu");
-const overlay = document.getElementById("overlay");
-
-hamburger.onclick = () => {
-
-  mobileMenu.classList.remove("-translate-x-full");
-  overlay.classList.remove("hidden");
-};
-
-closeMenu.onclick = closeMobileMenu;
-overlay.onclick = closeMobileMenu;
-
+const hamburger = document.getElementById("hamburger");
+const mobileMenu = document.getElementById("sideMenu");
+const closeMenu = document.getElementById("closeMenu");
+const overlay = document.getElementById("menuOverlay");
+if (hamburger && mobileMenu && closeMenu && overlay) {
+  hamburger.onclick = () => {
+    mobileMenu.classList.remove("-translate-x-full");
+    overlay.classList.remove("hidden");
+  };
+  closeMenu.onclick = closeMobileMenu;
+  overlay.onclick = closeMobileMenu;
+}
 function closeMobileMenu() {
-
   mobileMenu.classList.add("-translate-x-full");
   overlay.classList.add("hidden");
 }
-
 </script>
-
-<script src="./loading-utils.js" type="module"></script>
-<script src="./auth.js" type="module"></script>
-<script src="./menu.js" type="module"></script>
-<script src="./browse.js" type="module"></script>
-<script src="./notifications.js" type="module"></script>
-<script src="./notification-service.js" type="module"></script>
-<script src="./notification-badge.js" type="module"></script>
-<script src="./tawk.js" type="module"></script>
+<!-- ================= SCRIPTS ================= -->
+<script src="./browse.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
 <script type="module">
   import { supabase } from './supabase.js'
 
@@ -324,7 +278,6 @@ s0.parentNode.insertBefore(s1,s0);
 })();
 
 </script>
-<!--End of Tawk.to Script-->
 
 </body>
-</html>
+  </html>

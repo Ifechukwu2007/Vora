@@ -2,6 +2,72 @@ import { supabase } from './supabase.js';
 import { formatPrice } from './currency-utils.js';
 
 let deferredPrompt;
+let currentUser = null;
+let userWishlist = [];
+
+async function loadWishlist() {
+  userWishlist = [];
+
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const user = session?.session?.user;
+    if (!user) return;
+
+    currentUser = user;
+
+    const { data, error } = await supabase
+      .from('wishlists')
+      .select('service_id')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+    userWishlist = (data || []).map((row) => row.service_id);
+  } catch (error) {
+    console.error('Failed to load wishlist:', error);
+  }
+}
+
+async function toggleWishlist(serviceId) {
+  const { data: session } = await supabase.auth.getSession();
+  const user = session?.session?.user;
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from('wishlists')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('service_id', serviceId)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing) {
+      const { error: deleteError } = await supabase
+        .from('wishlists')
+        .delete()
+        .eq('id', existing.id);
+      if (deleteError) throw deleteError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('wishlists')
+        .insert({
+          user_id: user.id,
+          service_id: serviceId,
+        });
+      if (insertError) throw insertError;
+    }
+
+    await loadWishlist();
+    const query = document.getElementById('indexSearchInput')?.value.trim() || '';
+    await loadFeaturedServices(query);
+  } catch (error) {
+    console.error('Wishlist update failed:', error);
+  }
+}
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
@@ -77,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('Logged out successfully');
 
       window.location.href =
-        'index.html';
+        'home.html';
 
     } catch (err) {
 
@@ -192,12 +258,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           service.image_url ||
           'https://placehold.co/600x400?text=Vora';
 
+        const isWishlisted = userWishlist.includes(service.id);
+
         card.innerHTML = `
 
-          <img
-            src="${image}"
-            class="w-full h-48 object-cover"
-          />
+          <div class="relative">
+            <img
+              src="${image}"
+              class="w-full h-48 object-cover"
+            />
+            <button type="button" data-id="${service.id}" class="wishlistBtn absolute top-3 right-3 rounded-full bg-white p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
+          </div>
 
           <div class="p-4">
 
@@ -242,11 +313,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.addEventListener(
           'click',
           () => {
-
             window.location.href =
               `login.html?service_id=${service.id}`;
           }
         );
+
+        const wishButton = card.querySelector('[data-id]');
+        wishButton?.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleWishlist(service.id);
+        });
 
         servicesGrid.appendChild(card);
 
@@ -284,6 +360,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
   }
+
+  await loadWishlist();
 
   // =========================
   // LOAD SERVICES

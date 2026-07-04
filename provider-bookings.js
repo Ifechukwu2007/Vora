@@ -1,1040 +1,432 @@
+// provider-bookings.js
 import { supabase } from "./supabase.js";
-import { updateProfilePictureInHeader } from './auth.js';
 
-function normalizeProfile(profile) {
-    if (!profile) return null;
-    return Array.isArray(profile) ? profile[0] : profile;
+const CONFIG = {
+  BOOKINGS_TABLE: "bookings",
+  SERVICES_TABLE: "services",
+
+  COL_PROVIDER_ID: "provider_id",
+  COL_CUSTOMER_ID: "user_id",
+  COL_SERVICE_ID: "service_id",
+  COL_SCHEDULED_DATE: "scheduled_date",
+  COL_CREATED_AT: "created_at",
+  COL_STATUS: "status",
+  COL_TOTAL_PRICE: "total_price",
+
+  COL_SERVICE_TITLE: "title",
+};
+
+const container = document.getElementById("bookingsContainer");
+let currentProviderId = null;
+let bookingChannel = null;
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function setContainerEmpty(msg) {
+  if (!container) return;
+  container.innerHTML = `<div class="text-gray-600">${escapeHtml(msg)}</div>`;
+}
+
+function statusBadgeClass(status) {
+  const s = String(status ?? "").toLowerCase();
+  if (s === "paid") return "bg-green-100 text-green-700";
+  if (s === "pending") return "bg-yellow-100 text-yellow-700";
+  if (s === "accepted") return "bg-blue-100 text-blue-700";
+  if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
+  if (s === "completed" || s === "completed_by_provider") return "bg-emerald-100 text-emerald-700";
+  if (s === "cancelled" || s === "declined") return "bg-red-100 text-red-700";
+  return "bg-gray-100 text-gray-700";
+}
+
+function formatTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleString('en-NG', {
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 const MAPTILER_KEY = window.MAPTILER_API_KEY || '';
 const MAPTILER_STYLE_URL = MAPTILER_KEY
-    ? `https://api.maptiler.com/maps/streets/style.json?key=${MAPTILER_KEY}`
-    : '';
+  ? `https://api.maptiler.com/maps/streets/style.json?key=${MAPTILER_KEY}`
+  : '';
 
-function escapeHtml(text) {
-    if (!text) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function formatRouteDistance(distanceMeters) {
-    return distanceMeters ? `${(distanceMeters / 1000).toFixed(1)} km` : 'Unknown distance';
-}
-
-function formatRouteDuration(durationSeconds) {
-    return durationSeconds ? `${Math.round(durationSeconds / 60)} min` : 'Unknown ETA';
-}
-
-let activeMapWatchers = new Map();
-
-async function watchUserLocation(mapContainer, callback) {
-    if (!navigator.geolocation) {
-        console.warn('Geolocation not available');
-        return null;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-            const coords = [
-                Number(position.coords.longitude),
-                Number(position.coords.latitude)
-            ];
-            callback(coords);
-        },
-        (error) => {
-            console.error('Geolocation error:', error);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-
-    activeMapWatchers.set(mapContainer, watchId);
-    return watchId;
-}
-
-function stopWatchingLocation(mapContainer) {
-    const watchId = activeMapWatchers.get(mapContainer);
-    if (watchId !== undefined) {
-        navigator.geolocation.clearWatch(watchId);
-        activeMapWatchers.delete(mapContainer);
-    }
-}
-
-async function geocodeAddress(address) {
-    if (!MAPTILER_KEY || !address) {
-        return null;
-    }
-
-    try {
-        const response = await fetch(
-            `https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_KEY}&limit=1`
-        );
-        const data = await response.json();
-
-        if (!data?.features?.length) {
-            return null;
-        }
-
-        return data.features[0].geometry.coordinates;
-    } catch (error) {
-        console.error('MapTiler geocoding failed:', error);
-        return null;
-    }
-}
-
-async function getDirections(origin, destination) {
-    if (!MAPTILER_KEY || !origin || !destination) {
-        return null;
-    }
-
-    try {
-        const response = await fetch(
-            `https://api.maptiler.com/directions/driving/car.json?key=${MAPTILER_KEY}&start=${origin[0]},${origin[1]}&end=${destination[0]},${destination[1]}&geometries=geojson&overview=full`
-        );
-        const data = await response.json();
-
-        if (!data?.routes?.length) {
-            return null;
-        }
-
-        return data.routes[0];
-    } catch (error) {
-        console.error('MapTiler directions failed:', error);
-        return null;
-    }
-}
-
-function buildGoogleMapsUrl(origin, destination) {
-    if (!destination) return 'https://www.google.com/maps';
-
-    const originParam = Array.isArray(origin)
-        ? `${origin[1]},${origin[0]}`
-        : encodeURIComponent(origin || '');
-    const destinationParam = Array.isArray(destination)
-        ? `${destination[1]},${destination[0]}`
-        : encodeURIComponent(destination);
-
-    if (originParam && destinationParam) {
-        return `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}&travelmode=driving`;
-    }
-
-    return `https://www.google.com/maps/search/?api=1&query=${destinationParam}`;
-}
-
-function removeRouteModal() {
-    const existing = document.getElementById('customerRouteModal');
-    if (existing) existing.remove();
-}
-
-function renderRouteSummary(distanceMeters, durationSeconds) {
-    const existing = document.getElementById('routeSummary');
-    if (existing) existing.remove();
-
-    const mapElement = document.getElementById('customerRouteMap');
-    if (!mapElement) return;
-
-    const summary = document.createElement('div');
-    summary.id = 'routeSummary';
-    summary.className = 'absolute top-4 left-4 right-4 bg-white/95 border border-gray-200 rounded-3xl p-4 shadow-lg backdrop-blur-sm text-sm text-gray-800';
-    summary.innerHTML = `
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <p class="font-semibold text-gray-900">Route to customer</p>
-            <p class="text-xs text-gray-600">${formatRouteDistance(distanceMeters)} · ${formatRouteDuration(durationSeconds)}</p>
+function cardHtml(b) {
+  return `
+    <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200">
+      <div class="grid gap-6 lg:grid-cols-[320px_1fr]">
+        <div class="relative overflow-hidden bg-slate-100">
+          ${b.serviceImage ? `<img src="${escapeHtml(b.serviceImage)}" alt="${escapeHtml(b.serviceTitle)}" class="h-full w-full object-cover" onerror="this.style.display='none'">` : `<div class="flex h-full min-h-[260px] items-center justify-center text-slate-500">No image available</div>`}
+          <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/70 to-transparent p-4">
+            <span class="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">Reservation request</span>
           </div>
-          <div class="inline-flex items-center rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">Live route</div>
         </div>
-    `;
-    mapElement.appendChild(summary);
-}
 
-async function renderCustomerRouteMap(customerLocation, providerLocation) {
-    const mapElement = document.getElementById('customerRouteMap');
-    if (!mapElement) return;
+        <div class="p-6 space-y-5">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="space-y-2">
+              <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Hosting request</p>
+              <h3 class="text-2xl font-semibold text-slate-900">${escapeHtml(b.serviceTitle)}</h3>
+              <p class="text-sm text-slate-600">${escapeHtml(b.location)}</p>
+            </div>
+            <div class="inline-flex items-center gap-3 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
+              <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600">💰</span>
+              ₦${escapeHtml(b.price != null ? Number(b.price).toLocaleString('en-NG') : '0')}
+            </div>
+          </div>
 
-    if (!MAPTILER_KEY) {
-        mapElement.innerHTML = '<div class="h-full flex items-center justify-center text-gray-600">MapTiler API key not set.</div>';
-        return;
-    }
-
-    mapElement.innerHTML = '<div class="h-full flex items-center justify-center text-gray-600">Loading map...</div>';
-
-    const destination = await geocodeAddress(customerLocation);
-    if (!destination) {
-        mapElement.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">Unable to locate customer address.</div>';
-        return;
-    }
-
-    mapElement.innerHTML = '';
-
-    try {
-        let userMarker = null;
-        let userLocation = null;
-
-        const map = new maplibregl.Map({
-            container: mapElement,
-            style: MAPTILER_STYLE_URL,
-            center: destination,
-            zoom: 14,
-        });
-
-        map.on('load', () => {
-            new maplibregl.Marker({ color: '#10b981' })
-                .setLngLat(destination)
-                .setPopup(new maplibregl.Popup({ offset: 25 }).setText('Customer location'))
-                .addTo(map);
-
-            watchUserLocation(mapElement, (coords) => {
-                userLocation = coords;
-                
-                if (!userMarker) {
-                    userMarker = new maplibregl.Marker({ color: '#ef4444', scale: 1.2 })
-                        .setLngLat(coords)
-                        .setPopup(new maplibregl.Popup({ offset: 25 }).setText('Your current location'))
-                        .addTo(map);
-                } else {
-                    userMarker.setLngLat(coords);
-                }
-
-                const bounds = new maplibregl.LngLatBounds(destination, coords);
-                map.fitBounds(bounds, { padding: 80 });
-            });
-
-            const navBtn = document.getElementById('googleMapsNavBtn');
-            if (navBtn) {
-                navBtn.href = buildGoogleMapsUrl(userLocation || providerLocation, destination);
-                navBtn.classList.remove('opacity-50', 'pointer-events-none');
-            }
-        });
-    } catch (error) {
-        console.error('Map initialization failed:', error);
-        mapElement.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">Failed to initialize the map.</div>';
-    }
-}
-
-async function openLocateCustomerModal(customerLocation, providerLocation) {
-    removeRouteModal();
-
-    const modal = document.createElement('div');
-    modal.id = 'customerRouteModal';
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
-    modal.innerHTML = `
-        <div class="bg-white rounded-3xl overflow-hidden shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <div class="flex items-center justify-between p-4 border-b">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Guest</p>
+              <div class="mt-4 flex items-center gap-3">
+                <div class="h-14 w-14 overflow-hidden rounded-full bg-slate-200">
+                  <img src="${escapeHtml(b.customerPicture)}" alt="${escapeHtml(b.customerName)}" class="h-full w-full object-cover" onerror="this.style.display='none'">
+                </div>
                 <div>
-                    <h2 class="text-xl font-bold">Locate Customer</h2>
-                    <p class="text-sm text-gray-500">Route from your position to the customer address.</p>
+                  <div class="font-semibold text-slate-900">${escapeHtml(b.customerName)}</div>
+                  <div class="text-sm text-slate-600">${escapeHtml(b.customerEmail)}</div>
+                  <div class="text-sm text-slate-600">${escapeHtml(b.customerPhone)}</div>
                 </div>
-                <button id="closeRouteModal" class="text-3xl leading-none text-gray-600">&times;</button>
+              </div>
             </div>
-            <div id="customerRouteMap" class="h-[60vh] relative"></div>
-            <div class="p-4 flex justify-between gap-3 bg-gray-50">
-                <a id="googleMapsNavBtn" target="_blank" rel="noopener noreferrer" class="opacity-50 pointer-events-none bg-green-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                    Open in Google Maps
-                </a>
-                <button id="closeRouteModalAction" class="px-4 py-2 rounded-lg bg-slate-600 text-white hover:bg-slate-700">Close</button>
-            </div>
-        </div>
-    `;
 
-    document.body.appendChild(modal);
-
-    document.getElementById('closeRouteModal').addEventListener('click', removeRouteModal);
-    document.getElementById('closeRouteModalAction').addEventListener('click', removeRouteModal);
-
-    await renderCustomerRouteMap(customerLocation, providerLocation);
-}
-
-function setupLocateButtons() {
-    document.querySelectorAll('.locate-customer-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            const customerLocation = btn.dataset.customerLocation;
-            const providerLocation = btn.dataset.serviceLocation;
-            await openLocateCustomerModal(customerLocation, providerLocation);
-        });
-    });
-}
-
-// ===============================
-// ELEMENTS
-// ===============================
-const bookingsContainer = document.getElementById("bookingsContainer");
-const logoutBtns = document.querySelectorAll("[data-logout], #logoutBtn");
-let serviceReviewStats = {};
-
-// ===============================
-// INIT
-// ===============================
-document.addEventListener("DOMContentLoaded", async () => {
-    await updateProfilePictureInHeader();
-    await checkAuth();
-    setupLogout();
-});
-
-// ===============================
-// CHECK AUTH
-// ===============================
-async function checkAuth() {
-    try {
-        const {
-            data: { session },
-            error
-        } = await supabase.auth.getSession();
-
-        if (error || !session) {
-            window.location.href = "login.html";
-            return;
-        }
-
-        const currentUser = session.user;
-
-        await loadProviderBookings(currentUser.id);
-
-    } catch (error) {
-        console.error("Auth Error:", error);
-        showError("Authentication failed.");
-    }
-}
-
-// ===============================
-// LOGOUT
-// ===============================
-function setupLogout() {
-    logoutBtns.forEach((btn) => {
-        btn.addEventListener("click", async () => {
-            try {
-                await supabase.auth.signOut();
-                window.location.href = "index.html";
-            } catch (error) {
-                console.error("Logout Error:", error);
-                alert("Failed to logout.");
-            }
-        });
-    });
-}
-
-// ===============================
-// LOAD BOOKINGS
-// ===============================
-async function loadProviderBookings(providerId) {
-
-    bookingsContainer.innerHTML = `
-        <div class="bg-white rounded-xl p-6 shadow text-center">
-            <div class="animate-pulse text-lg font-semibold">
-                Loading bookings...
-            </div>
-        </div>
-    `;
-
-    try {
-
-        // ====================================
-        // GET BOOKINGS
-        // ====================================
-        const { data: bookings, error } = await supabase
-            .from("bookings")
-            .select("*")
-            .eq("provider_id", providerId)
-            .order("created_at", { ascending: false });
-
-        if (error) {
-            throw error;
-        }
-
-        // ====================================
-        // FETCH CUSTOMER PROFILES
-        // ====================================
-        let customerProfiles = {};
-        if (bookings && bookings.length > 0) {
-            const customerIds = [...new Set(bookings
-                .map(b => b.user_id)
-                .filter(Boolean)
-            )];
-
-            if (customerIds.length > 0) {
-                const { data: profiles } = await supabase
-                    .from("profiles")
-                    .select("id, email, full_name, profile_picture")
-                    .in("id", customerIds);
-
-                if (profiles) {
-                    profiles.forEach(profile => {
-                        customerProfiles[profile.id] = profile;
-                    });
-                }
-            }
-        }
-
-        // ====================================
-        // EMPTY STATE
-        // ====================================
-        if (!bookings || bookings.length === 0) {
-
-            bookingsContainer.innerHTML = `
-                <div class="bg-white rounded-2xl p-10 shadow text-center">
-
-                    <div class="text-6xl mb-4">
-                        📭
-                    </div>
-
-                    <h2 class="text-2xl font-bold mb-2">
-                        No bookings yet
-                    </h2>
-
-                    <p class="text-gray-500">
-                        Customers have not booked your services yet.
-                    </p>
-
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Reservation</p>
+              <div class="mt-4 space-y-3 text-sm text-slate-700">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-semibold text-slate-900">Date</span>
+                  <span>${escapeHtml(b.time)}</span>
                 </div>
-            `;
-
-            return;
-        }
-
-        bookingsContainer.innerHTML = "";
-
-        const providerServiceIds = [...new Set(bookings
-            .map(b => b.service_id)
-            .filter(Boolean)
-        )];
-
-        if (providerServiceIds.length) {
-            const { data: reviews, error: reviewError } = await supabase
-                .from('reviews')
-                .select('service_id, rating')
-                .in('service_id', providerServiceIds);
-
-            if (!reviewError && reviews) {
-                serviceReviewStats = reviews.reduce((map, review) => {
-                    const id = review.service_id;
-                    if (!map[id]) map[id] = { sum: 0, count: 0 };
-                    map[id].sum += Number(review.rating || 0);
-                    map[id].count += 1;
-                    return map;
-                }, {});
-
-                Object.keys(serviceReviewStats).forEach(id => {
-                    const stats = serviceReviewStats[id];
-                    stats.avg = stats.count ? stats.sum / stats.count : 0;
-                });
-            }
-        }
-
-        // ====================================
-        // LOOP BOOKINGS
-        // ====================================
-        for (const booking of bookings) {
-
-            // ====================================
-            // GET SERVICE
-            // ====================================
-            let service = null;
-
-            if (booking.service_id) {
-
-                const { data: serviceData } = await supabase
-                    .from("services")
-                    .select("*") 
-                    .eq("id", booking.service_id)
-                    .maybeSingle();
-
-                service = serviceData; 
-            }
-
-            // ====================================
-            // GET CUSTOMER PROFILE (from map)
-            // ====================================
-            let customer = customerProfiles[booking.user_id];
-
-            // ====================================
-            // GET CUSTOMER AUTH EMAIL
-            // ====================================
-            let customerEmail = customer?.email || "No email";
-
-            let customerName = customer?.full_name || "Customer";
-
-            let customerPicture = customer?.profile_picture || "https://ui-avatars.com/api/?name=User";
-
-            // ====================================
-            // VALUES 
-            // ====================================
-            const serviceTitle =
-                service?.title || "Service";
-
-            const serviceImage =
-                service?.image_url ||
-                "https://placehold.co/600x400?text=Vora";
-
-            const category =
-                service?.category || "General";
-
-            const bookingDate =
-                formatDate(booking.date || booking.scheduled_date);
-
-            const servicePrice = Number(service?.price || 0);
-            const groupThreshold = Number(service?.group_discount_threshold) || 0;
-            const groupPercent = Number(service?.group_discount_percent) || 0;
-            const hasGroupDeal = groupThreshold > 0 && groupPercent > 0;
-            const peopleCount = Number(booking.number_of_people || 1);
-            const meetsGroupDeal = hasGroupDeal && peopleCount >= groupThreshold;
-            const discountedPerPerson = Number(booking.price_per_person || servicePrice || 0);
-            const dealText = hasGroupDeal
-                ? meetsGroupDeal
-                    ? `Group deal applied: ${groupPercent}% off per person.`
-                    : `Group deal available: Book ${groupThreshold}+ people to save ${groupPercent}% per person.`
-                : '';
-
-            const amount =
-                formatMoney(booking.total_price || booking.amount || booking.price);
-
-            const status =
-                booking.status || booking.state || "pending";
-
-            // ====================================
-            // STATUS COLORS
-            // ====================================
-            let statusColor = "bg-yellow-100 text-yellow-700";
-
-            if (status === "pending_payment") {
-                statusColor = "bg-yellow-100 text-yellow-700";
-            }
-
-            if (status === "paid") {
-                statusColor = "bg-blue-100 text-blue-700";
-            }
-
-            if (status === "accepted") {
-                statusColor = "bg-green-100 text-green-700";
-            }
-
-            if (status === "in_progress") {
-                statusColor = "bg-indigo-100 text-indigo-700";
-            }
-
-            if (status === "completed_by_provider") {
-                statusColor = "bg-purple-100 text-purple-700";
-            }
-
-            if (status === "completed" || status === "paid_out") {
-                statusColor = "bg-emerald-100 text-emerald-700";
-            }
-
-            if (status === "disputed") {
-                statusColor = "bg-orange-100 text-orange-700";
-            }
-
-            if (status === "refunded" || status === "cancelled") {
-                statusColor = "bg-red-100 text-red-700";
-            }
-
-            // ====================================
-            // CREATE CARD
-            // ====================================
-            const card = document.createElement("div");
-
-            card.className = `
-                bg-white
-                rounded-2xl
-                shadow-sm
-                overflow-hidden
-                hover:shadow-lg
-                transition
-            `;
-
-            card.innerHTML = `
-                <div class="md:flex">
-
-                    <!-- IMAGE -->
-                    <div class="md:w-72 h-64">
-
-                        <img
-                            src="${serviceImage}"
-                            alt="${serviceTitle}"
-                            class="w-full h-full object-cover"
-                        />
-
-                    </div>
-
-                    <!-- CONTENT -->
-                    <div class="flex-1 p-6">
-
-                        <div class="flex items-start justify-between gap-4">
-
-                            <div>
-
-                                <h3 class="text-2xl font-bold text-gray-900">
-                                    ${serviceTitle}
-                                </h3>
-
-                                <p class="text-gray-500 mt-1">
-                                    ${category}
-                                </p>
-
-                                ${(() => {
-                                    const stats = serviceReviewStats[booking.service_id];
-                                    if (stats && stats.count) {
-                                        const avg = stats.avg.toFixed(1);
-                                        return `
-                                            <div class="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                                                <span class="text-yellow-500">${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))}</span>
-                                                <span>${avg}/5 · ${stats.count} review${stats.count > 1 ? 's' : ''}</span>
-                                            </div>
-                                        `;
-                                    }
-                                    return `
-                                        <div class="mt-3 text-sm text-gray-400">No reviews yet for this service</div>
-                                    `;
-                                })()}
-
-                            </div>
-
-                            <span class="px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
-                                ${capitalize(status)}
-                            </span>
-
-                        </div>
-
-                        <!-- DETAILS -->
-                        <div class="mt-5 space-y-4 text-gray-700">
-
-                            <div class="flex items-center gap-3">
-                                <img
-                                    src="${customerPicture}"
-                                    alt="Customer avatar"
-                                    class="w-12 h-12 rounded-full object-cover border border-gray-200"
-                                />
-                                <div>
-                                    <p class="text-sm text-gray-500">Customer</p>
-                                    <p class="font-semibold text-gray-900">
-                                        ${customerName}
-                                    </p>
-                                    <p class="text-sm text-gray-500">
-                                        ${customerEmail}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <p>
-                                📅 Scheduled:
-                                <span class="font-semibold">
-                                    ${bookingDate}
-                                </span>
-                            </p>
-
-                            <p>
-                                💰 Amount:
-                                <span class="font-semibold text-green-600">
-                                    ₦${amount}
-                                </span>
-                            </p>
-                            <p class="text-sm text-gray-600 mt-1">
-                                Per person: ₦${formatMoney(discountedPerPerson)}
-                            </p>
-                            ${hasGroupDeal ? `<p class="text-sm text-indigo-700 mt-2">${dealText}</p>` : ''}
-
-                            <!-- BOOKING DETAILS -->
-                            ${booking.scheduled_date || booking.number_of_people ? `
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                              <p class="font-semibold text-gray-900 mb-3">Booking Details</p>
-                              <div class="grid grid-cols-2 gap-3 text-sm">
-                                ${booking.number_of_people ? `<div>
-                                  <p class="text-gray-600">Number of People</p>
-                                  <p class="font-semibold text-gray-900">${booking.number_of_people}</p>
-                                </div>` : ''}
-                                ${booking.scheduled_date ? `<div>
-                                  <p class="text-gray-600">Scheduled Date & Time</p>
-                                  <p class="font-semibold text-gray-900">${formatDate(booking.scheduled_date)}</p>
-                                </div>` : ''}
-                                ${booking.service_location ? `<div>
-                                  <p class="text-gray-600">Location</p>
-                                  <p class="font-semibold text-gray-900">${booking.service_location === 'provider' ? 'My Location' : (booking.customer_location || 'Customer Location')}</p>
-                                </div>` : ''}
-                                ${booking.travel_fee ? `<div>
-                                  <p class="text-gray-600">Travel Fee</p>
-                                  <p class="font-semibold text-gray-900">₦${booking.travel_fee.toLocaleString()}</p>
-                                </div>` : ''}
-                              </div>
-                              ${booking.special_instructions ? `<p class="text-xs text-gray-600 mt-3"><strong>Special Instructions:</strong> ${booking.special_instructions}</p>` : ''}
-                            </div>
-                            ` : ''}
-
-                        </div>
-
-                        <!-- ACTIONS -->
-                        <div class="mt-6 flex flex-wrap gap-3">
-
-                            <button
-                                class="chat-customer-btn bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-                                data-customer="${booking.user_id}"
-                                data-service="${booking.service_id}">
-                                💬 Chat Customer
-                            </button>
-
-                            ${booking.customer_location ? `
-                                <button
-                                    class="locate-customer-btn bg-slate-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-slate-700 transition"
-                                    data-booking-id="${booking.id}"
-                                    data-customer-location="${escapeHtml(booking.customer_location)}"
-                                    data-service-location="${escapeHtml(service?.location || '')}">
-                                    📍 Locate Customer
-                                </button>
-                            ` : ''}
-
-                            ${status === "paid" ? `
-                                <button
-                                    class="accept-booking-btn bg-green-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
-                                    data-id="${booking.id}">
-                                    ✅ Accept Booking
-                                </button>
-                                <button
-                                    class="decline-booking-btn bg-red-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                                    data-id="${booking.id}">
-                                    ❌ Decline Booking
-                                </button>
-                            ` : ""}
-
-                            ${status === "accepted" ? `
-                                <button
-                                    class="start-work-btn bg-indigo-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
-                                    data-id="${booking.id}">
-                                    ▶️ Start Work
-                                </button>
-                                <button
-                                    class="cancel-booking-btn bg-red-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                                    data-id="${booking.id}">
-                                    ❌ Cancel Booking
-                                </button>
-                            ` : ""}
-
-                            ${status === "in_progress" ? `
-                                <button
-                                    class="mark-complete-btn bg-purple-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-                                    data-id="${booking.id}">
-                                    ✅ Mark Job Completed
-                                </button>
-                                <button
-                                    class="cancel-booking-btn bg-red-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-red-700 transition"
-                                    data-id="${booking.id}">
-                                    ❌ Cancel Booking
-                                </button>
-                            ` : ""}
-
-                            ${status === "completed_by_provider" ? `
-                                <span class="px-4 py-3 rounded-lg bg-purple-50 text-purple-700 font-semibold">
-                                    Awaiting customer confirmation
-                                </span>
-                            ` : ""}
-
-                            ${status === "completed" ? `
-                                <span class="px-4 py-3 rounded-lg bg-emerald-50 text-emerald-700 font-semibold">
-                                    Completed — awaiting payout
-                                </span>
-                            ` : ""}
-
-                            ${status === "cancelled" ? `
-                                <span class="px-4 py-3 rounded-lg bg-red-50 text-red-700 font-semibold">
-                                    Cancelled
-                                </span>
-                            ` : ""}
-
-                            ${status === "disputed" ? `
-                                <span class="px-4 py-3 rounded-lg bg-orange-50 text-orange-700 font-semibold">
-                                    ⚠️ Reported
-                                </span>
-                            ` : ""}
-
-                        </div>
-
-                    </div>
-
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-semibold text-slate-900">Requested on</span>
+                  <span>${escapeHtml(b.requestedOn || '—')}</span>
                 </div>
-            `;
-
-            bookingsContainer.appendChild(card);
-        }
-
-        // ====================================
-        // ACTION BUTTONS
-        // ====================================
-        setupBookingActions();
-
-        // ====================================
-        // CHAT BUTTONS
-        // ====================================
-        setupChatButtons();
-
-        // ====================================
-        // LOCATE CUSTOMER BUTTONS
-        // ====================================
-        setupLocateButtons();
-
-    } catch (error) {
-
-        console.error("Load Bookings Error:", error);
-
-        showError(error.message);
-    }
-}
-
-// ===============================
-// CHAT BUTTONS
-// ===============================
-function setupChatButtons() {
-
-    document.querySelectorAll(".chat-customer-btn").forEach((btn) => {
-
-        btn.addEventListener("click", async () => {
-
-            const customerId = btn.dataset.customer;
-            const serviceId = btn.dataset.service;
-            const currentProviderId = (await supabase.auth.getSession()).data.session.user.id;
-
-            await startChat(customerId, currentProviderId, serviceId);
-        });
-    });
-}
-
-// ===============================
-// START CHAT
-// ===============================
-async function startChat(customerId, providerId, serviceId) {
-
-    try {
-
-        // We don't have service_id/customer_id/provider_id in chats.
-        // Use `participants` + `sender_id` to locate the chat.
-        const { data: existingChat } = await supabase
-            .from("chats")
-            .select("id")
-            .eq("participants", customerId)
-            .eq("sender_id", providerId)
-            .maybeSingle();
-
-        if (existingChat?.id) {
-            const params = new URLSearchParams();
-            params.append("chat_id", existingChat.id);
-            if (serviceId) params.append("service_id", serviceId);
-            window.location.href = `chat.html?${params.toString()}`;
-            return;
-        }
-
-        // Create new chat
-        const { data: newChat, error } = await supabase
-            .from("chats")
-            .insert([
-                {
-                    participants: customerId,
-                    sender_id: providerId
-                    // chat_id/last_message/last_timestamp will use defaults or nullable behavior
-                }
-            ])
-            .select("id")
-            .single();
-
-        if (error) throw error;
-
-        const params = new URLSearchParams();
-        params.append("chat_id", newChat.id);
-        if (serviceId) params.append("service_id", serviceId);
-        window.location.href = `chat.html?${params.toString()}`;
-
-    } catch (error) {
-
-        console.error("Chat Error:", error);
-        showError("Failed to start chat: " + error.message);
-    }
-}
-
-// ===============================
-// BOOKING ACTIONS
-// ===============================
-function setupBookingActions() {
-
-    // ACCEPT
-    document.querySelectorAll(".accept-booking-btn")
-        .forEach((btn) => {
-
-            btn.addEventListener("click", async () => {
-
-                const bookingId = btn.dataset.id;
-
-                await updateBookingStatus(
-                    bookingId,
-                    "accepted"
-                );
-            });
-        });
-
-    // DECLINE
-    document.querySelectorAll(".decline-booking-btn")
-        .forEach((btn) => {
-
-            btn.addEventListener("click", async () => {
-
-                const bookingId = btn.dataset.id;
-
-                const confirmed = confirm(
-                    "Are you sure you want to decline this booking? This will cancel the booking."
-                );
-
-                if (!confirmed) return;
-
-                await updateBookingStatus(
-                    bookingId,
-                    "cancelled"
-                );
-            });
-        });
-
-    // START WORK
-    document.querySelectorAll(".start-work-btn")
-        .forEach((btn) => {
-
-            btn.addEventListener("click", async () => {
-
-                const bookingId = btn.dataset.id;
-
-                await updateBookingStatus(
-                    bookingId,
-                    "in_progress"
-                );
-            });
-        });
-
-    // MARK COMPLETED
-    document.querySelectorAll(".mark-complete-btn")
-        .forEach((btn) => {
-
-            btn.addEventListener("click", async () => {
-
-                const bookingId = btn.dataset.id;
-
-                const confirmed = confirm(
-                    "Mark this job as completed? This will notify the customer."
-                );
-
-                if (!confirmed) return;
-
-                await updateBookingStatus(
-                    bookingId,
-                    "completed_by_provider"
-                );
-            });
-        });
-
-    // CANCEL BOOKING
-    document.querySelectorAll(".cancel-booking-btn")
-        .forEach((btn) => {
-
-            btn.addEventListener("click", async () => {
-
-                const bookingId = btn.dataset.id;
-
-                const confirmed = confirm(
-                    "Are you sure you want to cancel this booking? This cannot be undone."
-                );
-
-                if (!confirmed) return;
-
-                await updateBookingStatus(
-                    bookingId,
-                    "cancelled"
-                );
-            });
-        });
-}
-
-// ===============================
-// UPDATE STATUS
-// ===============================
-async function updateBookingStatus(
-    bookingId,
-    status
-) {
-
-    try {
-
-        const { error } = await supabase
-            .from("bookings")
-            .update({
-                status: status
-            })
-            .eq("id", bookingId);
-
-        if (error) {
-            throw error;
-        }
-
-        alert(`Booking ${status} successfully`);
-
-        const {
-            data: { session }
-        } = await supabase.auth.getSession();
-
-        await loadProviderBookings(session.user.id);
-
-    } catch (error) {
-
-        console.error("Update Status Error:", error);
-
-        alert(error.message);
-    }
-}
-
-// ===============================
-// HELPERS
-// ===============================
-function formatDate(date) {
-
-    if (!date) return "N/A";
-
-    return new Date(date).toLocaleDateString(
-        "en-NG",
-        {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-        }
-    );
-}
-
-function formatMoney(amount) {
-
-    return Number(amount || 0)
-        .toLocaleString("en-NG");
-}
-
-function capitalize(text) {
-
-    if (!text) return "";
-
-    return text.charAt(0).toUpperCase() +
-        text.slice(1);
-}
-
-// ===============================
-// SHOW ERROR
-// ===============================
-function showError(message) {
-
-    bookingsContainer.innerHTML = `
-        <div class="bg-white rounded-2xl p-10 shadow text-center">
-
-            <div class="text-6xl mb-4">
-                ❌
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-semibold text-slate-900">Status</span>
+                  <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">${escapeHtml(b.status || 'Pending')}</span>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <h2 class="text-2xl font-bold text-red-600 mb-3">
-                Failed to load bookings
-            </h2>
+          ${b.specialInstructions ? `
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+              <div class="font-semibold text-slate-900 mb-2">Guest note</div>
+              <div>${escapeHtml(b.specialInstructions)}</div>
+            </div>
+          ` : ''}
 
-            <p class="text-gray-600">
-                ${message}
-            </p>
-
+          <div class="flex flex-wrap gap-3">
+            <button data-action="accept" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700">Accept</button>
+            <button data-action="decline" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 border border-red-100 transition hover:bg-red-100">Decline</button>
+            <button data-action="complete" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">Complete</button>
+            <button data-action="cancel" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-700 border border-yellow-100 transition hover:bg-yellow-100">Cancel</button>
+            <button data-action="showmap" data-id="${escapeHtml(b.bookingId)}" data-location="${escapeHtml(b.location)}" class="min-w-[220px] rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 border border-slate-200 transition hover:bg-slate-200">📍 View on Google Maps</button>
+          </div>
         </div>
-    `;
+      </div>
+    </div>
+  `;
 }
+
+// perform a status update on a booking
+async function updateBookingStatus(id, nextStatus) {
+  const { error } = await supabase.from(CONFIG.BOOKINGS_TABLE).update({ status: nextStatus, booking_status: nextStatus, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+// simple toast helper
+function toast(msg, kind = 'info'){
+  const root = document.getElementById('vora-toasts') || (()=>{ const d=document.createElement('div'); d.id='vora-toasts'; d.className='fixed bottom-6 right-6 flex flex-col gap-2 z-50'; document.body.appendChild(d); return d; })();
+  const n=document.createElement('div'); n.className = `px-4 py-2 rounded shadow ${kind==='error'?'bg-red-600 text-white':'bg-gray-800 text-white'}`; n.textContent=msg; root.appendChild(n); setTimeout(()=>n.remove(),4000);
+}
+
+function bindActionButtons(preview){
+  container.querySelectorAll('[data-action]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const action = btn.getAttribute('data-action');
+      const id = btn.dataset.id;
+      if (preview){ toast(`Preview: ${action} ${id}`); return; }
+      const orig = btn.textContent;
+      try{
+        if (action==='accept'){
+          if (!confirm('Accept this booking?')) return;
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'accepted'); toast('Booking accepted'); await refreshCurrentBookings();
+        } else if (action==='decline'){
+          if (!confirm('Decline this booking?')) return;
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'declined'); toast('Booking declined'); await refreshCurrentBookings();
+        } else if (action==='complete'){
+          if (!confirm('Mark booking complete?')) return;
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Booking completed'); await refreshCurrentBookings();
+        } else if (action==='cancel'){
+          if (!confirm('Cancel this booking?')) return;
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'cancelled'); toast('Booking cancelled'); await refreshCurrentBookings();
+        } else if (action==='showmap'){
+          const location = btn.dataset.location || '';
+          openCustomerLocationModal(location);
+        }
+      } catch(err) {
+        console.error(err);
+        toast(err?.message||'Action failed','error');
+        btn.disabled=false;
+        btn.textContent=orig;
+      }
+    });
+  });
+}
+
+async function requireSessionUser() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  const user = data?.session?.user;
+  if (!user) throw new Error("Not logged in. Please login again.");
+  return user;
+}
+
+async function loadIncomingBookings(providerId) {
+  const { data, error } = await supabase
+    .from(CONFIG.BOOKINGS_TABLE)
+    .select(`
+      id,
+      ${CONFIG.COL_STATUS},
+      ${CONFIG.COL_CUSTOMER_ID},
+      ${CONFIG.COL_SERVICE_ID},
+      ${CONFIG.COL_SCHEDULED_DATE},
+      ${CONFIG.COL_CREATED_AT},
+      ${CONFIG.COL_TOTAL_PRICE},
+      customer_location,
+      special_instructions,
+      services:${CONFIG.SERVICES_TABLE}(id, title, image_url, location, price, description)
+    `)
+    .eq(CONFIG.COL_PROVIDER_ID, providerId)
+    .order(CONFIG.COL_CREATED_AT, { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function loadCustomerProfiles(userIds) {
+  if (!userIds.length) return {};
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, profile_picture, phone')
+    .in('id', userIds);
+
+  if (error) {
+    console.error('Customer profiles fetch error:', error);
+    return {};
+  }
+
+  return Object.fromEntries((data || []).map(profile => [String(profile.id), profile]));
+}
+
+function normalize(row, customerProfile) {
+  const services = row?.services;
+  const title =
+    (Array.isArray(services) ? services[0]?.title : services?.title) ??
+    (Array.isArray(services) ? services[0]?.[CONFIG.COL_SERVICE_TITLE] : services?.[CONFIG.COL_SERVICE_TITLE]) ??
+    "Service";
+  const imageUrl =
+    (Array.isArray(services) ? services[0]?.image_url : services?.image_url) ||
+    '';
+
+  const customerName = customerProfile?.full_name || row.customer_name || 'Customer';
+  const customerEmail = customerProfile?.email || row.customer_email || 'No email';
+  const customerPicture = customerProfile?.profile_picture?.trim()
+    ? customerProfile.profile_picture
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=random`;
+
+  return {
+    bookingId: row.id,
+    serviceTitle: title,
+    serviceImage: imageUrl,
+    customerId: row.user_id,
+    customerName,
+    customerEmail,
+    customerPhone: customerProfile?.phone || 'No phone',
+    customerPicture,
+    time: row.scheduled_date ? formatTime(row.scheduled_date) : formatTime(row.created_at),
+    status: row.status,
+    price: row.total_price,
+    location: row.customer_location || (Array.isArray(services) ? services[0]?.location : services?.location) || 'Customer Location',
+    specialInstructions: row.special_instructions || '',
+  };
+}
+
+async function refreshBookings(providerId) {
+  const rows = await loadIncomingBookings(providerId);
+  if (!rows.length) {
+    setContainerEmpty("No incoming bookings found.");
+    return;
+  }
+
+  const customerIds = [...new Set(rows.map(row => row.user_id).filter(Boolean))];
+  const profilesById = await loadCustomerProfiles(customerIds);
+
+  container.innerHTML = rows
+    .map(row => normalize(row, profilesById[String(row.user_id)]))
+    .map(cardHtml)
+    .join("");
+  bindActionButtons(false);
+}
+
+async function refreshCurrentBookings() {
+  if (!currentProviderId) return;
+  await refreshBookings(currentProviderId);
+}
+
+function buildGoogleMapsUrl(location, coords) {
+  if (coords?.length === 2) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}&travelmode=driving`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+async function geocodeLocation(address) {
+  if (!address || !MAPTILER_KEY) return null;
+  try {
+    const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(address)}.json?key=${MAPTILER_KEY}&limit=1`);
+    const data = await response.json();
+    if (!data?.features?.length) return null;
+    return data.features[0].geometry.coordinates;
+  } catch (error) {
+    console.error('MapTiler geocoding failed:', error);
+    return null;
+  }
+}
+
+async function renderLocationMap(location, containerEl, navBtn) {
+  if (!containerEl) return;
+
+  if (!window.maplibregl) {
+    containerEl.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">MapLibre is not loaded.</div>';
+    return;
+  }
+
+  if (!MAPTILER_KEY) {
+    containerEl.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">MapTiler API key not configured.</div>';
+    return;
+  }
+
+  containerEl.innerHTML = '<div class="h-full flex items-center justify-center text-gray-600">Loading map…</div>';
+  navBtn.href = buildGoogleMapsUrl(location, null);
+
+  const coords = await geocodeLocation(location);
+  if (!coords) {
+    containerEl.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">Unable to locate customer address.</div>';
+    return;
+  }
+
+  navBtn.href = buildGoogleMapsUrl(location, coords);
+  containerEl.innerHTML = '';
+
+  try {
+    const map = new maplibregl.Map({
+      container: containerEl,
+      style: MAPTILER_STYLE_URL,
+      center: coords,
+      zoom: 14,
+      attributionControl: true,
+    });
+
+    map.on('load', () => {
+      new maplibregl.Marker({ color: '#ef4444' })
+        .setLngLat(coords)
+        .setPopup(new maplibregl.Popup({ offset: 20 }).setText('Customer Location'))
+        .addTo(map);
+    });
+  } catch (error) {
+    console.error('MapTiler map render failed:', error);
+    containerEl.innerHTML = '<div class="h-full flex items-center justify-center text-red-600">Failed to render the map.</div>';
+  }
+}
+
+function removeLocationModal() {
+  const existing = document.getElementById('customerLocationModal');
+  if (existing) existing.remove();
+}
+
+async function openCustomerLocationModal(location) {
+  removeLocationModal();
+
+  const modal = document.createElement('div');
+  modal.id = 'customerLocationModal';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50';
+  modal.innerHTML = `
+    <div class="max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b">
+        <div>
+          <h2 class="text-xl font-bold">Customer Location</h2>
+          <p class="text-sm text-gray-500">Route from your current position to the customer address.</p>
+        </div>
+        <button id="closeLocationModal" class="text-2xl text-gray-600">&times;</button>
+      </div>
+      <div class="h-96" id="customerMapContainer"></div>
+      <div class="flex items-center justify-between gap-3 p-5 bg-slate-50">
+        <a id="googleMapsNavBtn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">📍 Navigate with Google Maps</a>
+        <button id="closeLocationModalAction" class="px-4 py-3 rounded-lg bg-slate-600 text-white hover:bg-slate-700">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.getElementById('closeLocationModal')?.addEventListener('click', removeLocationModal);
+  document.getElementById('closeLocationModalAction')?.addEventListener('click', removeLocationModal);
+  await renderLocationMap(location, document.getElementById('customerMapContainer'), document.getElementById('googleMapsNavBtn'));
+}
+
+function subscribeToBookingChanges() {
+  if (!supabase.channel || bookingChannel) return;
+
+  bookingChannel = supabase
+    .channel('provider-bookings')
+    .on('postgres_changes', { event: '*', schema: 'public', table: CONFIG.BOOKINGS_TABLE }, () => {
+      if (currentProviderId) {
+        refreshBookings(currentProviderId).catch(() => {});
+      }
+    })
+    .subscribe();
+}
+
+async function init() {
+  if (!container) return;
+  setContainerEmpty("Loading incoming bookings…");
+
+  try {
+    if (window.location.protocol === 'file:') {
+      const sample = [
+        { id: 'pb-1', user_id: 'u-1', provider_id: 'preview', status: 'pending', scheduled_date: new Date().toISOString(), created_at: new Date().toISOString(), total_price: 18000, customer_name: 'John Smith', customer_email: 'john@gmail.com', customer_phone: '+234 801 234 5678', customer_location: 'Lekki Phase 1', special_instructions: 'Please bring cleaning chemicals.', services: { title: 'House Cleaning' } },
+        { id: 'pb-2', user_id: 'u-2', provider_id: 'preview', status: 'accepted', scheduled_date: new Date(Date.now()+86400000).toISOString(), created_at: new Date().toISOString(), total_price: 3200, customer_name: 'Jane Doe', customer_email: 'jane@gmail.com', customer_phone: '+234 802 345 6789', customer_location: 'Ikeja GRA', special_instructions: '', services: { title: 'Plumbing' } }
+      ];
+      currentProviderId = 'preview';
+      container.innerHTML = sample.map(normalize).map(cardHtml).join("");
+      bindActionButtons(true);
+      return;
+    }
+
+    const user = await requireSessionUser();
+    currentProviderId = user.id;
+    await refreshBookings(user.id);
+    subscribeToBookingChanges();
+  } catch (e) {
+    console.error(e);
+    setContainerEmpty(`Error loading bookings: ${e?.message ?? "Unknown error"}`);
+    if (String(e?.message ?? "").toLowerCase().includes("not logged in")) {
+      window.location.href = "login.html";
+    }
+  }
+}
+
+init();

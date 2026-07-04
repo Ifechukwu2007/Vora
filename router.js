@@ -32,7 +32,7 @@ class SPA_Router {
       'provider-bookings': 'provider-bookings.html',
       'provider-hub': 'provider-hub.html',
       'provider-reviews': 'provider-reviews.html',
-      'payment': 'payment.html',
+      'payment': 'complete-payment.html',
       'schedule': 'schedule.html',
       'notifications': 'notifications.html',
       'payout-settings': 'payout-settings.html',

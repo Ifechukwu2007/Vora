@@ -79,10 +79,57 @@
 
   <!-- HEADER -->
   <div class="mb-8">
-        <button id="backBtn" type="button" onclick="window.history.back()"
-          class="text-blue-600 hover:text-blue-800 font-semibold">
-          ← Back
-        </button>
+        <!-- Back icon button -->
+<button id="icon-back" aria-label="Go back" title="Back" style="
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  cursor:pointer;
+  padding:0;
+">
+  <!-- simple left chevron SVG -->
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M15 18L9 12L15 6" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<script>
+  // Robust back behavior with returnUrl fallback
+  (function(){
+    const btn = document.getElementById('icon-back');
+    function getParam(name) {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        return p.get(name);
+      } catch (e) {
+        return null;
+      }
+    }
+    const returnUrl = getParam('returnUrl');
+
+    btn.addEventListener('click', () => {
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      if (returnUrl) {
+        window.location.href = returnUrl;
+        return;
+      }
+      if (document.referrer && document.referrer !== window.location.href) {
+        window.location.href = document.referrer;
+        return;
+      }
+      window.location.href = '/my-bookings.html';
+    });
+  })();
+</script>
+
     <h1 class="text-3xl font-bold text-gray-900">My Messages</h1>
     <p class="text-gray-600 mt-2">View all your conversations with providers and customers</p>
   </div>
@@ -139,16 +186,42 @@
   </div>
 </footer>
 
-<!-- ================= SCRIPTS ================= -->
-<script src="./menu.js" type="module"></script>
-<script src="./loading-utils.js" type="module"></script>
-<script src="./auth.js" type="module"></script>
-<script src="./my-messages.js" type="module"></script>
-<script src="./message-realtime-service.js" type="module"></script>
-<script src="./notifications.js" type="module"></script>
-<script src="./notification-service.js" type="module"></script>
-<script src="./notification-badge.js" type="module"></script>
-<script src="./supabase.js" type="module"></script>
- 
+<script src="./my-messages.js?v=2" type="module"></script>
+<script src="./message-realtime-service.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
+
+  console.log(supabase)
+</script>
+
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
+
 </body>
-</html>
+  </html>

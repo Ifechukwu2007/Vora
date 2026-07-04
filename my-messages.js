@@ -44,7 +44,7 @@ function setupLogout() {
       supabase.removeChannel(realtimeChannel);
     }
     await supabase.auth.signOut();
-    window.location.href = "index.html";
+    window.location.href = "home.html";
   };
   
   logoutBtn?.addEventListener("click", handleLogout);

@@ -35,10 +35,57 @@
  
     <main class="pt-24 max-w-4xl mx-auto py-12 px-4">
         <div class="mb-6 flex items-center gap-4">
-        <button id="backBtn" type="button" onclick="window.history.back()"
-          class="text-blue-600 hover:text-blue-800 font-semibold">
-          ← Back
-        </button>
+        <!-- Back icon button -->
+<button id="icon-back" aria-label="Go back" title="Back" style="
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  background:#fff;
+  cursor:pointer;
+  padding:0;
+">
+  <!-- simple left chevron SVG -->
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M15 18L9 12L15 6" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<script>
+  // Robust back behavior with returnUrl fallback
+  (function(){
+    const btn = document.getElementById('icon-back');
+    function getParam(name) {
+      try {
+        const p = new URLSearchParams(window.location.search);
+        return p.get(name);
+      } catch (e) {
+        return null;
+      }
+    }
+    const returnUrl = getParam('returnUrl');
+
+    btn.addEventListener('click', () => {
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+      if (returnUrl) {
+        window.location.href = returnUrl;
+        return;
+      }
+      if (document.referrer && document.referrer !== window.location.href) {
+        window.location.href = document.referrer;
+        return;
+      }
+      window.location.href = '/my-bookings.html';
+    });
+  })();
+</script>
+
             <h1 class="text-3xl font-extrabold text-gray-900">Edit Service</h1>
         </div>
         <form id="add-service-form" class="bg-white p-8 rounded-lg shadow-lg space-y-6">
@@ -55,22 +102,17 @@
 
             <div>
                 <label for="service-category" class="block text-sm font-medium text-gray-700">Category</label>
-<select id="service-category" name="service-category" required
-    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-
-    <option value="">Select a category</option>
-    <option value="Home Services">Home Services</option>
-    <option value="Repairs & Maintenance">Repairs & Maintenance</option>
-    <option value="Beauty & Personal Care">Beauty & Personal Care</option>
-    <option value="Health & Medical">Health & Therapy</option>
-    <option value="Fitness & Sports">Fitness & Sports</option>
-    <option value="Food & Catering">Food & Catering</option>
-    <option value="Education & Tutoring">Education & Tutoring</option>
-    <option value="Photography & Videography">Photography & Videography</option>
-    <option value="Media & Entertainment">Events & Event Services</option>
-    <option value="Fashion & Apparel">Tailoring & Fashion Design</option>
-    <option value="Art & Design">Art & Illustration</option>
-</select>
+                <select id="service-category" name="service-category" required
+                    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="Barber Shop">Barber Shop</option>
+                    <option value="Hair Saloon">Hair Saloon</option>
+                    <option value="Beauty Spa">Beauty Spa</option>
+                    <option value="Nail Studio">Nail Studio</option>
+                    <option value="Tutors">Tutors</option>
+                    <option value="Fitness">Fitness</option>
+                    <option value="Photographer">Photographer</option>
+                    <option value="Videographer">Videographer</option>
+                </select>
             </div>
 
             <div>

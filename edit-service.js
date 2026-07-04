@@ -1,227 +1,277 @@
-import { supabase } from './supabase.js';
+// edit-service.js
+import { supabase } from "./supabase.js";
 
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('add-service-form');
-  const serviceId = getServiceIdFromUrl();
+const els = {
+  form: document.getElementById("add-service-form"),
+  submitBtn: document.getElementById("submit-btn"),
 
-  const titleInput = document.getElementById('service-title');
-  const descInput = document.getElementById('service-description');
-  const categoryInput = document.getElementById('service-category');
-  const priceInput = document.getElementById('service-price');
-  const dealMessageInput = document.getElementById('deal-message');
-  const groupDiscountThresholdInput = document.getElementById('group-discount-threshold');
-  const groupDiscountPercentInput = document.getElementById('group-discount-percent');
-  const locationInput = document.getElementById('service-location');
-  const travelPriceInput = document.getElementById('travel-price');
-  const imageInput = document.getElementById('service-image');
-  const submitBtn = document.getElementById('submit-btn');
+  serviceTitle: document.getElementById("service-title"),
+  serviceDescription: document.getElementById("service-description"),
+  serviceCategory: document.getElementById("service-category"),
+  servicePrice: document.getElementById("service-price"),
+  dealMessage: document.getElementById("deal-message"),
 
-  if (!form || !serviceId) {
-    console.error('Missing form or service id');
-    alert('Invalid page request.');
-    return;
-  }
+  groupDiscountThreshold: document.getElementById("group-discount-threshold"),
+  groupDiscountPercent: document.getElementById("group-discount-percent"),
 
-  loadService(serviceId)
-    .then((svc) => {
-      titleInput.value = svc.title ?? '';
-      descInput.value = svc.description ?? '';
-      categoryInput.value = svc.category ?? '';
-      priceInput.value = svc.price ?? '';
-      dealMessageInput.value = svc.deal_message ?? '';
-      groupDiscountThresholdInput.value = svc.group_discount_threshold ?? '';
-      groupDiscountPercentInput.value = svc.group_discount_percent ?? '';
-      locationInput.value = svc.location ?? '';
-      travelPriceInput.value = svc.travel_price ?? '';
-      // image_url not placed into UI inputs automatically (file input can’t be pre-filled)
-    })
-    .catch((err) => {
-      console.error(err);
-      alert('Unable to load service.');
-    });
+  serviceLocation: document.getElementById("service-location"),
+  travelPrice: document.getElementById("travel-price"),
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  serviceImage: document.getElementById("service-image"),
+  imagePreview: document.getElementById("image-preview"),
+  previewImg: document.getElementById("preview-img"),
+  removeImageBtn: document.getElementById("remove-image-btn"),
+};
 
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user) {
-      alert('You must be logged in to edit a service.');
-      return;
-    }
+const STORAGE_BUCKET = "service_images"; // <-- CHANGE if your bucket name differs
 
-    const bankName = (titleInput.value || '').trim();
-    const title = bankName; // rename for clarity below
-    const description = (descInput.value || '').trim();
-    const category = (categoryInput.value || '').trim();
-    const location = (locationInput.value || '').trim();
+let currentService = null;
+let selectedFile = null;
+let deleteExistingImage = false;
 
-    const priceValue = priceInput.value;
-    const price = priceValue === '' ? null : Number(priceValue);
-    const dealMessage = (dealMessageInput.value || '').trim();
-    const groupDiscountThresholdValue = (groupDiscountThresholdInput.value || '').trim();
-    const groupDiscountPercentValue = (groupDiscountPercentInput.value || '').trim();
-
-    let groupDiscountThreshold = null;
-    let groupDiscountPercent = null;
-
-    if (groupDiscountThresholdValue !== '') {
-      groupDiscountThreshold = Number(groupDiscountThresholdValue);
-      if (Number.isNaN(groupDiscountThreshold) || groupDiscountThreshold < 2) {
-        alert('Group deal threshold must be 2 or more.');
-        return;
-      }
-    }
-
-    if (groupDiscountPercentValue !== '') {
-      groupDiscountPercent = Number(groupDiscountPercentValue);
-      if (Number.isNaN(groupDiscountPercent) || groupDiscountPercent <= 0 || groupDiscountPercent > 100) {
-        alert('Group discount percent must be between 1 and 100.');
-        return;
-      }
-    }
-
-    if ((groupDiscountThreshold && !groupDiscountPercent) || (!groupDiscountThreshold && groupDiscountPercent)) {
-      alert('To create a group deal, please provide both a threshold and a discount percent.');
-      return;
-    }
-
-    if (!title || !description || !category || !location) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-    if (price === null || Number.isNaN(price) || price < 0) {
-      alert('Please enter a valid price.');
-      return;
-    }
-
-    // Always prevent updating another provider’s service
-    // (RLS should already do this, but we keep UI-safe behavior)
-    const payloadBase = {
-      title,
-      description,
-      category,
-      price,
-      location,
-    };
-
-    if (dealMessage) {
-      payloadBase.deal_message = dealMessage;
-    }
-    if (groupDiscountThreshold) {
-      payloadBase.group_discount_threshold = groupDiscountThreshold;
-    }
-    if (groupDiscountPercent) {
-      payloadBase.group_discount_percent = groupDiscountPercent;
-    }
-
-    // Add travel price if provided
-    const travelPriceValue = travelPriceInput.value.trim();
-    if (travelPriceValue && !isNaN(parseFloat(travelPriceValue))) {
-      payloadBase.travel_price = parseFloat(travelPriceValue);
-    }
-    try {
-      let imageUrl = null;
-
-      if (imageInput?.files?.length) {
-        const file = imageInput.files[0];
-        // Basic validation
-        if (!file.type.startsWith('image/')) {
-          alert('Please upload a valid image.');
-          return;
-        }
-
-        // Validate file size (10MB)
-        if (file.size > 10 * 1024 * 1024) {
-          alert('Image must be less than 10MB.');
-          return;
-        }
-
-        // Upload to Supabase Storage bucket "services"
-        const fileName = `${authData.user.id}_${Date.now()}_${file.name}`;
-
-        const { data, error: uploadErr } = await supabase.storage
-          .from('services')
-          .upload(fileName, file);
-
-        if (uploadErr) {
-          console.error('Image upload error:', uploadErr);
-          console.error('File name:', fileName);
-          console.error('File size:', file.size);
-          console.error('File type:', file.type);
-          throw new Error(`Image upload failed: ${uploadErr.message || uploadErr}`);
-        }
-
-        // Get public URL
-        const { data: publicUrlData } = supabase.storage
-          .from('services')
-          .getPublicUrl(fileName);
-
-        imageUrl = publicUrlData?.publicUrl;
-
-        if (imageUrl) {
-          payloadBase.image_url = imageUrl;
-        }
-      }
-
-      // Show updating status
-      const originalBtnText = submitBtn?.textContent || 'Update Service';
-      if (submitBtn) {
-        submitBtn.textContent = 'Updating...';
-        submitBtn.disabled = true;
-      }
-
-      // Update service
-      // Let RLS policy handle provider ownership check
-      const { error: updateErr } = await supabase
-        .from('services')
-        .update(payloadBase)
-        .eq('id', serviceId);
-
-      if (updateErr) {
-        console.error('Update error:', updateErr);
-        console.error('Error code:', updateErr.code); 
-        console.error('Error message:', updateErr.message);
-        console.error('Payload sent:', payloadBase);
-        console.error('Service ID:', serviceId);
-        
-        // Restore button
-        if (submitBtn) {
-          submitBtn.textContent = originalBtnText;
-          submitBtn.disabled = false;
-        }
-        
-        throw updateErr;
-      }
-
-      alert('Service updated successfully!');
-      // Redirect back to a page (adjust if you have a specific route)
-      window.location.href = 'my-services.html';
-    } catch (err) {
-      console.error('Full error:', err);
-      alert(`Failed to update service: ${err.message || 'Please try again.'}`);
-    }
-  });
-});
-
-function getServiceIdFromUrl() {
-  const url = new URL(window.location.href);
-  return url.searchParams.get('id');
+function getBookingOrNull() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("service_id");
 }
 
-function getFileExt(filename) {
-  const idx = filename.lastIndexOf('.');
-  if (idx === -1) return '';
-  return filename.slice(idx);
+function toNum(v) {
+  const n = v === "" || v === null || v === undefined ? null : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function setLoading(isLoading) {
+  if (!els.submitBtn) return;
+  els.submitBtn.disabled = !!isLoading;
+  els.submitBtn.textContent = isLoading ? "Updating..." : "Update Service";
+}
+
+function showPreview(url) {
+  if (!els.imagePreview || !els.previewImg) return;
+  els.previewImg.src = url;
+  els.imagePreview.classList.remove("hidden");
+}
+
+function hidePreview() {
+  if (!els.imagePreview || !els.previewImg) return;
+  els.previewImg.src = "";
+  els.imagePreview.classList.add("hidden");
+}
+
+function getExtFromFileName(name = "") {
+  const parts = String(name).split(".");
+  const ext = parts.length > 1 ? parts[parts.length - 1] : "";
+  return ext ? `.${ext}` : "";
+}
+
+async function uploadServiceImage(serviceId, file) {
+  const ext = getExtFromFileName(file.name);
+  const path = `${serviceId}/${crypto.randomUUID()}${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadErr) throw uploadErr;
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+
+  // Use data.publicUrl (public bucket), or change if bucket is private.
+  return data.publicUrl;
+}
+
+async function deleteServiceImageIfRequested(existingImageUrl) {
+  if (!deleteExistingImage) return existingImageUrl;
+
+  // If you store public URLs, deleting needs the object path.
+  // We attempt to parse path after bucket base URL.
+  if (!existingImageUrl) return null;
+
+  try {
+    const publicUrl = existingImageUrl;
+    const base = `https://` + supabase.storageUrl?.replace("https://", "") || null;
+
+    // If parsing fails, we can’t safely delete without knowing the object path.
+    // So we keep this as a no-op unless you tell me how your storage paths are stored.
+    // (Most people store the object key in DB instead.)
+    console.warn(
+      "Image deletion requested, but existing image URL parsing may be unreliable. Ensure you store object_key for safe deletion."
+    );
+
+    return existingImageUrl; // keep by default
+  } catch (e) {
+    console.warn("Failed to delete existing image:", e);
+    return existingImageUrl;
+  }
+}
+
+function fillForm(service) {
+  currentService = service;
+
+  els.serviceTitle.value = service.title ?? "";
+  els.serviceDescription.value = service.description ?? "";
+  els.serviceCategory.value = service.category ?? "Barber Shop";
+  els.servicePrice.value = service.price ?? service.base_price ?? "";
+
+  els.dealMessage.value = service.deal_headline ?? service.deal_message ?? "";
+
+  els.groupDiscountThreshold.value = service.group_discount_threshold ?? "";
+  els.groupDiscountPercent.value = service.group_discount_percent ?? "";
+
+  els.serviceLocation.value = service.location ?? service.service_location ?? "";
+  els.travelPrice.value = service.travel_price ?? service.travel_price_amount ?? "";
+  
+  // image preview
+  if (service.image_url || service.image_url === "") {
+    showPreview(service.image_url);
+  } else if (service.image_url) {
+    showPreview(service.image_url);
+  } else if (service.image_url) {
+    showPreview(service.image_url);
+  } else {
+    hidePreview();
+  }
+}
+
+function bindImageHandlers() {
+  if (els.serviceImage) {
+    els.serviceImage.addEventListener("change", () => {
+      deleteExistingImage = false;
+      selectedFile = els.serviceImage.files?.[0] ?? null;
+
+      if (!selectedFile) {
+        hidePreview();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        showPreview(reader.result);
+      };
+      reader.readAsDataURL(selectedFile);
+    });
+  }
+
+  if (els.removeImageBtn) {
+    els.removeImageBtn.addEventListener("click", () => {
+      selectedFile = null;
+      deleteExistingImage = true;
+      if (els.serviceImage) els.serviceImage.value = "";
+      hidePreview();
+    });
+  }
 }
 
 async function loadService(serviceId) {
-  // Select only columns we care about
+  // Adjust the column names here to match your schema.
   const { data, error } = await supabase
-    .from('services')
-    .select('id, provider_id, title, description, category, price, location, travel_price, image_url, deal_message, group_discount_threshold, group_discount_percent')
-    .eq('id', serviceId)
-    .single();
+    .from("services")
+    .select("*")
+    .eq("id", serviceId)
+    .maybeSingle();
 
   if (error) throw error;
-  return data; 
+  if (!data) throw new Error("Service not found.");
+
+  return data;
 }
+
+async function ensureAuth() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data?.user) throw new Error("Please login again.");
+
+  return data.user;
+}
+
+async function main() {
+  bindImageHandlers();
+
+  const serviceId = getBookingOrNull();
+  if (!serviceId) {
+    alert("Missing service_id in URL. Example: edit-service.html?service_id=UUID");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    await ensureAuth();
+
+    const service = await loadService(serviceId);
+    fillForm(service);
+
+    // submit
+    els.form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      try {
+        setLoading(true);
+
+        // Basic validation
+        const title = els.serviceTitle.value.trim();
+        const description = els.serviceDescription.value.trim();
+        const category = els.serviceCategory.value;
+        const price = toNum(els.servicePrice.value);
+
+        const location = els.serviceLocation.value.trim();
+        const travelPrice = toNum(els.travelPrice.value);
+
+        if (!title) throw new Error("Service title is required.");
+        if (!description) throw new Error("Description is required.");
+        if (!category) throw new Error("Category is required.");
+        if (price === null) throw new Error("Price is required.");
+        if (!location) throw new Error("Location is required.");
+
+        const groupDiscountThreshold = toNum(els.groupDiscountThreshold.value);
+        const groupDiscountPercent = toNum(els.groupDiscountPercent.value);
+
+        let imageUrl = service.image_url ?? null;
+
+        // Upload new file if selected
+        if (selectedFile) {
+          imageUrl = await uploadServiceImage(serviceId, selectedFile);
+        } else if (deleteExistingImage) {
+          // If you truly delete objects, we need the storage object key.
+          // For now, set image_url to null (or adjust to your preferred behavior).
+          imageUrl = null;
+        }
+
+        const updatePayload = {
+          title,
+          description,
+          category,
+          price,
+          deal_headline: els.dealMessage.value.trim() || null,
+          group_discount_threshold: groupDiscountThreshold,
+          group_discount_percent: groupDiscountPercent,
+          location,
+          travel_price: travelPrice,
+          image_url: imageUrl,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: updateErr } = await supabase
+          .from("services")
+          .update(updatePayload)
+          .eq("id", serviceId);
+
+        if (updateErr) throw updateErr;
+
+        alert("Service updated successfully ✅");
+        window.location.href = "my-services.html";
+      } catch (err) {
+        console.error(err);
+        alert(err?.message || "Failed to update service.");
+      } finally {
+        setLoading(false);
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    alert(err?.message || "Failed to load service.");
+  } finally {
+    setLoading(false);
+  }
+}
+
+main();

@@ -1,368 +1,328 @@
+// profile.js
 import { supabase } from "./supabase.js";
-import { updateProfilePictureInHeader } from "./auth.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
-  // =========================
-  // ELEMENTS
-  // =========================
-  const logoutBtn = document.getElementById("logoutBtn");
-  const logoutBtnSideMenu = document.getElementById("logoutBtnSideMenu");
+const BUCKET_NAME = "profile-pictures"; // <-- change if your bucket name differs
 
-  const profileForm = document.getElementById("profileForm");
+const els = {
+  name: document.getElementById("name"),
+  email: document.getElementById("email"),
+  phoneLocal: document.getElementById("phoneLocal"),
+  location: document.getElementById("location"),
 
-  const nameInput = document.getElementById("name");
-  const emailInput = document.getElementById("email");
-  const countryCodeInput = document.getElementById("countryCode");
-  const phoneLocalInput = document.getElementById("phoneLocal");
-  const locationInput = document.getElementById("location");
+  profilePictureInput: document.getElementById("profilePictureInput"),
+  profilePictureDisplay: document.getElementById("profilePictureDisplay"),
+  profilePicturePlaceholder: document.getElementById("profilePicturePlaceholder"),
+  profilePictureArea: document.getElementById("profilePictureArea"),
+  removeProfilePictureBtn: document.getElementById("removeProfilePictureBtn"),
+  becomeProviderBtn: document.querySelector('[data-action="add-service.html"]'),
+  backToDashboardBtn: document.getElementById("backToDashboardBtn"),
+};
 
-  const profilePictureArea = document.getElementById("profilePictureArea");
-  const profilePictureInput = document.getElementById("profilePictureInput");
-  const profilePictureDisplay = document.getElementById("profilePictureDisplay");
-  const profilePicturePlaceholder = document.getElementById("profilePicturePlaceholder");
-  const removeProfilePictureBtn = document.getElementById("removeProfilePictureBtn");
+function normalizePhone(raw) {
+  // Keep it simple; you can improve this later.
+  return (raw || "").trim();
+}
 
-  const backToDashboardBtn = document.getElementById("backToDashboardBtn");
+function showLoading(isLoading) {
+  // Optional: add a spinner here if you want.
+  // For now we just disable submit button by toggling form controls if needed.
+  // (We’ll keep it minimal.)
+}
 
-  let currentUser = null;
-  let currentProfilePicture = null;
+function getSafeFilename(name) {
+  const clean = (name || "upload").replace(/[^a-zA-Z0-9._-]/g, "_");
+  return clean.length > 180 ? clean.slice(-180) : clean;
+}
 
-  // =========================
-  // CHECK SESSION
-  // =========================
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+async function ensureBucketExists() {
+  // Storage bucket create requires service role; we won't do it automatically.
+  // Instead we test existence and provide a helpful error.
+  const { data, error } = await supabase.storage.from(BUCKET_NAME).list("", { limit: 1 });
+  if (error && (error.statusCode === 404 || /Bucket/.test(error.message))) {
+    throw new Error(
+      `Storage bucket "${BUCKET_NAME}" not found. Create it in Supabase Storage settings or update BUCKET_NAME in profile.js.`
+    );
+  }
+  return data;
+}
 
-  if (!session) {
-    window.location.href = "login.html";
+async function loadProfile(userId) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, phone, location, profile_picture")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  let profileData = data;
+
+  if (!profileData) {
+    const { data: userFallback, error: userError } = await supabase
+      .from("users")
+      .select("id, full_name, email, location, phone, profile_picture")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (userError) throw userError;
+    profileData = userFallback || {};
+  }
+
+  els.name.value = profileData.full_name || "";
+  els.email.value = profileData.email || "";
+  els.phoneLocal.value = profileData.phone || "";
+  els.location.value = profileData.location || "";
+
+  const picturePath = profileData.profile_picture;
+  const pictureUrl = picturePath ? await getProfilePicturePublicUrl(picturePath) : "";
+
+  if (pictureUrl) {
+    els.profilePictureDisplay.src = pictureUrl;
+    els.profilePictureDisplay.classList.remove("hidden");
+    els.profilePicturePlaceholder.classList.add("hidden");
+    els.removeProfilePictureBtn.classList.remove("hidden");
+  } else {
+    els.profilePictureDisplay.src = "";
+    els.profilePictureDisplay.classList.add("hidden");
+    els.profilePicturePlaceholder.classList.remove("hidden");
+    els.removeProfilePictureBtn.classList.add("hidden");
+  }
+}
+
+async function getProfilePicturePublicUrl(pathOrUrl) {
+  // If your DB stores full public URL, just return it.
+  // If your DB stores an object path, generate a public URL (if bucket is public)
+  // If bucket is private, we should fetch a signed URL instead.
+  if (!pathOrUrl) return "";
+
+  // Heuristic: if it already looks like a URL
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+
+  // Try signed URL (works for private buckets).
+  const { data: urlData } = await supabase.storage
+    .from(BUCKET_NAME)
+    .createSignedUrl(pathOrUrl, 60 * 60); // 1 hour
+
+  // If signed URL failed, try public URL (bucket may be public)
+  if (urlData?.signedUrl) return urlData.signedUrl;
+
+  const publicUrlRes = supabase.storage.from(BUCKET_NAME).getPublicUrl(pathOrUrl);
+  return publicUrlRes?.data?.publicUrl || "";
+}
+
+async function uploadProfilePicture(userId, file) {
+  await ensureBucketExists();
+
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const filename = getSafeFilename(file.name);
+  const objectPath = `users/${userId}/${Date.now()}_${filename}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(objectPath, file, {
+      upsert: true,
+      contentType: file.type || undefined,
+    });
+
+  if (uploadError) throw uploadError;
+
+  // Store path (recommended) OR store public URL.
+  // Your current schema says profile_picture is `text` (no constraint).
+  // We'll store the object path (string) so you can use signed/public URLs later.
+  return objectPath;
+}
+
+async function deleteProfilePicture(userId, currentProfilePicture) {
+  if (!currentProfilePicture) return;
+
+  await ensureBucketExists();
+
+  // If it’s a full URL, we may not be able to map back to object path.
+  // We’ll support both:
+  // - if DB stores object path => delete that
+  // - if DB stores public URL => try to extract object path by searching for "/object/v1/"
+  //   but this is brittle; best is: store objectPath in DB (what we do on upload).
+  let objectPath = currentProfilePicture;
+
+  // If it looks like a URL, attempt extraction (best-effort).
+  if (/^https?:\/\//i.test(currentProfilePicture)) {
+    // Best-effort: try to parse objectPath from the public url format.
+    // This depends on how Supabase generates URLs; if it fails, we will still clear DB field.
+    objectPath = currentProfilePicture.split(BUCKET_NAME + "/").pop();
+  }
+
+  const { error: removeError } = await supabase.storage
+    .from(BUCKET_NAME)
+    .remove([objectPath]);
+
+  // Even if remove fails, we still clear DB field so UI is consistent.
+  if (removeError) {
+    console.warn("Could not delete storage object:", removeError.message);
+  }
+
+  // Clear DB field
+  const { error: dbError } = await supabase
+    .from("profiles")
+    .update({ profile_picture: null })
+    .eq("id", userId);
+
+  if (dbError) throw dbError;
+}
+
+async function toggleDashboardButton(userId) {
+  const { data, error } = await supabase
+    .from("services")
+    .select("id")
+    .eq("provider_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Could not verify provider services:", error.message);
+    els.backToDashboardBtn?.classList.add("hidden");
     return;
   }
 
-  currentUser = session.user;
+  els.backToDashboardBtn?.classList.toggle("hidden", !data);
+}
 
-  // =========================
-  // LOGOUT
-  // =========================
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.href = "index.html";
+async function initAuthAndProfile() {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData?.user) {
+    // If you already handle redirects in auth.js, you can remove this.
+    // Otherwise, redirect to login.
+    window.location.href = "auth.html";
+    return;
   }
 
-  if (logoutBtn) logoutBtn.addEventListener("click", logout);
-  if (logoutBtnSideMenu) logoutBtnSideMenu.addEventListener("click", logout);
+  const user = authData.user;
 
-  // =========================
-  // LOAD PROFILE
-  // =========================
-  await loadProfile();
+  // user.id should match profiles.id per your schema
+  await loadProfile(user.id);
+  await toggleDashboardButton(user.id);
 
-  // =========================
-  // CHECK SERVICES
-  // =========================
-  await checkUserServices();
+  // Save submit handler
+  const profileForm = document.getElementById("profileForm");
+  if (profileForm) {
+    profileForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showLoading(true);
 
-  // =========================
-  // PROFILE IMAGE CLICK
-  // =========================
-  profilePictureArea.addEventListener("click", () => {
-    profilePictureInput.click();
-  });
+      const full_name = (els.name.value || "").trim();
+      const phone = normalizePhone(els.phoneLocal.value);
+      const location = (els.location.value || "").trim();
 
-  // =========================
-  // PROFILE IMAGE CHANGE
-  // =========================
-  profilePictureInput.addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // VALIDATE IMAGE
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image");
-      return;
-    }
-
-    // VALIDATE SIZE
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be less than 5MB");
-      return;
-    }
-
-    try {
-      // PREVIEW IMAGE
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        profilePictureDisplay.src = event.target.result;
-        profilePictureDisplay.classList.remove("hidden");
-        profilePicturePlaceholder.classList.add("hidden");
+      // Email field is disabled; we do not update it here.
+      // Your table includes `email` - but usually it should come from auth.
+      const payload = {
+        full_name,
+        phone,
+        location,
       };
-      reader.readAsDataURL(file);
 
-      // UPLOAD TO SUPABASE STORAGE
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("profile-pictures")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // GET PUBLIC URL
-      const { data: publicUrlData } = supabase.storage
-        .from("profile-pictures")
-        .getPublicUrl(fileName);
-
-      const imageUrl = publicUrlData.publicUrl;
-      currentProfilePicture = imageUrl;
-
-      // SAVE TO PROFILES TABLE (RPC, not direct upsert)
-      const { error: updateError } = await supabase.rpc("upsert_profile", {
-        p_id: currentUser.id,
-        p_email: currentUser.email,
-        p_full_name: null,
-        p_role: "user",
-        p_location: null,
-        p_phone: null,
-        p_profile_picture: imageUrl,
-      });
-
-      if (updateError) throw updateError;
-
-      removeProfilePictureBtn.classList.remove("hidden");
-      alert("Profile picture uploaded successfully");
-
-      // Update header profile picture
-      await updateProfilePictureInHeader();
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "Failed to upload image");
-    }
-  });
-
-  // =========================
-  // REMOVE PROFILE PICTURE
-  // =========================
-  removeProfilePictureBtn.addEventListener("click", async () => {
-    const confirmDelete = confirm("Remove your profile picture?");
-    if (!confirmDelete) return;
-
-    try {
-      const localPhone = phoneLocalInput.value.trim().replace(/\s+/g, "");
-      const fullPhone = `${countryCodeInput.value.trim() || "+234"}${localPhone}`;
-
-      // UPDATE DATABASE via RPC
-      const { error } = await supabase.rpc("upsert_profile", {
-        p_id: currentUser.id,
-        p_email: currentUser.email,
-        p_full_name: nameInput.value.trim() || null,
-        p_role: "user",
-        p_location: locationInput.value.trim() || null,
-        p_phone: fullPhone || null,
-        p_profile_picture: null,
-      });
-
-      if (error) throw error;
-
-      // RESET UI
-      profilePictureDisplay.src = "";
-      profilePictureDisplay.classList.add("hidden");
-      profilePicturePlaceholder.classList.remove("hidden");
-      removeProfilePictureBtn.classList.add("hidden");
-      currentProfilePicture = null;
-
-      alert("Profile picture removed");
-
-      // Update header profile picture
-      await updateProfilePictureInHeader();
-    } catch (error) {
-      console.error(error);
-      alert(error.message);
-    }
-  });
-
-  // =========================
-  // UPDATE PROFILE
-  // =========================
-  profileForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    try {
-      const localPhone = phoneLocalInput.value.trim().replace(/\s+/g, "");
-      const fullPhone = `${countryCodeInput.value.trim() || "+234"}${localPhone}`;
-
-      const { error } = await supabase.rpc("upsert_profile", {
-        p_id: currentUser.id,
-        p_email: currentUser.email,
-        p_full_name: nameInput.value.trim(),
-        p_role: "user",
-        p_location: locationInput.value.trim(),
-        p_phone: fullPhone,
-        p_profile_picture: currentProfilePicture,
-      });
-
-      if (error) throw error;
-
-      // Also update users table for consistency
-      await supabase
-        .from("users")
-        .update({
-          full_name: nameInput.value.trim(),
-          phone: fullPhone,
-          location: locationInput.value.trim(),
-          profile_picture: currentProfilePicture,
-        })
-        .eq("uid", currentUser.id);
-
-      alert("Profile updated successfully");
-
-      // Update header profile picture
-      await updateProfilePictureInHeader();
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "Failed to update profile");
-    }
-  });
-
-  // =========================
-  // LOAD PROFILE FUNCTION
-  // =========================
-  async function loadProfile() {
-    try {
-      // Always set email from auth
-      emailInput.value = currentUser.email || "";
-
-      // 1) Try profiles first
-      const { data: profileData, error: profileError } = await supabase
+      const { error: updateError } = await supabase
         .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .maybeSingle();
+        .update(payload)
+        .eq("id", user.id);
 
-      if (profileError) console.warn("profiles table error:", profileError);
+      showLoading(false);
 
-      // 2) If no profile row exists, fetch from users table (signup data),
-      //    then create profile row via RPC.
-      let dataToUse = profileData;
-
-      if (!profileData) {
-        console.log("No profile found, checking users table...");
-
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("full_name, phone, location, profile_picture")
-          .eq("uid", currentUser.id)
-          .maybeSingle();
-
-        if (userError) console.warn("users table error:", userError);
-
-        const { data: upserted, error: upsertError } = await supabase.rpc(
-          "upsert_profile",
-          {
-            p_id: currentUser.id,
-            p_email: currentUser.email || null,
-            p_full_name: userData?.full_name || "",
-            p_role: "user",
-            p_location: userData?.location || "",
-            p_phone: userData?.phone || "",
-            p_profile_picture: userData?.profile_picture || null,
-          }
-        );
-
-        if (upsertError) {
-          console.error("Error upserting profile:", upsertError);
-          throw upsertError;
-        }
-
-        dataToUse = upserted;
-      }
-
-      if (!dataToUse) {
-        console.warn("No data available to fill form");
+      if (updateError) {
+        alert("Failed to update profile. " + updateError.message);
         return;
       }
 
-      // 3) Fill the form from profiles
-      nameInput.value = dataToUse.full_name || "";
-      locationInput.value = dataToUse.location || "";
-
-      const storedPhone = (dataToUse.phone || "").trim();
-      const phoneMatch = storedPhone.match(/^(\+\d{1,4})(\d+)$/);
-      if (phoneMatch) {
-        countryCodeInput.value = phoneMatch[1];
-        phoneLocalInput.value = phoneMatch[2];
-      } else {
-        countryCodeInput.value = "+234";
-        phoneLocalInput.value = storedPhone;
-      }
-
-      // Profile image UI
-      if (dataToUse.profile_picture) {
-        currentProfilePicture = dataToUse.profile_picture;
-        profilePictureDisplay.src = dataToUse.profile_picture;
-        profilePictureDisplay.classList.remove("hidden");
-        profilePicturePlaceholder.classList.add("hidden");
-        removeProfilePictureBtn.classList.remove("hidden");
-      } else {
-        currentProfilePicture = null;
-        profilePictureDisplay.src = "";
-        profilePictureDisplay.classList.add("hidden");
-        profilePicturePlaceholder.classList.remove("hidden");
-        removeProfilePictureBtn.classList.add("hidden");
-      }
-    } catch (error) {
-      console.error("Load profile error:", error);
-    }
-  }
-
-  // =========================
-  // CHECK USER SERVICES
-  // =========================
-  async function checkUserServices() {
-    try {
-      console.log("🔍 Checking user services...");
-
-      if (!backToDashboardBtn) {
-        console.warn("Back To Dashboard button not found");
-        return;
-      }
-
-      const { data: services, error } = await supabase
-        .from("services")
-        .select("id")
-        .eq("provider_id", currentUser.id);
-
-      if (error) {
-        console.error("Service check error:", error);
-        throw error;
-      }
-
-      console.log("Services found:", services);
-
-      if (services && services.length > 0) {
-        backToDashboardBtn.classList.remove("hidden");
-        backToDashboardBtn.style.display = "flex";
-      } else {
-        backToDashboardBtn.classList.add("hidden");
-        backToDashboardBtn.style.display = "none";
-      }
-    } catch (error) {
-      console.error("❌ checkUserServices failed:", error);
-      backToDashboardBtn.classList.add("hidden");
-      backToDashboardBtn.style.display = "none";
-    }
-  }
-
-  // =========================
-  // PROVIDER BUTTON
-  // =========================
-  const providerBtn = document.querySelector(
-    '[data-action="add-service.html"]'
-  );
-
-  if (providerBtn) {
-    providerBtn.addEventListener("click", () => {
-      window.location.href = providerBtn.getAttribute("data-action");
+      alert("Profile updated successfully.");
     });
   }
+
+  // Picture upload
+  els.profilePictureArea.addEventListener("click", () => {
+    els.profilePictureInput?.click();
+  });
+
+  els.profilePictureInput.addEventListener("change", async () => {
+    const file = els.profilePictureInput.files?.[0];
+    if (!file) return;
+
+    try {
+      showLoading(true);
+
+      // Upload
+      const objectPath = await uploadProfilePicture(user.id, file);
+
+      // Update DB
+      // We store objectPath (not public URL) in profile_picture
+      const { error: dbError } = await supabase
+        .from("profiles")
+        .update({ profile_picture: objectPath })
+        .eq("id", user.id);
+
+      if (dbError) throw dbError;
+
+      // Refresh UI
+      const { data: refreshed, error: refErr } = await supabase
+        .from("profiles")
+        .select("profile_picture")
+        .eq("id", user.id)
+        .single();
+
+      if (refErr) throw refErr;
+
+      const signedOrPublic = await getProfilePicturePublicUrl(refreshed.profile_picture);
+      els.profilePictureDisplay.src = signedOrPublic || "";
+      els.profilePictureDisplay.classList.remove("hidden");
+      els.profilePicturePlaceholder.classList.add("hidden");
+      els.removeProfilePictureBtn.classList.remove("hidden");
+
+      alert("Profile picture updated.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload picture. " + err.message);
+    } finally {
+      showLoading(false);
+      els.profilePictureInput.value = "";
+    }
+  });
+
+  // Picture remove
+  els.removeProfilePictureBtn?.addEventListener("click", async () => {
+    try {
+      showLoading(true);
+
+      const { data: current, error: curErr } = await supabase
+        .from("profiles")
+        .select("profile_picture")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (curErr) throw curErr;
+
+      await deleteProfilePicture(user.id, current?.profile_picture);
+
+      // Reset UI
+      els.profilePictureDisplay.src = "";
+      els.profilePictureDisplay.classList.add("hidden");
+      els.profilePicturePlaceholder.classList.remove("hidden");
+      els.removeProfilePictureBtn.classList.add("hidden");
+
+      alert("Profile picture removed.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to remove picture. " + err.message);
+    } finally {
+      showLoading(false);
+    }
+  });
+
+  els.becomeProviderBtn?.addEventListener("click", () => {
+    window.location.href = "add-service.html";
+  });
+}
+
+// Patch: if your bucket is public, signed URL isn’t required.
+// But this script will try signed first and fallback to public URL.
+initAuthAndProfile().catch((err) => {
+  console.error(err);
+  alert("Profile page error: " + err.message);
 });

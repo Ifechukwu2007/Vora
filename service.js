@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.js";
+import { supabase, supabasePublic } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
 import { formatPrice } from "./currency-utils.js";
 
@@ -29,6 +29,8 @@ const MAPTILER_STYLE_URL = MAPTILER_KEY
 // Try to get session but don't require it for viewing service details/reviews
 const { data: sessionData } = await supabase.auth.getSession();
 const currentUser = sessionData?.session?.user || null;
+let currentServiceContext = null;
+let currentProviderContext = null;
 
 function normalizeProfile(profile) {
   if (!profile) return null;
@@ -60,7 +62,7 @@ async function loadService() {
     }
 
     // FETCH SERVICE
-    const { data: service, error: serviceError } = await supabase
+    const { data: service, error: serviceError } = await supabasePublic
       .from('services')
       .select('*')
       .eq('id', serviceId)
@@ -78,7 +80,7 @@ async function loadService() {
     const providerId = service.provider_id;
 
     // FETCH SERVICE PROVIDER'S PROFILE
-    const { data: providerProfile, error: providerError } = await supabase
+    const { data: providerProfile, error: providerError } = await supabasePublic
       .from('users')
       .select('full_name, email, profile_picture, location')
       .eq('id', providerId)
@@ -89,7 +91,7 @@ async function loadService() {
     }
 
     // 1) FETCH REVIEWS ONLY
-    const { data: reviews, error: reviewsError } = await supabase
+    const { data: reviews, error: reviewsError } = await supabasePublic
       .from('reviews')
       .select('*')
       .eq('service_id', serviceId)
@@ -102,7 +104,7 @@ async function loadService() {
 
     let usersById = {};
     if (userIds.length) {
-      const { data: users, error: usersError } = await supabase
+      const { data: users, error: usersError } = await supabasePublic
         .from('users')
         .select('id, full_name, email, profile_picture')
         .in('id', userIds);
@@ -116,6 +118,9 @@ async function loadService() {
     const serviceImage =
       service.image_url ||
       'https://placehold.co/800x500?text=Vora';
+
+    currentServiceContext = { ...service, image_url: serviceImage, provider_name: providerProfile?.full_name || service.provider_name || '' };
+    currentProviderContext = providerProfile || {};
 
     // ============================
     // RENDER SERVICE
@@ -540,7 +545,13 @@ async function renderServiceMap(service, providerProfile) {
 // BOOKING MODAL
 // ============================
 
-function openBookingModal(service, providerId) {
+async function openBookingModal(service, providerId) {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData?.session?.user) {
+    window.location.href = `login.html?redirect=service.html?id=${service.id}`;
+    return;
+  }
+
   // Store service globally so functions can access travel_price
   window.currentService = service;
   
@@ -751,6 +762,33 @@ function submitBooking(service, providerId) {
   const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
 
   const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation);
+  const resolvedService = currentServiceContext || service || {};
+  const resolvedProvider = currentProviderContext || {};
+  const pendingBooking = {
+    serviceId: resolvedService.id || service.id,
+    providerId,
+    serviceTitle: resolvedService.title || service.title,
+    serviceImage: resolvedService.image_url || '',
+    providerName: resolvedProvider.full_name || resolvedService.provider_name || service.provider_name || '',
+    providerPicture: resolvedProvider.profile_picture || resolvedService.provider_picture || service.provider_picture || '',
+    providerLocation: resolvedProvider.location || resolvedService.location || '',
+    numberOfPeople: peopleCount,
+    scheduledDate: scheduledDateTime,
+    serviceLocation,
+    customerLocation,
+    travelFee,
+    specialInstructions,
+    totalPrice: bookingInfo.total,
+    pricePerPerson: bookingInfo.perPerson,
+    discountedTotal: bookingInfo.total,
+    discountedPerPerson: bookingInfo.perPerson,
+  };
+  try {
+    localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
+  } catch (err) {
+    console.warn('Could not persist pending booking:', err);
+  }
+
   const params = new URLSearchParams();
   params.append('serviceId', service.id);
   params.append('providerId', providerId);
@@ -765,7 +803,7 @@ function submitBooking(service, providerId) {
   params.append('discountedTotal', bookingInfo.total);
   params.append('discountedPerPerson', bookingInfo.perPerson);
 
-  LoadingSpinner.navigateTo(`payment.html?${params.toString()}`);
+  LoadingSpinner.navigateTo(`complete-payment.html?${params.toString()}`);
 }
 
 // ============================

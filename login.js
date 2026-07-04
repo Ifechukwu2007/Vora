@@ -4,11 +4,13 @@ import { supabase } from './supabase.js';
 // CHECK SESSION - REDIRECT IF LOGGED IN
 // ===============================
 
+const urlParams = new URLSearchParams(window.location.search);
+const redirectTarget = urlParams.get('redirect')?.trim();
 const { data: { session } } = await supabase.auth.getSession();
 
 if (session) {
-  // User is already logged in, redirect to home
-  window.location.href = 'home.html';
+  // User is already logged in, redirect to the requested page or home
+  window.location.href = redirectTarget || 'home.html';
 }
 
 // ===============================
@@ -178,8 +180,8 @@ loginForm.addEventListener("submit", async (e) => {
 
     console.log("Logged in user:", data.user);
 
-    // REDIRECT TO HOME PAGE IMMEDIATELY
-    window.location.href = "home.html";
+    // Redirect to the requested page after login, or home by default
+    window.location.href = redirectTarget || "home.html";
 
   } catch (error) {
     console.error(error);

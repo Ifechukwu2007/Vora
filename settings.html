@@ -14,70 +14,57 @@
 </head>
 <body class="bg-gray-100">
 
-  <!-- ================= HEADER ================= -->
-  <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
-    <div class="max-w-7xl mx-auto px-4">
-      <div class="flex items-center justify-between h-16">
-        <!-- LEFT -->
-        <div class="flex items-center gap-10">
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-slate-200 z-50 shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between gap-4">
+      <div class="flex items-center gap-8">
         <a href="home.html" class="flex items-center gap-2">
           <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
-          <!-- DESKTOP NAV -->
-          <nav class="hidden lg:flex items-center gap-6">
-            <a href="home.html" class="font-semibold text-black-600">
-              Home
-            </a>
-            <a href="browse.html" class="block font-semibold text-black-800">
-              Browse
-            </a>
-            <a href="my-bookings.html" class="block font-semibold text-black-800">
-              My Bookings
-            </a>
-            <a href="my-messages.html" class="block font-semibold text-black-600">
-              My Messages
-            </a>
-            <a href="customer-reviews.html" class="block font-semibold text-black-800">
-              Customer Reviews
-            </a>
-            <a href="add-service.html" class="font-medium text-black-700 hover:text-black-600 transition">
-              Become a Provider
-            </a>
-          </nav>
-        </div>
-        <!-- RIGHT -->
-        <div class="flex items-center gap-4">
-          <a href="profile.html" data-profile-icon="true" class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition">
-            👤
-          </a>
-          <button id="logoutBtn" class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
-            Logout
-          </button>
-          <button id="hamburger" class="lg:hidden text-2xl">
-            ☰
-          </button>
-        </div>
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+        <!-- LOGOUT -->
+        <button id="logoutBtn" class="hidden rounded-full px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-slate-100">Logout</button>
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
       </div>
     </div>
-  </header>
-
-  <!-- ================= MOBILE MENU ================= -->
-  <div id="sideMenu" class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50 transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
-    <div class="flex items-center justify-between p-4 border-b">
-      <h2 class="text-xl font-bold">Menu</h2>
-      <button id="closeMenu" class="text-2xl">✕</button>
-    </div>
-    <div class="p-4 space-y-5">
-      <a href="home.html" class="block font-semibold text-black">Home</a>
-      <a href="browse.html" class="block font-semibold text-black">Browse</a>
-      <a href="my-bookings.html" class="block font-semibold text-black">My Bookings</a>
-      <a href="my-messages.html" class="block font-semibold text-black">My Messages</a>
-      <a href="customer-reviews.html" class="block font-semibold text-black">Customer Reviews</a>
-      <a href="add-service.html" class="block font-semibold text-black">Become a Provider</a>
-      <button id="logoutBtnSideMenu" class="block text-red-600 font-semibold">Logout</button>
-    </div>
   </div>
+</header>
+
+<div id="sideMenu" class="fixed top-0 left-0 z-50 h-full w-72 transform -translate-x-full overflow-y-auto bg-white shadow-xl transition-transform duration-300 lg:hidden">
+  <div class="flex items-center justify-between border-b p-4">
+    <h2 class="text-xl font-bold">Menu</h2>
+    <button id="closeMenu" class="text-2xl">✕</button>
+  </div>
+  <div class="space-y-4 p-4">
+    <a href="home.html" class="block font-semibold text-slate-900">Home</a>
+    <a href="my-bookings.html" class="block font-semibold text-slate-900">My Bookings</a>
+    <a href="my-messages.html" class="block font-semibold text-slate-900">My Messages</a>
+    <a href="wishlist.html" class="block font-semibold text-slate-900">Wishlist</a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
+  </div>
+</div>
 
   <!-- ================= OVERLAY ================= -->
   <div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"></div>
@@ -257,33 +244,43 @@
     </div>
   </footer>
 
-  <!-- ================= SCRIPTS ================= -->
-  <script src="./auth.js" type="module"></script>
-  <script src="./settings.js" type="module"></script>
-  <script src="./menu.js" type="module"></script>
-  <script src="./router.js" type="module"></script>
-  <script src="./notifications.js" type="module"></script>
-  <script src="./notification-service.js" type="module"></script>
-  <script src="./notification-badge.js" type="module"></script>
-  <script src="./loading-utils.js" type="module"></script>
+    <!-- ================= SCRIPTS ================= -->
+<script src="./settings.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
 
-  <script type="module">
-    import { supabase } from './supabase.js'
-    console.log(supabase)
-  </script>
+  console.log(supabase)
+</script>
 
-  <!-- ================= TAWK ================= -->
-  <script type="text/javascript">
-    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
-    (function() {
-      var s1 = document.createElement("script"), s0 = document.getElementsByTagName("script")[0];
-      s1.async = true;
-      s1.src = 'https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
-      s1.charset = 'UTF-8';
-      s1.setAttribute('crossorigin', '*');
-      s0.parentNode.insertBefore(s1, s0);
-    })();
-  </script>
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
 
 </body>
-</html>
+  </html>

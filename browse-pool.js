@@ -83,6 +83,7 @@ async function loadRequests() {
             .from('requests')
             .select('*')
             .eq('status', 'open')
+            .eq('category', 'Beauty & Personal Care')
             .order('created_at', { ascending: false });
 
         if (error) throw error;

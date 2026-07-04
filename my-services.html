@@ -28,50 +28,8 @@
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
 
-        <!-- DESKTOP NAV -->
-        <nav class="hidden lg:flex items-center gap-6">
-
-    <a href="dashboard.html" 
-      class="block font-semibold text-black-600">
-      Dashboard
-    </a>
-
-    <a href="browse.html" 
-      class="block font-semibold text-black-600">
-      Browse
-    </a>
-
-    <a href="my-services.html" 
-      class="block font-semibold text-black-600">
-      My Services
-    </a> 
-
-    <a href="add-service.html" 
-      class="block font-semibold text-black-600">
-      Become a Provider
-    </a>
-
-    <a href="provider-bookings.html" 
-      class="block font-semibold text-black-600"> 
-      Provider Bookings
-    </a>
-
-    <a href="my-messages.html" 
-      class="block font-semibold text-black-600">
-      My Messages
-    </a>
-
-    <a href="provider-reviews.html" 
-      class="block font-semibold text-black-600">
-      Provider Reviews
-    </a>
-
-    <a href="payout-settings.html" 
-      class="block font-semibold text-black-600">
-      Payout
-    </a>
-
-        </nav>
+        <!-- Desktop nav removed in favor of left sidebar -->
+        <nav class="hidden lg:flex items-center gap-6" aria-hidden="true"></nav>
 
       </div>
 
@@ -110,72 +68,47 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu"
-  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+  <div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
-  <!-- TOP -->
-  <div class="flex items-center justify-between p-4 border-b">
-
-    <h2 class="text-xl font-bold">
-      Menu
-    </h2>
-
-    <button id="closeMenu" class="text-2xl">
-      ✕
-    </button>
-
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  <!-- LINKS -->
-  <div class="p-4 space-y-5">
-
-    <a href="dashboard.html" 
-      class="block font-semibold text-black-600">
-      Dashboard
+  <nav class="p-4 space-y-1">
+    <a href="dashboard.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="browse.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🔎</span>
+      <span>Browse</span>
+    </a>
+    <a href="my-services.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🧾</span>
+      <span>My Services</span>
+    </a>
+    <a href="provider-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>Provider Bookings</span>
+    </a>
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
+    </a>
+    <a href="payout-settings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💳</span>
+      <span>Payout</span>
     </a>
 
-    <a href="browse.html" 
-      class="block font-semibold text-black-600">
-      Browse
-    </a>
-
-    <a href="my-services.html" 
-      class="block font-semibold text-black-600">
-      My Services
-    </a>
-
-    <a href="add-service.html" 
-      class="block font-semibold text-black-600">
-      Become a Provider
-    </a>
-
-    <a href="provider-bookings.html" 
-      class="block font-semibold text-black-600">
-      Provider Bookings
-    </a>
-
-    <a href="my-messages.html" 
-      class="block font-semibold text-black-600">
-      My Messages
-    </a>
-
-    <a href="provider-reviews.html" 
-      class="block font-semibold text-black-600">
-      Provider Reviews
-    </a>
-
-    <a href="payout-settings.html" 
-      class="block font-semibold text-black-600">
-      Payout
-    </a>
-
-    <button id="logoutBtn" 
-      class="text-red-600 font-semibold">
-      Logout
-    </button>
-
-  </div>
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
 
@@ -184,16 +117,51 @@
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 
-
-    <main class="pt-24 px-4 max-w-4xl mx-auto">
-        <div class="flex justify-between items-center mb-6">
+<!-- MAIN CONTENT -->
+<main class="pt-20 pb-12 px-4 md:px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="lg:grid lg:grid-cols-[280px_1fr] gap-6">
+      <aside class="hidden lg:block">
+        <div class="sticky top-20">
+          <nav class="w-20 h-[calc(100vh-6rem)] bg-slate-900 text-white rounded-lg p-2 flex flex-col items-center gap-3">
+            <a href="dashboard.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">🏠</span>
+              <span class="text-xs">Dash</span>
+            </a>
+            <a href="browse.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">🔎</span>
+              <span class="text-xs">Browse</span>
+            </a>
+            <a href="my-services.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">🧾</span>
+              <span class="text-xs">Services</span>
+            </a>
+            <a href="provider-bookings.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">📥</span>
+              <span class="text-xs">Bookings</span>
+            </a>
+            <a href="my-messages.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">💬</span>
+              <span class="text-xs">Messages</span>
+            </a>
+            <a href="payout-settings.html" class="w-full mt-auto p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
+              <span class="text-2xl">💳</span>
+              <span class="text-xs">Payout</span>
+            </a>
+          </nav>
+        </div>
+      </aside>
+      <div>
+          <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold">My Services</h2>
             <a href="add-service.html" class="bg-indigo-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-indigo-700">+ Add Service</a>
-        </div>
+          </div>
 
-        <div id="myServicesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div id="myServicesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Services will be dynamically loaded here -->
+          </div>
         </div>
+      </div>
     </main>
 
     <!-- ================= FOOTER ================= -->
@@ -228,34 +196,43 @@
   </div>
 </footer>
 
-    <script src="./auth.js" type="module"></script>
-    <script src="./my-services.js" type="module"></script>
-    <script src="./menu.js" type="module"></script>
-    <script src="./router.js" type="module"></script>
-    <script src="./notifications.js" type="module"></script>
-    <script src="./notification-service.js" type="module"></script>
+<!-- ================= SCRIPTS ================= -->
+<script src="./my-services.js" type="module"></script>
+<script src="./menu.js" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
 
-    <script src="./loading-utils.js" type="module"></script>
-
-<!--Start of Tawk.to Script-->
-<script type="text/javascript">
-var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-(function(){
-var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-s1.async=true;
-s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
-s1.charset='UTF-8';
-s1.setAttribute('crossorigin','*');  
-s0.parentNode.insertBefore(s1,s0);
-})();
+  console.log(supabase)
 </script>
-<!--End of Tawk.to Script-->
 
-<script src="./loading-utils.js" type="module"></script>
-    <script type="module">
-      import { supabase } from './supabase.js'
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
 
-      console.log(supabase)
-    </script>
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
+
 </body>
-</html>
+  </html>

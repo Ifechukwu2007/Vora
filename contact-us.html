@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contact Us | Vora</title>
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
-<link rel="shortcut icon" href="/favicon.ico">
-<link rel="apple-touch-icon" href="/favicon-192.png">
+<link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
+<link rel="icon" type="image/png" sizes="512x512" href="/vora-logo.svg">
+<link rel="shortcut icon" href="/vora-logo.svg">
+<link rel="apple-touch-icon" href="/vora-logo.svg">
+<link rel="manifest" href="/manifest.json">
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -17,39 +18,17 @@
 <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
   <div class="max-w-7xl mx-auto px-4">
     <div class="flex items-center justify-between h-16">
-      <div class="flex items-center gap-10">
-        <a href="home.html" class="flex items-center">
-          <img src="/vora-logo.png" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
-        </a>
-        <nav class="hidden lg:flex items-center gap-6">
-          <a href="home.html" class="font-semibold text-black-600">Home</a>
-          <a href="browse.html" class="block font-semibold text-black-800">Browse</a>
-          <a href="how-it-works.html" class="block font-semibold text-black-800">How it Works</a>
-        </nav>
-      </div>
+      <a href="home.html" class="flex items-center gap-2">
+        <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
+        <span class="text-2xl font-extrabold text-blue-600">Vora</span>
+      </a>
+
       <div class="flex items-center gap-4">
         <a href="profile.html" data-profile-icon="true" class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center hover:bg-gray-400 transition">👤</a>
-        <button id="logoutBtn" class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">Logout</button>
-        <button id="hamburger" class="lg:hidden text-2xl">☰</button>
       </div>
     </div>
   </div>
 </header>
-
-<!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu" class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50 transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
-  <div class="flex items-center justify-between p-4 border-b">
-    <h2 class="text-xl font-bold">Menu</h2>
-    <button id="closeMenu" class="text-2xl">✕</button>
-  </div>
-  <div class="p-4 space-y-5">
-    <a href="home.html" class="block font-semibold text-black-800">Home</a>
-    <a href="browse.html" class="block font-semibold text-black-800">Browse</a>
-    <a href="how-it-works.html" class="block font-semibold text-black-800">How it Works</a>
-    <a href="add-service.html" class="block font-semibold text-black-800">Become a Provider</a>
-    <button id="logoutBtnSideMenu" class="block text-red-600 font-semibold">Logout</button>
-  </div>
-</div>
 
 <!-- ================= OVERLAY ================= -->
 <div id="menuOverlay" class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"></div>
@@ -66,7 +45,7 @@
         <div class="text-4xl mb-4">📧</div>
         <h3 class="font-bold text-xl mb-2">Email</h3>
         <p class="text-gray-600 mb-4">Send us an email and we'll respond as soon as possible.</p>
-        <a href="mailto:support@vora.com" class="text-blue-600 font-semibold hover:underline">support@vora.com.ng</a>
+        <a href="mailto:vora.support@gmail.com" class="text-blue-600 font-semibold hover:underline">vora.support@gmail.com</a>
       </div>
 
       <!-- Phone -->
@@ -84,7 +63,7 @@
         <p class="text-gray-600 mb-4">Visit our office</p>
         <p class="text-blue-600 font-semibold">
           Vora HQ<br>
-          [Your Address Here]
+          5 C C Ehirim crescent, Federal Housing Estate, Onitsha, Anambra State, Nigeria 
         </p>
       </div>
     </div>
@@ -227,7 +206,6 @@
           <li><a href="contact-us.html" class="hover:text-white transition">Contact Us</a></li>
         </ul>
       </div>
-      </div>
     </div>
     <div class="border-t border-gray-700 pt-8 text-center text-sm">
       <p>&copy; 2026 Vora. All rights reserved.</p>
@@ -236,25 +214,41 @@
 </footer>
 
 <!-- ================= SCRIPTS ================= -->
-<script src="./auth.js" type="module"></script>
-<script src="./menu.js" type="module"></script>
-<script>
-  // Simple form submission handler
-  document.getElementById('contactForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Thank you for your message! We will get back to you soon.');
-    this.reset();
-  });
+<script src="./contact-us.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
 
-  // Make details elements work better
-  document.querySelectorAll('details').forEach(detail => {
-    detail.addEventListener('click', function() {
-      document.querySelectorAll('details').forEach(d => {
-        if (d !== detail) d.open = false;
-      });
-    });
-  });
+  console.log(supabase)
+</script>
+
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
 </script>
 
 </body>
-</html>
+  </html>

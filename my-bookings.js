@@ -166,7 +166,7 @@ function setupLogout() {
 
         await supabase.auth.signOut();
 
-        window.location.href = "index.html";
+        window.location.href = "home.html";
     }
 
     logoutBtn?.addEventListener("click", logout);
@@ -494,9 +494,7 @@ function setupBookingActions() {
                 const bookingTitle = bookingCard?.querySelector("h3")?.textContent || "this booking";
                 const params = new URLSearchParams();
                 params.append("bookingId", bookingId);
-                params.append("amount", String(amount));
-                params.append("title", bookingTitle);
-                window.location.href = `payment.html?${params.toString()}`;
+                window.location.href = `complete-payment.html?bookingId=${bookingId}`;
             } catch (err) {
                 console.error("Payment redirect failed:", err);
                 alert("Failed to open payment page: " + (err.message || err));

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Failed | Vora</title>
+  <link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <main class="mx-auto max-w-3xl px-4 py-20 text-center">
+    <div class="inline-flex items-center justify-center rounded-3xl bg-rose-100 px-4 py-3 text-rose-900 mb-8">
+      <span class="text-2xl mr-2">❌</span>
+      <span class="font-semibold">Payment could not be completed</span>
+    </div>
+    <h1 class="text-4xl font-bold mb-4">Something went wrong</h1>
+    <p class="text-lg text-slate-700 mb-8">Your transaction was not verified. Please try again or contact support if the issue persists.</p>
+    <p class="text-sm text-slate-500 mb-6">Reference: <span id="reference-text">-</span></p>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <a id="retry-link" href="complete-payment.html" class="rounded-3xl bg-slate-900 px-6 py-3 text-white font-semibold hover:bg-slate-800">Retry Payment</a>
+      <a href="contact-us.html" class="rounded-3xl border border-slate-300 px-6 py-3 text-slate-900 font-semibold hover:bg-slate-800 hover:text-white">Contact Support</a>
+    </div>
+  </main>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference');
+    const bookingId = params.get('bookingId');
+    const refEl = document.getElementById('reference-text');
+    const retryLink = document.getElementById('retry-link');
+    if (refEl && reference) {
+      refEl.textContent = reference;
+    }
+    if (retryLink && bookingId) {
+      retryLink.href = `complete-payment.html?bookingId=${encodeURIComponent(bookingId)}`;
+    }
+  </script>
+</body>
+</html>

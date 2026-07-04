@@ -34,39 +34,11 @@
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
 
-        <!-- DESKTOP NAV -->
-        <nav class="hidden lg:flex items-center gap-6">
-
-          <a href="home.html"
-            class="font-semibold text-black-600">
-            Home
-          </a>
-
-          <a href="browse.html"
-            class="block font-semibold text-black-800">
-            Browse
-          </a>
-
-          <a href="my-bookings.html"
-            class="block font-semibold text-black-800">
-            My Bookings
-          </a>
-
-          <a href="my-messages.html"
-            class="block font-semibold text-black-600">
-            My Messages
-          </a>
-
-          <a href="customer-reviews.html"
-            class="block font-semibold text-black-800">
-            Customer Reviews
-          </a>
-
-          <a href="add-service.html"
-            class="font-medium text-black-700 hover:text-black-600 transition">
-            Become a Provider
-          </a>
-
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
         </nav>
 
       </div>
@@ -86,7 +58,7 @@
         </a>
 
         <!-- LOGOUT -->
-        <button id="logoutBtn"
+        <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
@@ -106,62 +78,40 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu"
-  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
-  <!-- TOP -->
-  <div class="flex items-center justify-between p-4 border-b">
-
-    <h2 class="text-xl font-bold">
-      Menu
-    </h2>
-
-    <button id="closeMenu" class="text-2xl">
-      ✕
-    </button>
-
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  <!-- LINKS -->
-  <div class="p-4 space-y-5">
-
-    <a href="home.html"
-      class="block font-semibold text-black-800">
-      Home
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
     </a>
-
-    <a href="browse.html"
-      class="block font-semibold text-black-800">
-      Browse
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
     </a>
-
-    <a href="my-bookings.html"
-      class="block font-semibold text-black-800">
-      My Bookings
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
     </a>
-
-    <a href="my-messages.html"
-      class="block font-semibold text-black-600">
-      My Messages
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
     </a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
 
-    <a href="customer-reviews.html"
-      class="block font-semibold text-black-800">
-      Customer Reviews
-    </a>
-
-    <a href="add-service.html"
-      class="block font-semibold text-black-800">
-      Become a Provider
-    </a> 
-
-    <button id="logoutBtnSideMenu"
-      class="block text-red-600 font-semibold">
-      Logout
-    </button>
-
-  </div>
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
 
@@ -247,32 +197,43 @@
   </div>
 </footer>
 
-<script src="./loading-utils.js" type="module"></script>
-<script src="./auth.js" type="module"></script>
-<script src="./menu.js" type="module"></script>
+<!-- ================= SCRIPTS ================= -->
 <script src="./my-bookings.js" type="module"></script>
-<script src="./notifications.js" type="module"></script>
-<script src="./notification-service.js" type="module"></script>
-<script src="./notification-badge.js" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
 <script type="module">
   import { supabase } from './supabase.js'
 
   console.log(supabase)
 </script>
 
-<!--Start of Tawk.to Script-->
+<!-- ================= TAWK ================= -->
 <script type="text/javascript">
+
 var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
 (function(){
-var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
 s1.async=true;
+
 s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
 s1.charset='UTF-8';
+
 s1.setAttribute('crossorigin','*');
+
 s0.parentNode.insertBefore(s1,s0);
+
 })();
+
 </script>
-<!--End of Tawk.to Script-->
 
 </body>
-</html>
+  </html>

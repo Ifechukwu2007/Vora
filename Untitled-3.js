@@ -181,7 +181,7 @@ async function loadService() {
     if (bookNowBtn) {
       bookNowBtn.onclick = () => {
         LoadingSpinner.navigateTo(
-          `payment.html?serviceId=${service.id}&providerId=${providerId}`
+          `complete-payment.html?serviceId=${service.id}&providerId=${providerId}`
         );
       };
     }

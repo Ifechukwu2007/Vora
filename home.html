@@ -30,39 +30,11 @@
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
 
-        <!-- DESKTOP NAV -->
-        <nav class="hidden lg:flex items-center gap-6">
-
-          <a href="home.html"
-            class="font-semibold text-black-600">
-            Home
-          </a>
-
-          <a href="browse.html"
-            class="block font-semibold text-black-800">
-            Browse
-          </a>  
-
-          <a href="my-bookings.html"
-            class="block font-semibold text-black-800">
-            My Bookings
-          </a>
-
-          <a href="my-messages.html"
-            class="block font-semibold text-black-600">
-            My Messages
-          </a>
-
-          <a href="customer-reviews.html"
-            class="block font-semibold text-black-800">
-            Customer Reviews
-          </a>
-
-          <a href="add-service.html"
-            class="font-medium text-black-700 hover:text-black-600 transition">
-            Become a Provider
-          </a>
-
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
         </nav>
 
       </div>
@@ -82,7 +54,7 @@
         </a>
 
         <!-- LOGOUT -->
-        <button id="logoutBtn"
+        <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
@@ -102,62 +74,40 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu"
-  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
-  <!-- TOP -->
-  <div class="flex items-center justify-between p-4 border-b">
-
-    <h2 class="text-xl font-bold">
-      Menu
-    </h2>
-
-    <button id="closeMenu" class="text-2xl">
-      ✕
-    </button>
-
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  <!-- LINKS -->
-  <div class="p-4 space-y-5">
-
-    <a href="home.html"
-      class="block font-semibold text-black-800">
-      Home
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
     </a>
-
-    <a href="browse.html"
-      class="block font-semibold text-black-800">
-      Browse
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
     </a>
-
-    <a href="my-bookings.html"
-      class="block font-semibold text-black-800">
-      My Bookings
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
     </a>
-
-    <a href="my-messages.html"
-      class="block font-semibold text-black-600">
-      My Messages
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
     </a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
 
-    <a href="customer-reviews.html"
-      class="block font-semibold text-black-800">
-      Customer Reviews
-    </a>
-
-    <a href="add-service.html"
-      class="block font-semibold text-black-800">
-      Become a Provider
-    </a>
-
-    <button id="logoutBtnSideMenu"
-      class="block text-red-600 font-semibold">
-      Logout
-    </button>
-
-  </div>
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
 
@@ -167,175 +117,74 @@
 </div>
 
 <!-- ================= HERO ================= -->
-<section class="pt-28 pb-20 px-6 text-center bg-white">
+<section class="pt-28 pb-8 px-4 md:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto">
+    <div class="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-pink-500 via-rose-500 to-orange-400 p-8 md:p-12 text-white shadow-2xl">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_35%)]"></div>
+      <div class="relative z-10 max-w-3xl">
+        <div class="inline-flex items-center rounded-full border border-white/40 bg-white/15 px-3 py-1 text-sm font-medium backdrop-blur">
+          ✨ Your next service, made simple
+        </div>
+        <h1 class="mt-4 text-4xl md:text-6xl font-semibold leading-tight">
+          Book services that feel effortless.
+        </h1>
+        <p id="heroSubtitle" class="mt-4 max-w-2xl text-lg text-pink-50">
+          Discover trusted experts near you and save time with a smoother booking experience.
+        </p>
 
-  <h1 class="text-4xl md:text-5xl font-bold mb-4">
-    Find the Right Service, Fast
-  </h1>
+        <div class="mt-8 max-w-2xl">
+          <div class="flex flex-col gap-3 rounded-2xl bg-white/95 p-3 shadow-xl sm:flex-row sm:items-center">
+            <div class="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input id="heroSearchInput" type="text" placeholder="Search by name, location, price, category or need..." class="w-full border-0 bg-transparent text-gray-700 outline-none placeholder:text-gray-400" />
+            </div>
+            <button id="heroSearchBtn" class="rounded-xl bg-black px-5 py-3 font-semibold text-white transition hover:bg-gray-800">
+              Search
+            </button>
+          </div>
+          <div id="heroSearchSuggestions" class="mt-2 hidden rounded-2xl border border-gray-100 bg-white p-2 shadow-xl"></div>
+        </div>
 
-  <p class="text-gray-600 max-w-xl mx-auto mb-6">
-    Connect with trusted providers for any service you need anytime, anywhere.
-  </p>
-
-  <!-- SEARCH -->
-  <div class="flex max-w-xl mx-auto">
-
-    <input
-      type="text"
-      id="homeSearchInput"
-      placeholder="What service do you need?"
-      class="w-full p-4 border rounded-l-md focus:outline-none"
-    >
-
-    <button
-      id="homeSearchBtn"
-      class="bg-black text-white px-6 rounded-r-md">
-      Search
-    </button>
-
+        <div id="heroAuthNotice" class="mt-6 flex flex-wrap gap-3"></div>
+      </div>
+    </div>
   </div>
-
 </section>
 
-<!-- ================= CATEGORIES ================= -->
-<section class="px-4 md:px-6 py-16 bg-gray-50"> 
-
-  <div class="max-w-6xl mx-auto">
-
-    <h2 class="text-3xl font-bold mb-10">
-      Explore by Category
-    </h2>
-
-    <div id="categoriesContainer"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-
-      <p class="col-span-full text-center text-gray-500">
-        Loading categories...
-      </p>
-
-    </div>
-
-    <div class="text-center mt-10">
-
-      <a href="browse.html"
-        class="inline-block bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition">
-        Explore More →
-      </a>
-
-    </div>
-
+<!-- ================= CONTENT ================= -->
+<section class="px-4 pb-16 md:px-6 lg:px-8">
+  <div class="mx-auto max-w-7xl space-y-10">
+    <div id="homepageSections"></div>
   </div>
-
-</section>
-
-<!-- ================= HOW IT WORKS ================= -->
-<section class="bg-white py-16 px-6">
-
-  <h2 class="text-3xl font-bold text-center mb-12">
-    How Vora Works
-  </h2>
-
-  <div class="grid md:grid-cols-3 gap-10 max-w-5xl mx-auto text-center">
-
-    <div>
-
-      <div class="text-5xl mb-4">🔍</div>
-
-      <h3 class="font-bold text-xl mb-2">
-        Browse
-      </h3>
-
-      <p class="text-gray-600">
-        Find the exact service you need
-      </p>
-
-    </div>
-
-    <div>
-
-      <div class="text-5xl mb-4">📅</div>
-
-      <h3 class="font-bold text-xl mb-2">
-        Book
-      </h3>
-
-      <p class="text-gray-600">
-        Choose provider and time
-      </p>
-
-    </div>
-
-    <div>
-
-      <div class="text-5xl mb-4">✅</div>
-
-      <h3 class="font-bold text-xl mb-2">
-        Get It Done
-      </h3>
-
-      <p class="text-gray-600">
-        Complete the service easily
-      </p>
-
-    </div>
-
-  </div>
-
-</section>
-
-<!-- ================= CTA ================= -->
-<section class="bg-black text-white py-20 text-center px-6">
-
-  <h2 class="text-4xl font-bold mb-4">
-    Start earning with Vora
-  </h2>
-
-  <p class="mb-8 text-gray-300">
-    Become a provider and grow your business today
-  </p>
-
-  <div class="flex flex-col sm:flex-row justify-center gap-4">
-
-    <a href="add-service.html"
-      class="bg-white text-black px-8 py-3 rounded-lg font-semibold">
-      Become a Provider
-    </a>
-
-    <a href="browse.html"
-      class="bg-white text-black px-8 py-3 rounded-lg font-semibold">
-      Browse Services
-    </a>
-
-  </div>
-
 </section>
 
 <!-- ================= FOOTER ================= -->
-<footer class="bg-gray-900 text-gray-300 py-12 px-6">
-  <div class="max-w-6xl mx-auto">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+<footer class="bg-gray-900 px-6 py-12 text-gray-300">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-8 grid gap-8 md:grid-cols-4">
       <div>
-        <h3 class="text-white font-bold mb-4">Vora</h3>
-        <p class="text-sm">Connecting trusted providers with customers for any service needed.</p>
+        <h3 class="mb-4 font-bold text-white">Vora</h3>
+        <p class="text-sm">Connecting trusted providers with customers in a simple, modern way.</p>
       </div>
       <div>
-        <h3 class="text-white font-bold mb-4">Quick Links</h3>
+        <h3 class="mb-4 font-bold text-white">Quick Links</h3>
         <ul class="space-y-2 text-sm">
-          <li><a href="home.html" class="hover:text-white transition">Home</a></li>
-          <li><a href="browse.html" class="hover:text-white transition">Browse Services</a></li>
-          <li><a href="how-it-works.html" class="hover:text-white transition">How it Works</a></li>
-          <li><a href="add-service.html" class="hover:text-white transition">Become a Provider</a></li>
+          <li><a href="home.html" class="transition hover:text-white">Home</a></li>
+          <li><a href="browse.html" class="transition hover:text-white">Browse Services</a></li>
+          <li><a href="how-it-works.html" class="transition hover:text-white">How it Works</a></li>
+          <li><a href="add-service.html" class="transition hover:text-white">Become a Provider</a></li>
         </ul>
       </div>
       <div>
-        <h3 class="text-white font-bold mb-4">Legal</h3>
+        <h3 class="mb-4 font-bold text-white">Legal</h3>
         <ul class="space-y-2 text-sm">
-          <li><a href="privacy-policy.html" class="hover:text-white transition">Privacy Policy</a></li>
-          <li><a href="terms-of-service.html" class="hover:text-white transition">Terms of Service</a></li>
+          <li><a href="privacy-policy.html" class="transition hover:text-white">Privacy Policy</a></li>
+          <li><a href="terms-of-service.html" class="transition hover:text-white">Terms of Service</a></li>
         </ul>
       </div>
-      <div>
-      </div>
+      <div></div>
     </div>
     <div class="border-t border-gray-700 pt-8 text-center text-sm">
       <p>&copy; 2026 Vora. All rights reserved.</p>
@@ -382,4 +231,4 @@ s0.parentNode.insertBefore(s1,s0);
 </script>
 
 </body>
-      </html>
+  </html>-->>

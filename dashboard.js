@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const winRateBar = document.getElementById('winRateBar');
     const winRatePercent = document.getElementById('winRatePercent');
 
-    const logoutBtns = document.querySelectorAll('[data-logout], #logoutBtn');
+    const logoutBtns = document.querySelectorAll('[data-logout], button[id^="logoutBtn"]');
 
     // =========================
     // LOGOUT
@@ -31,18 +31,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             await supabase.auth.signOut();
-            window.location.href = 'index.html';
+            window.location.href = 'home.html';
         });
     });
 
     // =========================
     // GET USER
     // =========================
-    const authResp = await supabase.auth.getUser();
-    const user = authResp?.data?.user;
-    const authError = authResp?.error;
+    const isFileProtocol = window.location.protocol === 'file:';
+    let user = null;
+    try {
+        const authResp = await supabase.auth.getUser();
+        user = authResp?.data?.user || null;
+    } catch (err) {
+        console.warn('Auth lookup failed, falling back to preview if local', err);
+        user = null;
+    }
 
-    if (authError || !user) {
+    if (!user && isFileProtocol) {
+        // allow preview when opened from file system
+        user = { id: 'preview-user', email: 'preview@vora.com' };
+    }
+
+    if (!user) {
         window.location.href = 'login.html';
         return;
     }
