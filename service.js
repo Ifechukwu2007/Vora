@@ -212,12 +212,20 @@ async function loadService() {
           </p>
         </div>
 
-        <div>
-          <p class="text-sm text-gray-500">Provider Location</p>
-          <p class="text-gray-700">
-            ${providerProfile?.location || service.location || 'Not specified'}
-          </p>
-          <div id="serviceMap" class="h-96 w-full rounded-xl overflow-hidden mt-6 border border-gray-200"></div>
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Location</p>
+              <h3 class="mt-2 text-xl font-bold text-slate-900">Where you'll meet</h3>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                ${providerProfile?.location || service.location || 'Not specified'}
+              </p>
+            </div>
+            <div class="inline-flex items-center rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm border border-slate-200">
+              📍 Exact spot shared after booking
+            </div>
+          </div>
+          <div id="serviceMap" class="mt-6 h-[420px] w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
         </div>
 
         <div class="fixed bottom-0 left-0 w-full bg-white border-t p-4">
@@ -363,8 +371,11 @@ function renderMapError(message) {
   const mapElement = document.getElementById('serviceMap');
   if (!mapElement) return;
   mapElement.innerHTML = `
-    <div class="flex items-center justify-center h-full text-sm text-gray-600 px-4 text-center">
-      ${message}
+    <div class="flex h-full items-center justify-center bg-slate-50 px-6 text-center text-sm leading-6 text-slate-600">
+      <div class="max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p class="text-base font-semibold text-slate-900">Location preview unavailable</p>
+        <p class="mt-2">${message}</p>
+      </div>
     </div>
   `;
 }
@@ -388,14 +399,14 @@ function renderRouteSummary(distanceMeters, durationSeconds) {
 
   const summary = document.createElement('div');
   summary.id = 'routeSummary';
-  summary.className = 'absolute top-4 left-4 right-4 bg-white/95 border border-gray-200 rounded-3xl p-4 shadow-lg backdrop-blur-sm text-sm text-gray-800';
+  summary.className = 'absolute left-4 right-4 top-4 z-10 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur-sm';
   summary.innerHTML = `
     <div class="flex items-center justify-between gap-4">
       <div>
-        <p class="font-semibold text-gray-900">Route to provider</p>
-        <p class="text-xs text-gray-600">${distanceText} · ${durationText}</p>
+        <p class="text-sm font-semibold text-slate-900">Route preview</p>
+        <p class="text-xs text-slate-600">${distanceText} · ${durationText}</p>
       </div>
-      <div class="inline-flex items-center rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">Live route</div>
+      <div class="inline-flex items-center rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">Live route</div>
     </div>
   `;
 
@@ -480,8 +491,8 @@ async function renderServiceMap(service, providerProfile) {
     const map = new maplibregl.Map({
       container: mapElement,
       style: MAPTILER_STYLE_URL,
-      center: origin || destination,
-      zoom: origin ? 11 : 12,
+      center: destination,
+      zoom: 13,
     });
 
     map.on('load', () => {
@@ -516,12 +527,15 @@ async function renderServiceMap(service, providerProfile) {
 
         bounds.extend(destination);
         if (origin) bounds.extend(origin);
-        map.fitBounds(bounds, { padding: 60 });
-
+        map.fitBounds(bounds, { padding: 70 });
         renderRouteSummary(route.distance, route.duration);
+      } else {
+        const bounds = new maplibregl.LngLatBounds(destination, destination);
+        if (origin) bounds.extend(origin);
+        map.fitBounds(bounds, { padding: 70 });
       }
 
-      new maplibregl.Marker({ color: '#0000ff' })
+      new maplibregl.Marker({ color: '#2563eb' })
         .setLngLat(destination)
         .setPopup(new maplibregl.Popup({ offset: 25 }).setText(providerLocation))
         .addTo(map);
@@ -532,7 +546,8 @@ async function renderServiceMap(service, providerProfile) {
           .setPopup(new maplibregl.Popup({ offset: 25 }).setText('Your current position'))
           .addTo(map);
       } else {
-        renderMapError('Allow location access to see the route like a ride-hailing app.');
+        map.setCenter(destination);
+        map.setZoom(13);
       }
     });
   } catch (error) {

@@ -73,6 +73,39 @@ async function geocodeAddress(address) {
     }
 }
 
+async function getCurrentPosition() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            resolve(null);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => resolve([
+                Number(position.coords.longitude),
+                Number(position.coords.latitude),
+            ]),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
+    });
+}
+
+async function getDirections(origin, destination) {
+    if (!MAPTILER_KEY || !origin || !destination) return null;
+
+    try {
+        const response = await fetch(
+            `https://api.maptiler.com/directions/driving/car.json?key=${MAPTILER_KEY}&start=${origin[0]},${origin[1]}&end=${destination[0]},${destination[1]}&geometries=geojson&overview=full`
+        );
+        const data = await response.json();
+        return data?.routes?.[0] || null;
+    } catch (error) {
+        console.error('MapTiler directions failed:', error);
+        return null;
+    }
+}
+
 async function renderBookingMap(container, location) {
     if (!container || !location) {
         container.innerHTML = '<div class="h-40 flex items-center justify-center text-sm text-gray-500">Location unavailable</div>';
@@ -93,38 +126,56 @@ async function renderBookingMap(container, location) {
     }
 
     try {
-        let userMarker = null;
-        let userLocation = null;
+        const origin = await getCurrentPosition();
+        const route = origin ? await getDirections(origin, destination) : null;
 
         const map = new maplibregl.Map({
             container,
             style: MAPTILER_STYLE_URL,
             center: destination,
-            zoom: 14,
+            zoom: 13,
             attributionControl: false
         });
 
         map.on('load', () => {
+            if (route?.geometry?.coordinates) {
+                map.addSource('route', {
+                    type: 'geojson',
+                    data: { type: 'Feature', geometry: route.geometry },
+                });
+
+                map.addLayer({
+                    id: 'routeLine',
+                    type: 'line',
+                    source: 'route',
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: { 'line-color': '#2563eb', 'line-width': 6, 'line-opacity': 0.85 },
+                });
+
+                const bounds = route.geometry.coordinates.reduce(
+                    (b, coord) => b.extend(coord),
+                    new maplibregl.LngLatBounds(route.geometry.coordinates[0], route.geometry.coordinates[0])
+                );
+                bounds.extend(destination);
+                if (origin) bounds.extend(origin);
+                map.fitBounds(bounds, { padding: 70 });
+            } else {
+                const bounds = new maplibregl.LngLatBounds(destination, destination);
+                if (origin) bounds.extend(origin);
+                map.fitBounds(bounds, { padding: 70 });
+            }
+
             new maplibregl.Marker({ color: '#2563eb' })
                 .setLngLat(destination)
-                .setPopup(new maplibregl.Popup({ offset: 25 }).setText(location))
+                .setPopup(new maplibregl.Popup({ offset: 25 }).setText(location || 'Provider location'))
                 .addTo(map);
 
-            watchUserLocation(container, (coords) => {
-                userLocation = coords;
-                
-                if (!userMarker) {
-                    userMarker = new maplibregl.Marker({ color: '#ef4444', scale: 1.2 })
-                        .setLngLat(coords)
-                        .setPopup(new maplibregl.Popup({ offset: 25 }).setText('Your location'))
-                        .addTo(map);
-                } else {
-                    userMarker.setLngLat(coords);
-                }
-
-                const bounds = new maplibregl.LngLatBounds(destination, coords);
-                map.fitBounds(bounds, { padding: 80 });
-            });
+            if (origin) {
+                new maplibregl.Marker({ color: '#10b981' })
+                    .setLngLat(origin)
+                    .setPopup(new maplibregl.Popup({ offset: 25 }).setText('Your location'))
+                    .addTo(map);
+            }
         });
     } catch (error) {
         console.error('Failed to initialize booking map:', error);

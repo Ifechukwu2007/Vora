@@ -41,6 +41,7 @@ function statusBadgeClass(status) {
   if (s === "accepted") return "bg-blue-100 text-blue-700";
   if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
   if (s === "completed" || s === "completed_by_provider") return "bg-emerald-100 text-emerald-700";
+  if (s === "awaiting_customer_approval") return "bg-purple-100 text-purple-700";
   if (s === "cancelled" || s === "declined") return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
 }
@@ -63,22 +64,27 @@ const MAPTILER_STYLE_URL = MAPTILER_KEY
   : '';
 
 function cardHtml(b) {
-  return `
-    <div class="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-200">
-      <div class="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <div class="relative overflow-hidden bg-slate-100">
-          ${b.serviceImage ? `<img src="${escapeHtml(b.serviceImage)}" alt="${escapeHtml(b.serviceTitle)}" class="h-full w-full object-cover" onerror="this.style.display='none'">` : `<div class="flex h-full min-h-[260px] items-center justify-center text-slate-500">No image available</div>`}
-          <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/70 to-transparent p-4">
-            <span class="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">Reservation request</span>
-          </div>
-        </div>
+  const status = String(b.status || 'pending').toLowerCase();
+  const actionButtons = getActionButtonsHtml(b, status);
 
-        <div class="p-6 space-y-5">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div class="space-y-2">
+  return `
+    <div class="bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition border border-slate-200">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+        <div class="flex-1">
+          ${b.serviceImage ? `
+            <div class="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+              <img src="${escapeHtml(b.serviceImage)}" alt="${escapeHtml(b.serviceTitle)}" class="h-48 w-full object-cover" onerror="this.style.display='none'">
+            </div>
+          ` : `
+            <div class="mb-5 flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-sm text-slate-500">
+              No service image available
+            </div>
+          `}
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
               <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Hosting request</p>
-              <h3 class="text-2xl font-semibold text-slate-900">${escapeHtml(b.serviceTitle)}</h3>
-              <p class="text-sm text-slate-600">${escapeHtml(b.location)}</p>
+              <h3 class="mt-2 text-2xl font-semibold text-slate-900">${escapeHtml(b.serviceTitle)}</h3>
+              <p class="mt-2 text-sm text-slate-600">${escapeHtml(b.location)}</p>
             </div>
             <div class="inline-flex items-center gap-3 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
               <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600">💰</span>
@@ -86,9 +92,9 @@ function cardHtml(b) {
             </div>
           </div>
 
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Guest</p>
+          <div class="mt-6 grid gap-4 md:grid-cols-2">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Customer</p>
               <div class="mt-4 flex items-center gap-3">
                 <div class="h-14 w-14 overflow-hidden rounded-full bg-slate-200">
                   <img src="${escapeHtml(b.customerPicture)}" alt="${escapeHtml(b.customerName)}" class="h-full w-full object-cover" onerror="this.style.display='none'">
@@ -101,8 +107,8 @@ function cardHtml(b) {
               </div>
             </div>
 
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Reservation</p>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Booking</p>
               <div class="mt-4 space-y-3 text-sm text-slate-700">
                 <div class="flex items-center justify-between gap-3">
                   <span class="font-semibold text-slate-900">Date</span>
@@ -114,30 +120,65 @@ function cardHtml(b) {
                 </div>
                 <div class="flex items-center justify-between gap-3">
                   <span class="font-semibold text-slate-900">Status</span>
-                  <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">${escapeHtml(b.status || 'Pending')}</span>
+                  <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(b.status)}">${escapeHtml((b.status || 'Pending').replace(/_/g, ' '))}</span>
                 </div>
               </div>
             </div>
           </div>
 
           ${b.specialInstructions ? `
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
               <div class="font-semibold text-slate-900 mb-2">Guest note</div>
               <div>${escapeHtml(b.specialInstructions)}</div>
             </div>
           ` : ''}
+        </div>
 
-          <div class="flex flex-wrap gap-3">
-            <button data-action="accept" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700">Accept</button>
-            <button data-action="decline" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 border border-red-100 transition hover:bg-red-100">Decline</button>
-            <button data-action="complete" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">Complete</button>
-            <button data-action="cancel" data-id="${escapeHtml(b.bookingId)}" class="min-w-[140px] rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-700 border border-yellow-100 transition hover:bg-yellow-100">Cancel</button>
-            <button data-action="showmap" data-id="${escapeHtml(b.bookingId)}" data-location="${escapeHtml(b.location)}" class="min-w-[220px] rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 border border-slate-200 transition hover:bg-slate-200">📍 View on Google Maps</button>
-          </div>
+        <div class="flex flex-col gap-3 w-full lg:w-56">
+          ${actionButtons}
+          <button data-action="showmap" data-id="${escapeHtml(b.bookingId)}" data-location="${escapeHtml(b.location)}" class="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 border border-slate-200 transition hover:bg-slate-200">📍 View on Google Maps</button>
         </div>
       </div>
     </div>
   `;
+}
+
+function getActionButtonsHtml(b, status) {
+  const bookingId = escapeHtml(b.bookingId);
+  const baseClass = 'rounded-2xl px-4 py-3 text-sm font-semibold transition';
+
+  if (status === 'pending') {
+    return `
+      <button data-action="accept" data-id="${bookingId}" class="${baseClass} bg-indigo-600 text-white hover:bg-indigo-700">Accept</button>
+      <button data-action="decline" data-id="${bookingId}" class="${baseClass} bg-red-50 text-red-700 border border-red-100 hover:bg-red-100">Decline</button>
+    `;
+  }
+
+  if (status === 'accepted') {
+    return `<button data-action="start-work" data-id="${bookingId}" class="${baseClass} bg-slate-900 text-white hover:bg-slate-800">Start Work</button>`;
+  }
+
+  if (status === 'in_progress') {
+    return `<button data-action="complete-work" data-id="${bookingId}" class="${baseClass} bg-emerald-600 text-white hover:bg-emerald-700">Completed</button>`;
+  }
+
+  if (status === 'completed_by_provider') {
+    return `<button data-action="mark-done" data-id="${bookingId}" class="${baseClass} bg-amber-600 text-white hover:bg-amber-700">Mark As Done</button>`;
+  }
+
+  if (status === 'awaiting_customer_approval') {
+    return `<div class="rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 border border-purple-100">Awaiting customer approval</div>`;
+  }
+
+  if (status === 'paid') {
+    return `<div class="rounded-2xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 border border-green-100">Paid</div>`;
+  }
+
+  if (status === 'cancelled' || status === 'declined') {
+    return `<div class="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 border border-red-100">${status === 'cancelled' ? 'Cancelled' : 'Declined'}</div>`;
+  }
+
+  return '';
 }
 
 // perform a status update on a booking
@@ -166,12 +207,12 @@ function bindActionButtons(preview){
         } else if (action==='decline'){
           if (!confirm('Decline this booking?')) return;
           btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'declined'); toast('Booking declined'); await refreshCurrentBookings();
-        } else if (action==='complete'){
-          if (!confirm('Mark booking complete?')) return;
-          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Booking completed'); await refreshCurrentBookings();
-        } else if (action==='cancel'){
-          if (!confirm('Cancel this booking?')) return;
-          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'cancelled'); toast('Booking cancelled'); await refreshCurrentBookings();
+        } else if (action==='start-work'){
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'in_progress'); toast('Work started'); await refreshCurrentBookings();
+        } else if (action==='complete-work'){
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Marked as completed'); await refreshCurrentBookings();
+        } else if (action==='mark-done'){
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'awaiting_customer_approval'); toast('Awaiting customer approval'); await refreshCurrentBookings();
         } else if (action==='showmap'){
           const location = btn.dataset.location || '';
           openCustomerLocationModal(location);
@@ -307,6 +348,39 @@ async function geocodeLocation(address) {
   }
 }
 
+async function getCurrentPosition() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve([
+        Number(position.coords.longitude),
+        Number(position.coords.latitude),
+      ]),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  });
+}
+
+async function getDirections(origin, destination) {
+  if (!MAPTILER_KEY || !origin || !destination) return null;
+
+  try {
+    const response = await fetch(
+      `https://api.maptiler.com/directions/driving/car.json?key=${MAPTILER_KEY}&start=${origin[0]},${origin[1]}&end=${destination[0]},${destination[1]}&geometries=geojson&overview=full`
+    );
+    const data = await response.json();
+    return data?.routes?.[0] || null;
+  } catch (error) {
+    console.error('MapTiler directions failed:', error);
+    return null;
+  }
+}
+
 async function renderLocationMap(location, containerEl, navBtn) {
   if (!containerEl) return;
 
@@ -333,19 +407,56 @@ async function renderLocationMap(location, containerEl, navBtn) {
   containerEl.innerHTML = '';
 
   try {
+    const origin = await getCurrentPosition();
+    const route = origin ? await getDirections(origin, coords) : null;
+
     const map = new maplibregl.Map({
       container: containerEl,
       style: MAPTILER_STYLE_URL,
       center: coords,
-      zoom: 14,
+      zoom: 13,
       attributionControl: true,
     });
 
     map.on('load', () => {
-      new maplibregl.Marker({ color: '#ef4444' })
+      if (route?.geometry?.coordinates) {
+        map.addSource('route', {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: route.geometry },
+        });
+
+        map.addLayer({
+          id: 'routeLine',
+          type: 'line',
+          source: 'route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#2563eb', 'line-width': 6, 'line-opacity': 0.85 },
+        });
+
+        const bounds = route.geometry.coordinates.reduce(
+          (b, coord) => b.extend(coord),
+          new maplibregl.LngLatBounds(route.geometry.coordinates[0], route.geometry.coordinates[0])
+        );
+        bounds.extend(coords);
+        if (origin) bounds.extend(origin);
+        map.fitBounds(bounds, { padding: 70 });
+      } else {
+        const bounds = new maplibregl.LngLatBounds(coords, coords);
+        if (origin) bounds.extend(origin);
+        map.fitBounds(bounds, { padding: 70 });
+      }
+
+      new maplibregl.Marker({ color: '#2563eb' })
         .setLngLat(coords)
         .setPopup(new maplibregl.Popup({ offset: 20 }).setText('Customer Location'))
         .addTo(map);
+
+      if (origin) {
+        new maplibregl.Marker({ color: '#10b981' })
+          .setLngLat(origin)
+          .setPopup(new maplibregl.Popup({ offset: 20 }).setText('Your location'))
+          .addTo(map);
+      }
     });
   } catch (error) {
     console.error('MapTiler map render failed:', error);

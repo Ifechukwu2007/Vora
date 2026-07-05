@@ -23,6 +23,17 @@ let currentFilters = {
     sort: 'newest'
 };
 
+function resetFiltersUI() {
+    const searchInput = document.getElementById('filterSearch');
+    if (searchInput) searchInput.value = '';
+
+    const locationInput = document.getElementById('filterLocation');
+    if (locationInput) locationInput.value = '';
+
+    const categorySelect = document.getElementById('filterCategory');
+    if (categorySelect) categorySelect.value = 'All';
+}
+
 function normalizeCategory(value) {
     return (value || '').trim().toLowerCase();
 }
@@ -257,34 +268,26 @@ function pageToSection(sectionId) {
     section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderCategoryPills(categories) {
-    const pillContainer = document.getElementById('categoryPills');
-    if (!pillContainer) return;
+function populateFilterCategoryOptions(services) {
+    const select = document.getElementById('filterCategory');
+    if (!select) return;
 
-    const selected = normalizeCategory(currentFilters.category);
-    const items = ['All', ...categories];
+    const categories = getCategoryOptions(services);
+    const currentValue = select.value || 'All';
+    select.innerHTML = '<option value="All">Any category</option>';
 
-    pillContainer.innerHTML = items.map((category) => {
-        const isSelected = normalizeCategory(category) === selected;
-        return `
-            <button type="button" data-category="${category}" class="shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
-                ${category}
-            </button>
-        `;
-    }).join('');
-
-    pillContainer.querySelectorAll('[data-category]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const category = button.getAttribute('data-category') || 'All';
-            currentFilters.category = category;
-            const select = document.getElementById('filterCategory');
-            if (select) {
-                select.value = category;
-            }
-            applyFilters();
-            pageToSection('popularNearYouSection');
-        });
+    categories.forEach((category) => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
     });
+
+    if (categories.includes(currentValue)) {
+        select.value = currentValue;
+    } else {
+        select.value = 'All';
+    }
 }
 
 function getCategoryOptions(services) {
@@ -296,18 +299,7 @@ function getCategoryOptions(services) {
 }
 
 function populateCategories(select, services) {
-    const categories = getCategoryOptions(services);
-    if (select) {
-        select.innerHTML = '<option value="All">All Categories</option>';
-        categories.forEach((category) => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            select.appendChild(option);
-        });
-    }
-    renderCategoryPills(categories);
-    return categories;
+    return [];
 }
 
 function getMostCommonLocation() {
@@ -323,201 +315,107 @@ function getMostCommonLocation() {
 }
 
 function renderPopularNearYouSection() {
-    const section = document.getElementById('popularNearYouSection');
-    if (!section) return;
-
-    const location = currentFilters.location.trim() || getMostCommonLocation();
-    if (!location) {
-        section.innerHTML = '';
-        return;
-    }
-
-    const nearby = allServices.filter((service) => (service.location || '').toLowerCase().includes(location.toLowerCase()));
-    if (!nearby.length) {
-        section.innerHTML = '';
-        return;
-    }
-
-    const topNearby = getSortedServices(nearby).slice(0, 4);
-    section.innerHTML = `
-        <div class="mb-5 flex items-center justify-between gap-4">
-            <div>
-                <h2 class="text-2xl font-semibold text-slate-900">Popular near ${location}</h2>
-                <p class="mt-2 text-sm text-slate-500">Top picks from your selected or most common location.</p>
-            </div>
-            <button id="viewAllNearYou" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">View all</button>
-        </div>
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            ${topNearby.map((service) => {
-                const isWishlisted = userWishlist.includes(service.id);
-                return `
-                <div onclick="window.location.href='service.html?id=${service.id}'" class="group cursor-pointer overflow-hidden rounded-3xl bg-white shadow-sm transition hover:shadow-lg">
-                    <div class="relative">
-                        <img src="${service.image_url || 'https://placehold.co/600x400'}" alt="${service.title}" class="h-44 w-full object-cover transition duration-300 group-hover:scale-105" />
-                        <button type="button" data-wishlist-id="${service.id}" class="wishlistBtn absolute top-3 right-3 rounded-full bg-white p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
-                    </div>
-                    <div class="p-4">
-                        <p class="text-sm font-semibold text-slate-900">${service.title}</p>
-                        <p class="mt-1 text-sm text-slate-500">${service.category || 'Service'}</p>
-                        <p class="mt-3 text-sm font-semibold text-slate-900">${formatPrice(Number(service.price || 0) + (Number(service.price || 0) * currentBuiltInMargin / 100))}</p>
-                    </div>
-                </div>
-            `}).join('')}
-        </div>
-    `;
-
-    section.querySelectorAll('[data-wishlist-id]').forEach((button) => {
-        button.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const serviceId = button.getAttribute('data-wishlist-id');
-            if (serviceId) toggleWishlist(serviceId);
-        });
-    });
-
-    const viewAllBtn = document.getElementById('viewAllNearYou');
-    viewAllBtn?.addEventListener('click', () => {
-        currentFilters.category = 'All';
-        currentFilters.search = '';
-        currentFilters.location = location;
-        const filterCategory = document.getElementById('filterCategory');
-        if (filterCategory) filterCategory.value = 'All';
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = '';
-        applyFilters();
-        pageToSection('servicesGrid');
-    });
+    return;
 }
 
 function renderExploreCategoriesSection() {
-    const section = document.getElementById('exploreCategoriesSection');
-    if (!section) return;
-
-    const categories = getCategoryOptions(allServices);
-    if (!categories.length) {
-        section.innerHTML = '';
-        return;
-    }
-
-    const categoryCounts = categories.map((category) => ({
-        category,
-        count: allServices.filter((service) => normalizeCategory(service.category) === normalizeCategory(category)).length
-    }));
-    const topCategories = categoryCounts.slice(0, 6);
-
-    section.innerHTML = `
-        <div class="mb-5 flex items-center justify-between gap-4">
-            <div>
-                <h2 class="text-2xl font-semibold text-slate-900">Explore more categories</h2>
-                <p class="mt-2 text-sm text-slate-500">Any category added by users will appear here automatically.</p>
-            </div>
-        </div>
-        <div class="no-scrollbar flex gap-4 overflow-x-auto pb-2">
-            ${topCategories.map((item) => `
-                <button type="button" data-category-card="${item.category}" class="min-w-[170px] rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md">
-                    <p class="text-sm font-semibold text-slate-900">${item.category}</p>
-                    <p class="mt-3 text-sm text-slate-500">${item.count} service${item.count === 1 ? '' : 's'}</p>
-                </button>
-            `).join('')}
-        </div>
-    `;
-
-    section.querySelectorAll('[data-category-card]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const category = button.getAttribute('data-category-card') || 'All';
-            currentFilters.category = category;
-            const select = document.getElementById('filterCategory');
-            if (select) select.value = category;
-            applyFilters();
-            pageToSection('servicesGrid');
-        });
-    });
+    return;
 }
 
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const searchButton = document.getElementById('searchButton');
-    const suggestions = document.getElementById('heroSearchSuggestions');
+function setupFiltersPopover() {
+    const toggleButton = document.getElementById('filtersToggle');
+    const popover = document.getElementById('filtersPopover');
+    const filterSearch = document.getElementById('filterSearch');
     const filterLocation = document.getElementById('filterLocation');
     const filterCategory = document.getElementById('filterCategory');
+    const useLocationBtn = document.getElementById('useLocationBtn');
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
 
-    if (!searchInput || !searchButton || !suggestions) return;
+    if (!toggleButton || !popover) return;
 
-    const updateSuggestions = (value) => {
-        const term = (value || '').trim().toLowerCase();
-        if (!term) {
-            suggestions.innerHTML = '';
-            suggestions.classList.add('hidden');
-            return;
-        }
-
-        const options = [
-            ...new Set([
-                ...allServices.map((service) => service.title).filter(Boolean),
-                ...allServices.map((service) => service.category).filter(Boolean),
-                ...allServices.map((service) => service.location).filter(Boolean),
-                ...allServices.map((service) => providerMap[service.provider_id]?.full_name).filter(Boolean),
-                'Wedding Makeup',
-                'Nails',
-                'Facial',
-                'Hair Styling'
-            ])
-        ]
-            .filter((item) => item.toLowerCase().includes(term))
-            .slice(0, 6);
-
-        suggestions.innerHTML = options.length
-            ? options.map((item) => `
-                <button type="button" data-suggestion="${item}" class="w-full text-left rounded-2xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100">
-                    ${item}
-                </button>
-            `).join('')
-            : '<div class="px-3 py-2 text-sm text-slate-500">No suggestions yet.</div>';
-
-        suggestions.classList.toggle('hidden', !options.length);
+    const closePopover = () => {
+        popover.classList.add('hidden');
     };
 
-    const performSearch = (value) => {
-        currentFilters.search = (value || '').trim();
-        currentFilters.category = filterCategory?.value || currentFilters.category;
-        currentFilters.location = filterLocation?.value.trim() || currentFilters.location;
-        currentFilters.maxPrice = document.getElementById('filterMaxPrice')?.value || currentFilters.maxPrice;
-        applyFilters();
+    const openPopover = () => {
+        popover.classList.remove('hidden');
     };
 
-    searchButton.addEventListener('click', () => {
-        performSearch(searchInput.value);
-        suggestions.classList.add('hidden');
-    });
-
-    searchInput.addEventListener('input', (event) => {
-        updateSuggestions(event.target.value);
-    });
-
-    searchInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            performSearch(searchInput.value);
-            suggestions.classList.add('hidden');
-        }
-    });
-
-    suggestions.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-suggestion]');
-        if (!button) return;
-        const value = button.getAttribute('data-suggestion');
-        searchInput.value = value;
-        performSearch(value);
-        suggestions.classList.add('hidden');
+    toggleButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        popover.classList.contains('hidden') ? openPopover() : closePopover();
     });
 
     document.addEventListener('click', (event) => {
-        if (!searchInput.contains(event.target) && !suggestions.contains(event.target)) {
-            suggestions.classList.add('hidden');
+        if (!popover.contains(event.target) && !toggleButton.contains(event.target)) {
+            closePopover();
+        }
+    });
+
+    const applyFilters = () => {
+        currentFilters.search = filterSearch?.value.trim() || '';
+        currentFilters.category = filterCategory?.value || 'All';
+        currentFilters.location = filterLocation?.value.trim() || '';
+        browseApplyFilters();
+        closePopover();
+    };
+
+    applyFiltersBtn?.addEventListener('click', applyFilters);
+
+    [filterSearch, filterLocation].forEach((input) => {
+        input?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                applyFilters();
+            }
+        });
+    });
+
+    clearFiltersBtn?.addEventListener('click', () => {
+        resetFiltersUI();
+        currentFilters = { search: '', category: 'All', location: '', maxPrice: '', sort: 'newest' };
+        browseApplyFilters();
+        closePopover();
+    });
+
+    useLocationBtn?.addEventListener('click', async () => {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not available in your browser.');
+            return;
+        }
+
+        const originalText = useLocationBtn.textContent;
+        useLocationBtn.textContent = 'Finding...';
+        useLocationBtn.disabled = true;
+
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 60000,
+                });
+            });
+
+            const locationName = await resolveLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
+            if (locationName) {
+                if (filterLocation) filterLocation.value = locationName;
+                currentFilters.location = locationName;
+            } else {
+                alert('Location found but could not resolve your city.');
+            }
+        } catch (error) {
+            console.error('Geolocation error:', error);
+            alert('Unable to use your location.');
+        } finally {
+            useLocationBtn.textContent = originalText;
+            useLocationBtn.disabled = false;
         }
     });
 }
 
-function applyFilters() {
+function browseApplyFilters() {
     filteredServices = [...allServices];
 
     if (currentFilters.category && currentFilters.category !== 'All') {
@@ -545,20 +443,14 @@ function applyFilters() {
         filteredServices = filteredServices.filter((service) => (service.location || '').toLowerCase().includes(term));
     }
 
-    if (currentFilters.maxPrice) {
-        const max = Number(currentFilters.maxPrice);
-        if (!Number.isNaN(max)) {
-            filteredServices = filteredServices.filter((service) => Number(service.price || 0) <= max);
-        }
-    }
-
     filteredServices = getSortedServices(filteredServices);
     currentPage = 1;
     renderServicesGrid();
     updateServiceCountText();
-    renderPopularNearYouSection();
-    renderExploreCategoriesSection();
-    renderWishlist();
+}
+
+function applyFilters() {
+    browseApplyFilters();
 }
 
 function loadMoreServices() {
@@ -604,7 +496,6 @@ async function loadServices(container) {
             currentBuiltInMargin = settings.builtInMargin;
             await fetchReviews();
             await fetchProviders();
-            renderWishlist();
             return;
         }
 
@@ -621,7 +512,6 @@ async function loadServices(container) {
         currentBuiltInMargin = settings.builtInMargin;
         localStorage.setItem(CACHE_KEY, JSON.stringify(allServices));
         localStorage.setItem(`${CACHE_KEY}_time`, Date.now().toString());
-        renderWishlist();
     } catch (error) {
         console.error(error);
         if (container) {
@@ -719,50 +609,7 @@ async function resolveLocationFromCoordinates(latitude, longitude) {
 }
 
 function setupLocationButton() {
-    const applyLocationBtn = document.getElementById('applyLocationBtn');
-    const filterLocation = document.getElementById('filterLocation');
-    if (!applyLocationBtn) return;
-
-    applyLocationBtn.addEventListener('click', async () => {
-        if (!navigator.geolocation) {
-            alert('Geolocation is not available in your browser.');
-            return;
-        }
-
-        const originalText = applyLocationBtn.textContent;
-        applyLocationBtn.textContent = 'Finding nearby...';
-        applyLocationBtn.disabled = true;
-
-        try {
-            const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                    enableHighAccuracy: false,
-                    timeout: 10000,
-                    maximumAge: 60000,
-                });
-            });
-
-            const locationName = await resolveLocationFromCoordinates(position.coords.latitude, position.coords.longitude);
-            if (!locationName) {
-                alert('Location found but could not resolve your city/area. Please enter it manually.');
-                return;
-            }
-
-            currentFilters.location = locationName;
-            if (filterLocation) {
-                filterLocation.value = locationName;
-            }
-
-            applyFilters();
-            pageToSection('servicesGrid');
-        } catch (error) {
-            console.error('Geolocation error:', error);
-            alert('Unable to use your location. Please enter your city or area in the Location filter.');
-        } finally {
-            applyLocationBtn.textContent = originalText || 'Use my location';
-            applyLocationBtn.disabled = false;
-        }
-    });
+    return;
 }
 
 function setupAuthLogout(logoutBtn) {
@@ -777,11 +624,6 @@ async function initPage() {
     const servicesContainer = document.getElementById('servicesGrid');
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
-    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-    const filterCategory = document.getElementById('filterCategory');
-    const filterLocation = document.getElementById('filterLocation');
-    const filterMaxPrice = document.getElementById('filterMaxPrice');
-    const filterSort = document.getElementById('filterSort');
     const logoutBtn = document.getElementById('logoutBtn');
     const loadMoreBtn = document.getElementById('loadMoreBtn');
 
@@ -799,68 +641,13 @@ async function initPage() {
     await loadWishlist();
     await loadServices(servicesContainer);
 
-    if (filterCategory) {
-        populateCategories(filterCategory, allServices);
-        filterCategory.value = currentFilters.category;
-    }
     if (searchInput) {
         searchInput.value = currentFilters.search;
     }
-    if (filterLocation) {
-        filterLocation.value = currentFilters.location;
-    }
-    if (filterMaxPrice) {
-        filterMaxPrice.value = currentFilters.maxPrice;
-    }
-    if (filterSort) {
-        filterSort.value = currentFilters.sort;
-    }
 
+    populateFilterCategoryOptions(allServices);
     applyFilters();
-    setupSearch();
-
-    if (searchButton) {
-        searchButton.addEventListener('click', () => {
-            currentFilters.search = searchInput?.value.trim() || '';
-            currentFilters.sort = filterSort?.value || 'newest';
-            currentFilters.location = filterLocation?.value.trim() || '';
-            currentFilters.maxPrice = filterMaxPrice?.value || '';
-            applyFilters();
-        });
-    }
-
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', () => {
-            if (searchInput) searchInput.value = '';
-            if (filterCategory) filterCategory.value = 'All';
-            if (filterLocation) filterLocation.value = '';
-            if (filterMaxPrice) filterMaxPrice.value = '';
-            if (filterSort) filterSort.value = 'newest';
-            currentFilters = { search: '', category: 'All', location: '', maxPrice: '', sort: 'newest' };
-            applyFilters();
-        });
-    }
-
-    [filterCategory, filterLocation, filterMaxPrice, filterSort].forEach((element) => {
-        if (!element) return;
-        element.addEventListener('change', () => {
-            currentFilters.search = searchInput?.value.trim() || '';
-            currentFilters.category = filterCategory?.value || 'All';
-            currentFilters.location = filterLocation?.value.trim() || '';
-            currentFilters.maxPrice = filterMaxPrice?.value || '';
-            currentFilters.sort = filterSort?.value || 'newest';
-            applyFilters();
-        });
-    });
-
-    if (searchInput) {
-        searchInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                currentFilters.search = searchInput.value.trim();
-                applyFilters();
-            }
-        });
-    }
+    setupFiltersPopover();
 
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', loadMoreServices);
@@ -870,7 +657,7 @@ async function initPage() {
         setupAuthLogout(logoutBtn);
     }
 
-    setupLocationButton();
+    resetFiltersUI();
     setupInfiniteScroll();
 }
 

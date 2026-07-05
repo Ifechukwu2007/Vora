@@ -12,6 +12,7 @@ let providerMap = {};
 let currentUser = null;
 let userWishlist = [];
 let currentLocationLabel = 'Lagos';
+let currentSearchQuery = '';
 
 if (typeof window !== 'undefined' && typeof window.onAuthStateChanged === 'undefined') {
     window.onAuthStateChanged = function () {
@@ -119,7 +120,7 @@ async function toggleWishlist(serviceId) {
         }
 
         await loadWishlist();
-        renderHomepageSections();
+        renderHomepageSections(currentSearchQuery);
     } catch (error) {
         console.error('Wishlist update failed:', error);
     }
@@ -199,11 +200,43 @@ function renderSkeletons() {
     `).join('');
 }
 
-function renderHomepageSections() {
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getSearchableText(service) {
+    const provider = providerMap[service.provider_id] || {};
+    return [
+        service.title,
+        service.description,
+        service.category,
+        service.location,
+        service.price,
+        service.deal_message,
+        provider.full_name,
+        provider.city,
+        provider.location
+    ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function getFilteredServices(searchTerm = '') {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return allServices;
+
+    return allServices.filter((service) => getSearchableText(service).includes(term));
+}
+
+function renderHomepageSections(searchTerm = '') {
     const container = document.getElementById('homepageSections');
     if (!container) return;
 
-    const categoryMap = allServices.reduce((groups, service) => {
+    const filteredServices = getFilteredServices(searchTerm);
+    const categoryMap = filteredServices.reduce((groups, service) => {
         const category = (service.category || 'Other').trim() || 'Other';
         if (!groups[category]) groups[category] = [];
         groups[category].push(service);
@@ -217,9 +250,14 @@ function renderHomepageSections() {
         return buildSection(category, `Explore ${category.toLowerCase()} services.`, services, { limit: MAX_CARDS });
     }).filter(Boolean);
 
-    container.innerHTML = sections.length
-        ? sections.join('')
+    const searchSummary = searchTerm
+        ? `<div class="mb-4 rounded-2xl border border-pink-100 bg-pink-50 px-4 py-3 text-sm text-pink-700">Showing ${filteredServices.length} result${filteredServices.length === 1 ? '' : 's'} for <span class="font-semibold">${escapeHtml(searchTerm)}</span>.</div>`
+        : '';
+    const emptyState = searchTerm
+        ? `<div class="rounded-[1.75rem] border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">No services matched <span class="font-semibold text-gray-700">${escapeHtml(searchTerm)}</span>. Try another keyword or browse all services.</div>`
         : '<div class="rounded-[1.75rem] border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">Services will appear here as soon as they are available.</div>';
+
+    container.innerHTML = `${searchSummary}${sections.length ? sections.join('') : emptyState}`;
 
     container.querySelectorAll('[data-service-card]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -289,7 +327,7 @@ async function loadHomepageData() {
         allServices = [];
     }
 
-    renderHomepageSections();
+    renderHomepageSections(currentSearchQuery);
 }
 
 async function updateHeroState(user) {
@@ -367,10 +405,10 @@ function setupSearch() {
 
     const handleSearch = (value) => {
         const term = (value || searchInput.value || '').trim();
+        currentSearchQuery = term;
+        renderHomepageSections(term);
         if (term) {
-            LoadingSpinner.navigateTo(`browse.html?category=${encodeURIComponent(FEATURED_CATEGORY)}&search=${encodeURIComponent(term)}`);
-        } else {
-            LoadingSpinner.navigateTo(`browse.html?category=${encodeURIComponent(FEATURED_CATEGORY)}`);
+            suggestions.classList.add('hidden');
         }
     };
 
