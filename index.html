@@ -1,16 +1,234 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="refresh" content="0; url=/home.html" />
-    <link rel="canonical" href="/home.html" />
-    <title>Vora</title>
-  </head>
-  <body>
-    <p>Redirecting to the home page...</p>
-    <script>
-      window.location.replace('/home.html');
-    </script>
-  </body>
-</html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vora</title>
+<link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
+<link rel="icon" type="image/png" sizes="512x512" href="/vora-logo.svg">
+<link rel="shortcut icon" href="/vora-logo.svg">
+<link rel="apple-touch-icon" href="/vora-logo.svg">
+<link rel="manifest" href="/manifest.json">
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-100">
+
+<!-- ================= HEADER ================= -->
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
+        <a href="home.html" class="flex items-center gap-2">
+          <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
+          <span class="text-2xl font-extrabold text-blue-600">Vora</span>
+        </a>
+
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
+        </nav>
+
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
+        <!-- PROFILE -->
+        <a href="profile.html"
+          data-profile-icon="true"
+          class="w-10 h-10 rounded-full bg-gray-300
+          flex items-center justify-center
+          hover:bg-gray-400 transition">
+
+          👤
+
+        </a>
+
+        <!-- LOGOUT -->
+        <button id="logoutBtn-payout-settings" data-logout
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
+        <button id="hamburger"
+          class="lg:hidden text-2xl">
+          ☰
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</header>
+
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
+  </div>
+
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
+    </a>
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
+    </a>
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
+    </a>
+    <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
+
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
+
+</div>
+
+<!-- ================= OVERLAY ================= -->
+<div id="menuOverlay"
+  class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
+</div>
+
+<!-- ================= HERO ================= -->
+<section class="pt-28 pb-8 px-4 md:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto">
+    <div class="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-pink-500 via-rose-500 to-orange-400 p-8 md:p-12 text-white shadow-2xl">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_35%)]"></div>
+      <div class="relative z-10 max-w-3xl">
+        <div class="inline-flex items-center rounded-full border border-white/40 bg-white/15 px-3 py-1 text-sm font-medium backdrop-blur">
+          ✨ Your next service, made simple
+        </div>
+        <h1 class="mt-4 text-4xl md:text-6xl font-semibold leading-tight">
+          Book services that feel effortless.
+        </h1>
+        <p id="heroSubtitle" class="mt-4 max-w-2xl text-lg text-pink-50">
+          Discover trusted experts near you and save time with a smoother booking experience.
+        </p>
+
+        <div class="mt-8 max-w-2xl">
+          <div class="flex flex-col gap-3 rounded-2xl bg-white/95 p-3 shadow-xl sm:flex-row sm:items-center">
+            <div class="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input id="heroSearchInput" type="text" placeholder="Search by name, location, price, category or need..." class="w-full border-0 bg-transparent text-gray-700 outline-none placeholder:text-gray-400" />
+            </div>
+            <button id="heroSearchBtn" class="rounded-xl bg-black px-5 py-3 font-semibold text-white transition hover:bg-gray-800">
+              Search
+            </button>
+          </div>
+          <div id="heroSearchSuggestions" class="mt-2 hidden rounded-2xl border border-gray-100 bg-white p-2 shadow-xl"></div>
+        </div>
+
+        <div id="heroAuthNotice" class="mt-6 flex flex-wrap gap-3"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTENT ================= -->
+<section class="px-4 pb-16 md:px-6 lg:px-8">
+  <div class="mx-auto max-w-7xl space-y-10">
+    <div id="homepageSections"></div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="bg-gray-900 px-6 py-12 text-gray-300">
+  <div class="mx-auto max-w-6xl">
+    <div class="mb-8 grid gap-8 md:grid-cols-4">
+      <div>
+        <h3 class="mb-4 font-bold text-white">Vora</h3>
+        <p class="text-sm">Connecting trusted providers with customers in a simple, modern way.</p>
+      </div>
+      <div>
+        <h3 class="mb-4 font-bold text-white">Quick Links</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="home.html" class="transition hover:text-white">Home</a></li>
+          <li><a href="browse.html" class="transition hover:text-white">Browse Services</a></li>
+          <li><a href="how-it-works.html" class="transition hover:text-white">How it Works</a></li>
+          <li><a href="add-service.html" class="transition hover:text-white">Become a Provider</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="mb-4 font-bold text-white">Legal</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="privacy-policy.html" class="transition hover:text-white">Privacy Policy</a></li>
+          <li><a href="terms-of-service.html" class="transition hover:text-white">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div></div>
+    </div>
+    <div class="border-t border-gray-700 pt-8 text-center text-sm">
+      <p>&copy; 2026 Vora. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="./home.js?v=2" type="module"></script>
+<script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
+
+  console.log(supabase)
+</script>
+
+<!-- ================= TAWK ================= -->
+<script type="text/javascript">
+
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+
+(function(){
+
+var s1=document.createElement("script"),
+s0=document.getElementsByTagName("script")[0];
+
+s1.async=true;
+
+s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
+
+s1.charset='UTF-8';
+
+s1.setAttribute('crossorigin','*');
+
+s0.parentNode.insertBefore(s1,s0);
+
+})();
+
+</script>
+
+</body>
+  </html>

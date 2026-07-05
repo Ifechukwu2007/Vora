@@ -12,6 +12,14 @@
           "input[autocapitalize]"
         ]
       }
+    ],
+    "compat-api/css": [
+      "default",
+      {
+        "ignore": [
+          "-webkit-overflow-scrolling"
+        ]
+      }
     ]
   }
 }
