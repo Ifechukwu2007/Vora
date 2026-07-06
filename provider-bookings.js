@@ -37,11 +37,15 @@ function setContainerEmpty(msg) {
 function statusBadgeClass(status) {
   const s = String(status ?? "").toLowerCase();
   if (s === "paid") return "bg-green-100 text-green-700";
-  if (s === "pending") return "bg-yellow-100 text-yellow-700";
+  // "confirmed" appears right after a customer completes payment — treat it
+  // visually the same as "pending" since it's awaiting the provider's
+  // accept/decline decision, same as a plain "pending" booking.
+  if (s === "pending" || s === "confirmed") return "bg-yellow-100 text-yellow-700";
+  if (s === "pending_payment") return "bg-amber-100 text-amber-700";
   if (s === "accepted") return "bg-blue-100 text-blue-700";
   if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
   if (s === "completed" || s === "completed_by_provider") return "bg-emerald-100 text-emerald-700";
-  if (s === "awaiting_customer_approval") return "bg-purple-100 text-purple-700";
+  if (s === "awaiting_customer_confirmation") return "bg-purple-100 text-purple-700";
   if (s === "cancelled" || s === "declined") return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
 }
@@ -147,7 +151,18 @@ function getActionButtonsHtml(b, status) {
   const bookingId = escapeHtml(b.bookingId);
   const baseClass = 'rounded-2xl px-4 py-3 text-sm font-semibold transition';
 
-  if (status === 'pending') {
+  // "pending_payment" means the customer hasn't paid yet — nothing for the
+  // provider to do but wait, so show an informational tag instead of an
+  // empty action column.
+  if (status === 'pending_payment') {
+    return `<div class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 border border-amber-100">Awaiting customer payment</div>`;
+  }
+
+  // "confirmed" is what a booking's status becomes right after a customer
+  // completes payment. It should be actionable exactly like "pending" —
+  // treated as a separate, unhandled status here, it used to fall through
+  // to an empty action column with no Accept/Decline buttons at all.
+  if (status === 'pending' || status === 'confirmed') {
     return `
       <button data-action="accept" data-id="${bookingId}" class="${baseClass} bg-indigo-600 text-white hover:bg-indigo-700">Accept</button>
       <button data-action="decline" data-id="${bookingId}" class="${baseClass} bg-red-50 text-red-700 border border-red-100 hover:bg-red-100">Decline</button>
@@ -166,8 +181,12 @@ function getActionButtonsHtml(b, status) {
     return `<button data-action="mark-done" data-id="${bookingId}" class="${baseClass} bg-amber-600 text-white hover:bg-amber-700">Mark As Done</button>`;
   }
 
-  if (status === 'awaiting_customer_approval') {
-    return `<div class="rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 border border-purple-100">Awaiting customer approval</div>`;
+  // Renamed from "awaiting_customer_approval" to match the exact status
+  // string the customer-facing my-bookings.js checks for
+  // ("awaiting_customer_confirmation"). They were previously different
+  // words, so the customer's Confirm/Report buttons never appeared.
+  if (status === 'awaiting_customer_confirmation') {
+    return `<div class="rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 border border-purple-100">Awaiting customer confirmation</div>`;
   }
 
   if (status === 'paid') {
@@ -212,7 +231,7 @@ function bindActionButtons(preview){
         } else if (action==='complete-work'){
           btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Marked as completed'); await refreshCurrentBookings();
         } else if (action==='mark-done'){
-          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'awaiting_customer_approval'); toast('Awaiting customer approval'); await refreshCurrentBookings();
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'awaiting_customer_confirmation'); toast('Awaiting customer confirmation'); await refreshCurrentBookings();
         } else if (action==='showmap'){
           const location = btn.dataset.location || '';
           openCustomerLocationModal(location);

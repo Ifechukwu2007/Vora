@@ -31,6 +31,70 @@ function calculateBookingPrice(service, peopleCount, location = 'provider') {
   return { perPerson, total, meetsDeal, travelFee, threshold, discountPercent };
 }
 
+function ensurePaystackLoaded() {
+  return new Promise((resolve, reject) => {
+    if (typeof PaystackPop !== 'undefined') {
+      resolve();
+      return;
+    }
+
+    let script = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+      clearTimeout(timeout);
+      clearInterval(poll);
+    };
+
+    const maybeResolve = () => {
+      if (typeof PaystackPop !== 'undefined') {
+        cleanup();
+        resolve();
+        return true;
+      }
+      return false;
+    };
+
+    const onLoad = () => {
+      if (!maybeResolve()) {
+        cleanup();
+        reject(new Error('Paystack loaded but PaystackPop is unavailable'));
+      }
+    };
+
+    const onError = () => {
+      cleanup();
+      reject(new Error('Failed to load Paystack script'));
+    };
+
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', onError, { once: true });
+
+    const timeout = setTimeout(() => {
+      if (!maybeResolve()) {
+        cleanup();
+        reject(new Error('Timed out waiting for Paystack to load'));
+      }
+    }, 10000);
+
+    const poll = setInterval(() => {
+      maybeResolve();
+    }, 100);
+
+    if (script.readyState && ['loaded', 'complete', 'interactive'].includes(script.readyState)) {
+      setTimeout(maybeResolve, 0);
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
 
   // Update profile picture in header (best effort)
@@ -459,7 +523,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =========================
   // PAYMENT CLICK
   // =========================
-  confirmBtn.addEventListener('click', async () => {
+  confirmBtn.addEventListener('click', async (event) => {
+    event.preventDefault();
 
     try {
       confirmBtn.disabled = true;
@@ -551,8 +616,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (paymentError) throw paymentError;
 
       // Ensure Paystack script loaded
-      if (typeof PaystackPop === 'undefined') {
-        alert('Paystack failed to load');
+      try {
+        await ensurePaystackLoaded();
+      } catch (err) {
+        alert('Paystack failed to load: ' + err.message);
         resetButton();
         return;
       }
@@ -600,7 +667,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
               const verifyJson = await verifyResp.json();
               if (verifyJson.success) {
-                window.location.href = 'payment-success.html?reference=' + encodeURIComponent(response.reference);
+                window.location.href = 'my-bookings.html';
               } else {
                 console.error('Verification response:', verifyJson);
                 window.location.href = 'payment-failed.html?reference=' + encodeURIComponent(response.reference);

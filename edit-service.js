@@ -23,7 +23,7 @@ const els = {
   removeImageBtn: document.getElementById("remove-image-btn"),
 };
 
-const STORAGE_BUCKET = "service_images"; // <-- CHANGE if your bucket name differs
+const STORAGE_BUCKET = "services"; // Use the same storage bucket as add-service.js
 
 let currentService = null;
 let selectedFile = null;
@@ -161,16 +161,17 @@ function bindImageHandlers() {
   }
 }
 
-async function loadService(serviceId) {
+async function loadService(serviceId, userId) {
   // Adjust the column names here to match your schema.
   const { data, error } = await supabase
     .from("services")
     .select("*")
     .eq("id", serviceId)
+    .eq("provider_id", userId)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) throw new Error("Service not found.");
+  if (!data) throw new Error("Service not found or you do not have permission to edit it.");
 
   return data;
 }
@@ -195,9 +196,9 @@ async function main() {
   setLoading(true);
 
   try {
-    await ensureAuth();
+    const user = await ensureAuth();
 
-    const service = await loadService(serviceId);
+    const service = await loadService(serviceId, user.id);
     fillForm(service);
 
     // submit
@@ -253,7 +254,8 @@ async function main() {
         const { error: updateErr } = await supabase
           .from("services")
           .update(updatePayload)
-          .eq("id", serviceId);
+          .eq("id", serviceId)
+          .eq("provider_id", currentService?.provider_id || user.id);
 
         if (updateErr) throw updateErr;
 

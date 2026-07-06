@@ -242,8 +242,17 @@ async function loadBookings() {
         const { data: bookings, error } = await supabase
             .from("bookings")
             .select("*")
-            .eq("user_id", currentUser.id)
+            .or(`user_id.eq.${currentUser.id},userId.eq.${currentUser.id},provider_id.eq.${currentUser.id},providerId.eq.${currentUser.id}`)
             .order("created_at", { ascending: false });
+
+        // --- DIAGNOSTIC LOGGING ---
+        // Open the browser console on this page to see exactly what Supabase
+        // returned. If `bookings` logs as [] with error: null, this is a
+        // Row Level Security (RLS) or column-mismatch issue on the `bookings`
+        // table, not a bug in this file.
+        console.log("[loadBookings] Current user ID:", currentUser.id);
+        console.log("[loadBookings] Query result — bookings:", bookings, "error:", error);
+        // --- END DIAGNOSTIC LOGGING ---
 
         if (error) throw error;
 
@@ -426,7 +435,7 @@ async function loadBookings() {
                             </div>
                             <div class="bg-gray-50 rounded-xl p-4">
                                 <p class="text-sm text-gray-500 mb-1">🌍 Provider Location</p>
-                                <p class="font-semibold text-gray-900">${providerLocation}</p>
+                                <p class="font-semibold text-gray-900">${providerLocation || "No location"}</p>
                             </div>
                             <div class="bg-gray-50 rounded-xl p-4">
                                 <p class="text-sm text-gray-500 mb-1">📅 Booking Date</p>
@@ -461,14 +470,21 @@ async function loadBookings() {
         setupBookingActions();
 
         document.querySelectorAll('[id^="booking-map-"]').forEach((mapNode) => {
-            const bookingId = mapNode.id.replace('booking-map-', '');
-            const booking = bookings.find((item) => String(item.id) === String(bookingId));
-            const provider = providersById[String(booking?.provider_id)] || null;
-            const details = servicesById[booking.service_id] || requestsById[booking.request_id] || {};
-            const mapLocation = booking.service_location === 'customer'
-                ? booking.customer_location
-                : provider?.location || details?.location || null;
-            renderBookingMap(mapNode, mapLocation);
+            try {
+                const bookingId = mapNode.id.replace('booking-map-', '');
+                const booking = bookings.find((item) => String(item.id) === String(bookingId));
+                if (!booking) return;
+                const provider = providersById[String(booking?.provider_id)] || null;
+                const details = servicesById[booking.service_id] || requestsById[booking.request_id] || {};
+                const mapLocation = booking.service_location === 'customer'
+                    ? booking.customer_location
+                    : provider?.location || details?.location || null;
+                renderBookingMap(mapNode, mapLocation);
+            } catch (mapError) {
+                // A map rendering failure should never wipe out already-rendered
+                // booking cards, so it's isolated here instead of bubbling up.
+                console.error('Failed to render map for a booking:', mapError);
+            }
         });
     } catch (error) {
         console.error("Load bookings error:", error);

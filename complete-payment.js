@@ -1,7 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 
-const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
+const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_test_296d47b57e4865b935a5f6b84241942c172e7a16';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
 
 let currentBooking = null;
@@ -85,8 +85,8 @@ async function requireAuth() {
   }
 }
 
-async function loadBooking(bookingId) {
-  const { data, error } = await supabase
+async function loadBooking(bookingId, userId = null) {
+  const query = supabase
     .from('bookings')
     .select(`
       id,
@@ -106,8 +106,13 @@ async function loadBooking(bookingId) {
       payment_status,
       paid_at
     `)
-    .eq('id', bookingId)
-    .maybeSingle();
+    .eq('id', bookingId);
+
+  if (userId) {
+    query.eq('user_id', userId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.error('Failed to load booking:', error);
@@ -131,6 +136,45 @@ async function loadBooking(bookingId) {
   }
 
   return { ...data, services: serviceData, providers: providerData };
+}
+
+async function createBookingFromPending(pendingBooking, userId) {
+  if (!pendingBooking) return null;
+
+  const payload = {
+    service_id: pendingBooking.serviceId || null,
+    provider_id: pendingBooking.providerId || null,
+    user_id: userId,
+    scheduled_date: pendingBooking.scheduledDate || null,
+    status: 'pending_payment',
+    booking_status: 'pending_payment',
+    total_price: pendingBooking.totalPrice || 0,
+    number_of_people: pendingBooking.numberOfPeople || 1,
+    price_per_person: pendingBooking.pricePerPerson || 0,
+    travel_fee: pendingBooking.travelFee || 0,
+    special_instructions: pendingBooking.specialInstructions || '',
+    service_location: pendingBooking.serviceLocation || 'provider',
+    customer_location: pendingBooking.customerLocation || '',
+    payment_status: 'pending',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase.from('bookings').insert([payload]).select('*').single();
+  if (error) {
+    console.error('Failed to create booking from pending data:', error);
+    throw new Error('Unable to create your booking before payment. Please try again.');
+  }
+
+  if (data?.id) {
+    try {
+      localStorage.setItem('bookingId', data.id);
+    } catch (err) {
+      console.warn('Could not persist bookingId:', err);
+    }
+  }
+
+  return data;
 }
 
 function renderBooking(booking) {
@@ -282,6 +326,17 @@ async function markBookingPaid(bookingId, reference) {
   }
 }
 
+// Redirects to the confirmation page once payment has been verified/recorded.
+// Uses a real bookingId when we have one; otherwise carries just the payment
+// reference through, so the confirmation page can still render something
+// meaningful even before a bookings row exists.
+function goToConfirmation(bookingId, reference) {
+  const params = new URLSearchParams();
+  if (bookingId) params.set('bookingId', bookingId);
+  if (reference) params.set('ref', reference);
+  window.location.href = `my-bookings.html?${params.toString()}`;
+}
+
 function launchPaystack(amountNaira, bookingId) {
   if (window.location.protocol === 'file:') {
     showError('Preview mode: payment would open here.');
@@ -295,18 +350,54 @@ function launchPaystack(amountNaira, bookingId) {
     return;
   }
 
-  const reference = `VORA-${bookingId}-${Date.now()}`;
+  // Reference needs to be unique even when there's no real bookingId yet
+  // (pending/local booking not persisted to Supabase).
+  const referenceSeed = bookingId || currentBooking?.id || 'guest';
+  const reference = `VORA-${referenceSeed}-${Date.now()}`;
+
   const handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email: currentUser?.email || 'customer@example.com',
-    amount: Math.round(amountNaira * 100),
+    amount: Math.round(amountNaira * 10),
     currency: 'NGN',
     ref: reference,
     metadata: {
-      booking_id: bookingId,
+      booking_id: bookingId || null,
       user_id: currentUser?.id || null,
     },
+    // This was the missing piece: Paystack calls onClose whenever the popup
+    // closes, whether or not payment succeeded — it never signals success on
+    // its own. The actual "payment went through" signal comes through
+    // callback(response), which is what triggers verification and redirect.
+    callback: function (response) {
+      // Paystack invokes this synchronously inside its own popup context, so
+      // wrap the async work in an IIFE rather than making callback itself async.
+      (async () => {
+        disableConfirmButton(true, 'Verifying payment...');
+        try {
+          await verifyPaymentOnServer(response.reference, bookingId);
+
+          if (bookingId) {
+            await markBookingPaid(bookingId, response.reference);
+          }
+
+          // Always redirect once the callback fires with a response —
+          // this is what was missing before.
+          goToConfirmation(bookingId, response.reference);
+        } catch (err) {
+          console.error(err);
+          showError(
+            (err.message || 'We could not confirm your booking automatically.') +
+              ' Your payment reference is ' +
+              response.reference +
+              " — please save it and contact support if your booking isn't confirmed shortly."
+          );
+          disableConfirmButton(false, 'Confirm and pay');
+        }
+      })();
+    },
     onClose: function () {
+      // Only fires if the user closes the popup without completing payment.
       disableConfirmButton(false, 'Confirm and pay');
     },
   });
@@ -319,7 +410,7 @@ async function init() {
   currentUser = await requireAuth();
   if (!currentUser) return;
 
-  const bookingId = getBookingId();
+  let bookingId = getBookingId();
   const pendingBooking = getPendingBooking();
 
   if (!bookingId && !pendingBooking) {
@@ -330,38 +421,28 @@ async function init() {
 
   try {
     if (bookingId) {
-      currentBooking = await loadBooking(bookingId);
-      if (currentBooking.status === 'confirmed' || currentBooking.status === 'paid') {
-        window.location.href = `booking-confirmed.html?bookingId=${bookingId}`;
-        return;
+      try {
+        currentBooking = await loadBooking(bookingId, currentUser?.id);
+      } catch (bookingError) {
+        console.warn('Booking lookup failed for bookingId:', bookingId, bookingError);
+        if (!pendingBooking) {
+          throw bookingError;
+        }
+        const booking = await createBookingFromPending(pendingBooking, currentUser.id);
+        bookingId = booking?.id || bookingId;
+        if (bookingId) {
+          currentBooking = await loadBooking(bookingId, currentUser?.id);
+        } else {
+          throw new Error('Could not create booking for payment.');
+        }
       }
     } else {
-      currentBooking = {
-        id: `pending-${Date.now()}`,
-        service_id: pendingBooking?.serviceId || null,
-        provider_id: pendingBooking?.providerId || null,
-        status: 'pending_payment',
-        total_price: pendingBooking?.totalPrice || 0,
-        number_of_people: pendingBooking?.numberOfPeople || 1,
-        price_per_person: pendingBooking?.pricePerPerson || 0,
-        travel_fee: pendingBooking?.travelFee || 0,
-        special_instructions: pendingBooking?.specialInstructions || '',
-        service_location: pendingBooking?.serviceLocation || 'provider',
-        customer_location: pendingBooking?.customerLocation || '',
-        scheduled_date: pendingBooking?.scheduledDate || null,
-        services: {
-          title: pendingBooking?.serviceTitle || 'Service',
-          price: pendingBooking?.pricePerPerson || 0,
-          image_url: '',
-          travel_price: pendingBooking?.travelFee || 0,
-          location: '',
-        },
-        providers: {
-          full_name: pendingBooking?.providerName || 'Provider',
-          profile_picture: pendingBooking?.providerPicture || '',
-          location: '',
-        },
-      };
+      const booking = await createBookingFromPending(pendingBooking, currentUser.id);
+      bookingId = booking?.id;
+      if (!bookingId) {
+        throw new Error('Could not create booking for payment.');
+      }
+      currentBooking = await loadBooking(bookingId, currentUser?.id);
     }
 
     renderBooking(currentBooking);
@@ -390,7 +471,9 @@ async function init() {
       if (bookingId) {
         await createPendingPayment(currentBooking.id, total);
       }
-      launchPaystack(total, currentBooking.id);
+      // Pass the REAL bookingId (may be empty for pending/local bookings),
+      // not currentBooking.id, which can be a synthetic "pending-..." id.
+      launchPaystack(total, bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

@@ -18,55 +18,36 @@
 
 <!-- ================= HEADER ================= -->
 <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
-
   <div class="max-w-7xl mx-auto px-4">
-
     <div class="flex items-center justify-between h-16">
-
-      <!-- LEFT -->
       <div class="flex items-center gap-10">
         <a href="home.html" class="flex items-center gap-2">
           <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
-
-        <!-- Desktop nav removed in favor of left sidebar -->
-        <nav class="hidden lg:flex items-center gap-6" aria-hidden="true"></nav>
-
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
+        </nav>
       </div>
-
-      <!-- RIGHT -->
       <div class="flex items-center gap-4">
-
-        <!-- PROFILE -->
         <a href="profile.html"
           data-profile-icon="true"
           class="w-10 h-10 rounded-full bg-gray-300
           flex items-center justify-center
           hover:bg-gray-400 transition">
-
           👤
-
         </a>
-
-        <!-- LOGOUT -->
         <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
-
-        <!-- MOBILE MENU -->
-        <button id="hamburger"
-          class="lg:hidden text-2xl">
-          ☰
-        </button>
-
+        <button id="hamburger" class="lg:hidden text-2xl">☰</button>
       </div>
-
     </div>
-
   </div>
-
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
@@ -119,40 +100,38 @@
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 
-<!-- MAIN CONTENT -->
 <main class="pt-20 pb-12 px-4 md:px-6">
-  <div class="max-w-7xl mx-auto">
-    <div class="lg:grid lg:grid-cols-[280px_1fr] gap-6">
-      <aside class="hidden lg:block">
-        <div class="sticky top-20">
-          <nav class="w-20 h-[calc(100vh-6rem)] bg-slate-900 text-white rounded-lg p-2 flex flex-col items-center gap-3">
-            <a href="dashboard.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">🏠</span>
-              <span class="text-xs">Dash</span>
-            </a>
-            <a href="browse.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">🔎</span>
-              <span class="text-xs">Browse</span>
-            </a>
-            <a href="my-services.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">🧾</span>
-              <span class="text-xs">Services</span>
-            </a>
-            <a href="provider-bookings.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">📥</span>
-              <span class="text-xs">Bookings</span>
-            </a>
-            <a href="my-messages.html" class="w-full p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">💬</span>
-              <span class="text-xs">Messages</span>
-            </a>
-            <a href="payout-settings.html" class="w-full mt-auto p-3 rounded-md flex flex-col items-center gap-1 hover:bg-slate-800">
-              <span class="text-2xl">💳</span>
-              <span class="text-xs">Payout</span>
-            </a>
-          </nav>
-        </div>
-      </aside>
+  <div class="max-w-7xl mx-auto lg:grid lg:grid-cols-[280px_1fr] gap-6">
+    <aside class="hidden lg:block">
+      <div class="sticky top-20">
+        <nav class="w-20 h-[calc(100vh-5rem)] bg-slate-900 text-white rounded-3xl p-3 flex flex-col items-center gap-3">
+          <a href="dashboard.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 bg-slate-800">
+            <span class="text-2xl">🏠</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Dash</span>
+          </a>
+          <a href="browse.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">🔎</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Browse</span>
+          </a>
+          <a href="my-services.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">🧾</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Services</span>
+          </a>
+          <a href="provider-bookings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">📥</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Bookings</span>
+          </a>
+          <a href="my-messages.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">💬</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Messages</span>
+          </a>
+          <a href="payout-settings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">💳</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Payout</span>
+          </a>
+        </nav>
+      </div>
+    </aside>
       <div>
 
   <!-- NO SERVICE OVERLAY -->

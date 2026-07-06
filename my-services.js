@@ -74,16 +74,13 @@ function renderServiceCard(service) {
 
   const card = document.createElement("div");
   card.className = "bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition";
+  card.style.cursor = 'default';
 
   const imgEl = image
     ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" class="h-24 w-full object-cover rounded-md border border-gray-200 mb-3" onerror="this.style.display='none'">`
     : `<div class="h-24 w-full bg-gray-100 rounded-md mb-3 flex items-center justify-center border border-gray-200">
          <span class="text-gray-400 font-semibold">No image</span>
        </div>`;
-
-  // Change these URLs to match your app routes/pages:
-  const editUrl = `edit-service.html?service_id=${encodeURIComponent(id)}`;
-  const bookingUrl = `browse.html?service_id=${encodeURIComponent(id)}`;
 
   card.innerHTML = `
     <div class="flex items-start gap-3">
@@ -98,16 +95,11 @@ function renderServiceCard(service) {
     </div>
 
     ${imgEl}
-
-    <div class="flex gap-3 mt-2">
-      <a href="${escapeHtml(editUrl)}" class="flex-1 text-center py-2 rounded-md border border-gray-200 text-gray-800 font-semibold hover:bg-gray-50 transition">
-        Edit
-      </a>
-      <button data-service-id="${escapeHtml(id)}" class="delete-service-btn flex-1 text-center py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700 transition">
-        Delete
-      </button>
-    </div>
   `;
+
+  card.addEventListener('click', (event) => {
+    event.stopPropagation();
+  });
 
   return card;
 }
@@ -226,40 +218,6 @@ async function main() {
   currentProfileId = profile.id;
 
   services.forEach((s) => container.appendChild(renderServiceCard(s)));
-
-  // Attach delete handler (event delegation)
-  container.addEventListener('click', async (ev) => {
-    const btn = ev.target.closest && ev.target.closest('.delete-service-btn');
-    if (!btn) return;
-    const serviceId = btn.dataset.serviceId;
-    if (!serviceId) return;
-
-    const confirmed = confirm('Delete this service? This action cannot be undone.');
-    if (!confirmed) return;
-
-    btn.disabled = true;
-    btn.textContent = 'Deleting...';
-
-    try {
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', serviceId)
-        .eq('provider_id', currentProfileId);
-
-      if (error) throw error;
-
-      // Remove card from DOM
-      const card = btn.closest('.bg-white') || btn.closest('div');
-      if (card && card.parentNode) card.parentNode.removeChild(card);
-      alert('Service deleted');
-    } catch (err) {
-      console.error('Delete failed', err);
-      alert('Failed to delete service');
-      btn.disabled = false;
-      btn.textContent = 'Delete';
-    }
-  });
 }
 
 function bindLogout() {
