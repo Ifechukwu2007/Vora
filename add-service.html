@@ -70,26 +70,30 @@
   })();
 </script>
 
-            <h1 class="text-3xl font-extrabold text-gray-900">List your beauty service</h1>
+            <h1 class="text-3xl font-extrabold text-gray-900">List your service</h1>
         </div>
-        <form id="add-service-form" class="bg-white p-8 rounded-lg shadow-lg space-y-6">
-  
-            <div>
-                <label for="service-title" class="block text-sm font-medium text-gray-700">Service Title</label>
-                <input type="text" id="service-title" name="service-title" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
+        <form id="add-service-form" class="space-y-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-[0.25em] text-indigo-600">Step <span id="step-indicator">1</span> of 3</p>
+                        <h2 id="wizard-title" class="mt-1 text-2xl font-bold text-slate-900">Tell us about your service</h2>
+                        <p id="wizard-subtitle" class="mt-2 text-sm text-slate-600">Start with the basics so customers can immediately understand what you offer.</p>
+                    </div>
+                </div>
 
-            <div>
-                <label for="service-description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="service-description" name="service-description" rows="4" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-            </div>
+                <div class="mb-6 flex gap-2">
+                    <div data-step-progress="1" class="h-2 flex-1 rounded-full bg-indigo-600"></div>
+                    <div data-step-progress="2" class="h-2 flex-1 rounded-full bg-slate-200"></div>
+                    <div data-step-progress="3" class="h-2 flex-1 rounded-full bg-slate-200"></div>
+                </div>
 
-            <div>
-<label for="service-category" class="block text-sm font-medium text-gray-700">Category</label>
-
-<select id="service-category" name="service-category" required
-    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-    <option value="Barber Shop">Barber Shop</option>
+                <section data-step-panel="1" class="space-y-6">
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div>
+                            <label for="service-category" class="block text-sm font-medium text-gray-700">Which category best describes your service?</label>
+                            <select id="service-category" name="service-category" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="Barber Shop">Barber Shop</option>
     <option value="Hair Saloon">Hair Saloon</option>
     <option value="Beauty Spa">Beauty Spa</option>
     <option value="Nail Studio">Nail Studio</option>
@@ -97,54 +101,129 @@
     <option value="Fitness">Fitness</option>
     <option value="Photographer">Photographer</option>
     <option value="Videographer">Videographer</option>
-</select>
-            </div>
+                            </select>
+                        </div>
 
-            <div>
-                <label for="service-price" class="block text-sm font-medium text-gray-700">Price (NGN)</label>
-                <input type="number" id="service-price" name="service-price" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
+                        <div>
+                            <label for="service-delivery" class="block text-sm font-medium text-gray-700">How do you deliver your service?</label>
+                            <select id="service-delivery" name="service-delivery" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="At my location">At my location</option>
+                                <option value="At customer's location">At customer's location</option>
+                                <option value="Remote / virtual">Remote / virtual</option>
+                            </select>
+                        </div>
 
-            <div>
-                <label for="deal-message" class="block text-sm font-medium text-gray-700">Deal Headline<span class="text-gray-500">(Optional)</span></label>
-                <input type="text" id="deal-message" name="deal-message" placeholder="e.g. Book 3 friends and each gets 20% off" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
+                        <div>
+                            <label for="service-location" class="block text-sm font-medium text-gray-700">Where are you based?</label>
+                            <input type="text" id="service-location" name="service-location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 15 Admiralty Way, Lekki Phase 1, Lagos, Nigeria">
+                        </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount<span class="text-gray-500">(Optional)</span></label>
-                    <input type="number" id="group-discount-threshold" name="group-discount-threshold" min="2" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-                <div>
-                    <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent<span class="text-gray-500">(Optional)</span></label>
-                    <input type="number" id="group-discount-percent" name="group-discount-percent" min="1" max="100" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-            </div>
+                        <div>
+                            <label for="service-area" class="block text-sm font-medium text-gray-700">Service area</label>
+                            <input type="text" id="service-area" name="service-area" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Lekki, Victoria Island, or 10 km radius">
+                        </div>
 
-            <div>
-                <label for="service-location" class="block text-sm font-medium text-gray-700">Location</label>
-                <input type="text" id="service-location" name="service-location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 15 Admiralty Way, Lekki Phase 1, Lagos, Nigeria">
-            </div>
+                        <div>
+                            <label for="service-capacity" class="block text-sm font-medium text-gray-700">How many clients can you serve at once?</label>
+                            <input type="number" id="service-capacity" name="service-capacity" min="1" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 4">
+                        </div>
 
-            <div>
-                <label for="travel-price" class="block text-sm font-medium text-gray-700">Travel Price (NGN) <span class="text-gray-500">(Optional - charge if you travel to customer)</span></label>
-                <input type="number" id="travel-price" name="travel-price" placeholder="e.g., 2000" min="0" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
+                        <div>
+                            <label for="service-interaction" class="block text-sm font-medium text-gray-700">Who will the customer interact with?</label>
+                            <select id="service-interaction" name="service-interaction" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="Just me">Just me</option>
+                                <option value="Me + staff">Me + staff</option>
+                                <option value="Team of providers">Team of providers</option>
+                            </select>
+                        </div>
 
-            <div>
-                <label for="service-image" class="block text-sm font-medium text-gray-700">Service Image <span class="text-red-500">*</span></label>
-                <div class="mt-1 flex flex-col">
-                    <input type="file" id="service-image" name="service-image" accept="image/*" required class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <p class="text-xs text-gray-500 mt-2">JPG, PNG, or WebP. Max 10MB - <span class="text-red-500 font-semibold">Required</span></p>
-                    <div id="image-preview" class="mt-4 hidden">
-                        <img id="preview-img" src="" alt="Preview" class="h-32 w-32 object-cover rounded-md border border-gray-300">
-                        <button type="button" id="remove-image-btn" class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">Remove Image</button>
+                        <div>
+                            <label for="travel-price" class="block text-sm font-medium text-gray-700">Travel price (NGN) <span class="text-gray-500">(Optional)</span></label>
+                            <input type="number" id="travel-price" name="travel-price" placeholder="e.g., 2000" min="0" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
                     </div>
-                </div>
+                </section>
+
+                <section data-step-panel="2" class="hidden space-y-6">
+                    <div>
+                        <label for="service-title" class="block text-sm font-medium text-gray-700">Give your service a title</label>
+                        <input type="text" id="service-title" name="service-title" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Certified Bridal Makeup Artist — Lagos">
+                    </div>
+
+                    <div>
+                        <label for="service-description" class="block text-sm font-medium text-gray-700">Describe your service</label>
+                        <textarea id="service-description" name="service-description" rows="5" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="What makes your work stand out? Share your experience, style, certifications, and what clients can expect."></textarea>
+                    </div>
+
+                    <div>
+                        <label for="service-includes" class="block text-sm font-medium text-gray-700" id="service-includes-label">What does your service include?</label>
+                        <textarea id="service-includes" name="service-includes" rows="3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Add details that help customers make a decision."></textarea>
+                    </div>
+
+                    <div id="category-details" class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"></div>
+
+                    <div>
+                        <label for="service-image" class="block text-sm font-medium text-gray-700">Add portfolio photos <span class="text-red-500">*</span></label>
+                        <div class="mt-1 flex flex-col">
+                            <input type="file" id="service-image" name="service-image" accept="image/*" multiple class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <p class="mt-2 text-xs text-gray-500">Choose up to 5 photos. JPG, PNG, or WebP. Max 10MB each.</p>
+                            <div id="image-preview" class="mt-4 hidden">
+                                <img id="preview-img" src="" alt="Preview" class="h-32 w-32 object-cover rounded-md border border-gray-300">
+                                <button type="button" id="remove-image-btn" class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">Remove photos</button>
+                            </div>
+                            <div id="photo-file-list" class="mt-3 text-sm text-slate-600"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section data-step-panel="3" class="hidden space-y-6">
+                    <div class="grid gap-6 md:grid-cols-2">
+                        <div>
+                            <label for="service-price" class="block text-sm font-medium text-gray-700">Set your rate (NGN)</label>
+                            <input type="number" id="service-price" name="service-price" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 15000">
+                        </div>
+
+                        <div>
+                            <label for="deal-message" class="block text-sm font-medium text-gray-700">Promotional headline <span class="text-gray-500">(Optional)</span></label>
+                            <input type="text" id="deal-message" name="deal-message" placeholder="e.g. First booking discount" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                <input type="checkbox" id="instant-booking" name="instant-booking" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>
+                                    <span class="block font-semibold text-slate-900">Enable instant booking</span>
+                                    <span class="text-sm text-slate-600">Allow customers to book immediately after they confirm.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
+                            <div>
+                                <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount <span class="text-gray-500">(Optional)</span></label>
+                                <input type="number" id="group-discount-threshold" name="group-discount-threshold" min="2" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent <span class="text-gray-500">(Optional)</span></label>
+                                <input type="number" id="group-discount-percent" name="group-discount-percent" min="1" max="100" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="business-name" class="block text-sm font-medium text-gray-700">Business name</label>
+                            <input type="text" id="business-name" name="business-name" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Optional for verification">
+                        </div>
+                    </div>
+                </section>
             </div>
 
-            <div class="flex justify-end">
-                <button type="submit" id="submit-btn" class="py-3 px-8 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Add Service</button>
+            <div class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <button type="button" id="prev-step-btn" class="hidden rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Back</button>
+                <div></div>
+                <div class="flex gap-3">
+                    <button type="button" id="next-step-btn" class="rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Continue</button>
+                    <button type="submit" id="submit-btn" class="hidden rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Publish service</button>
+                </div>
             </div>
         </form>
     </main>
