@@ -1,7 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 
-const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_test_296d47b57e4865b935a5f6b84241942c172e7a16';
+const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
 
 let currentBooking = null;
@@ -30,15 +30,20 @@ function getPendingBooking() {
 }
 
 function calculateBookingTotal(booking, pendingBooking = null) {
-  const peopleCount = Number(booking?.number_of_people || pendingBooking?.numberOfPeople || 1);
-  const perPerson = Number(booking?.price_per_person || booking?.services?.price || pendingBooking?.pricePerPerson || 0);
-  const serviceLocation = booking?.service_location || pendingBooking?.serviceLocation || 'provider';
+  const pendingTotal = Number(pendingBooking?.totalPrice || 0);
+  if (pendingTotal) {
+    return pendingTotal;
+  }
+
+  const peopleCount = Number(pendingBooking?.numberOfPeople || booking?.number_of_people || 1);
+  const perPerson = Number(pendingBooking?.pricePerPerson || booking?.price_per_person || booking?.services?.price || 0);
+  const serviceLocation = pendingBooking?.serviceLocation || booking?.service_location || 'provider';
   const travelFee = serviceLocation === 'customer'
-    ? (Number(booking?.travel_fee || pendingBooking?.travelFee || booking?.services?.travel_price || 0))
+    ? (Number(pendingBooking?.travelFee || booking?.travel_fee || booking?.services?.travel_price || 0))
     : 0;
 
-  const explicitTotal = Number(booking?.total_price || pendingBooking?.totalPrice || 0);
-  return explicitTotal || ((perPerson * peopleCount) + travelFee);
+  const bookingTotal = Number(booking?.total_price || 0);
+  return bookingTotal || ((perPerson * peopleCount) + travelFee);
 }
 
 function setText(id, value) {
@@ -238,10 +243,10 @@ function renderBooking(booking) {
     hide('booking-instructions-div');
   }
 
-  const peopleCount = Number(booking.number_of_people || pendingBooking?.numberOfPeople || 1);
-  const perPerson = Number(booking.price_per_person) || Number(service.price) || Number(pendingBooking?.pricePerPerson || 0) || 0;
-  const serviceLocation = booking.service_location || pendingBooking?.serviceLocation || 'provider';
-  const travelFee = serviceLocation === 'customer' ? (Number(booking.travel_fee || pendingBooking?.travelFee || service.travel_price || 0)) : 0;
+  const peopleCount = Number(pendingBooking?.numberOfPeople || booking.number_of_people || 1);
+  const perPerson = Number(pendingBooking?.pricePerPerson || booking.price_per_person || service.price || 0);
+  const serviceLocation = pendingBooking?.serviceLocation || booking.service_location || 'provider';
+  const travelFee = serviceLocation === 'customer' ? (Number(pendingBooking?.travelFee || booking.travel_fee || service.travel_price || 0)) : 0;
   const total = calculateBookingTotal(booking, pendingBooking);
   const serviceFee = Math.max(0, total - (perPerson * peopleCount) - travelFee);
 
