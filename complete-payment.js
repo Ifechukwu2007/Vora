@@ -234,7 +234,9 @@ function renderBooking(booking) {
   const scheduledDate = booking.scheduled_date ? new Date(booking.scheduled_date) : null;
   setText('booking-date', scheduledDate ? scheduledDate.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }) : '-');
   setText('booking-time', scheduledDate ? scheduledDate.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }) : '-');
-  setText('booking-people', booking.number_of_people || 1);
+
+  const peopleCount = Number(pendingBooking?.numberOfPeople || booking?.number_of_people || 1);
+  setText('booking-people', peopleCount);
 
   if (booking.special_instructions) {
     setText('booking-instructions', booking.special_instructions);
@@ -243,7 +245,6 @@ function renderBooking(booking) {
     hide('booking-instructions-div');
   }
 
-  const peopleCount = Number(pendingBooking?.numberOfPeople || booking.number_of_people || 1);
   const perPerson = Number(pendingBooking?.pricePerPerson || booking.price_per_person || service.price || 0);
   const serviceLocation = pendingBooking?.serviceLocation || booking.service_location || 'provider';
   const travelFee = serviceLocation === 'customer' ? (Number(pendingBooking?.travelFee || booking.travel_fee || service.travel_price || 0)) : 0;
@@ -268,7 +269,7 @@ function renderBooking(booking) {
   return total;
 }
 
-async function createPendingPayment(bookingId, amount) {
+async function createPendingPayment(bookingId, amount, paymentMethod = 'paystack') {
   const payload = {
     booking_id: bookingId,
     user_id: currentUser.id,
@@ -276,7 +277,7 @@ async function createPendingPayment(bookingId, amount) {
     service_id: currentBooking?.service_id || null,
     amount,
     currency: 'NGN',
-    payment_method: 'paystack',
+    payment_method: paymentMethod,
     status: 'pending',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -349,15 +350,33 @@ async function markBookingPaid(bookingId, reference) {
   }
 }
 
-// Redirects to the confirmation page once payment has been verified/recorded.
-// Uses a real bookingId when we have one; otherwise carries just the payment
-// reference through, so the confirmation page can still render something
-// meaningful even before a bookings row exists.
 function goToConfirmation(bookingId, reference) {
   const params = new URLSearchParams();
   if (bookingId) params.set('bookingId', bookingId);
   if (reference) params.set('ref', reference);
   window.location.href = `my-bookings.html?${params.toString()}`;
+}
+
+async function finishSuccessfulPayment(reference, bookingId) {
+  disableConfirmButton(true, 'Verifying payment...');
+  try {
+    await verifyPaymentOnServer(reference, bookingId);
+
+    if (bookingId) {
+      await markBookingPaid(bookingId, reference);
+    }
+
+    goToConfirmation(bookingId, reference);
+  } catch (err) {
+    console.error(err);
+    showError(
+      (err.message || 'We could not confirm your booking automatically.') +
+        ' Your payment reference is ' +
+        reference +
+        " — please save it and contact support if your booking isn't confirmed shortly."
+    );
+    disableConfirmButton(false, 'Confirm and pay');
+  }
 }
 
 function launchPaystack(amountNaira, bookingId) {
@@ -368,13 +387,11 @@ function launchPaystack(amountNaira, bookingId) {
   }
 
   if (typeof PaystackPop === 'undefined') {
-    showError('Payment library failed to load. Please refresh and try again.');
+    showError('Paystack library failed to load. Please refresh and try again.');
     disableConfirmButton(false, 'Confirm and pay');
     return;
   }
 
-  // Reference needs to be unique even when there's no real bookingId yet
-  // (pending/local booking not persisted to Supabase).
   const referenceSeed = bookingId || currentBooking?.id || 'guest';
   const reference = `VORA-${referenceSeed}-${Date.now()}`;
 
@@ -388,44 +405,19 @@ function launchPaystack(amountNaira, bookingId) {
       booking_id: bookingId || null,
       user_id: currentUser?.id || null,
     },
-    // This was the missing piece: Paystack calls onClose whenever the popup
-    // closes, whether or not payment succeeded — it never signals success on
-    // its own. The actual "payment went through" signal comes through
-    // callback(response), which is what triggers verification and redirect.
     callback: function (response) {
-      // Paystack invokes this synchronously inside its own popup context, so
-      // wrap the async work in an IIFE rather than making callback itself async.
-      (async () => {
-        disableConfirmButton(true, 'Verifying payment...');
-        try {
-          await verifyPaymentOnServer(response.reference, bookingId);
-
-          if (bookingId) {
-            await markBookingPaid(bookingId, response.reference);
-          }
-
-          // Always redirect once the callback fires with a response —
-          // this is what was missing before.
-          goToConfirmation(bookingId, response.reference);
-        } catch (err) {
-          console.error(err);
-          showError(
-            (err.message || 'We could not confirm your booking automatically.') +
-              ' Your payment reference is ' +
-              response.reference +
-              " — please save it and contact support if your booking isn't confirmed shortly."
-          );
-          disableConfirmButton(false, 'Confirm and pay');
-        }
-      })();
+      finishSuccessfulPayment(response.reference, bookingId);
     },
     onClose: function () {
-      // Only fires if the user closes the popup without completing payment.
       disableConfirmButton(false, 'Confirm and pay');
     },
   });
 
   handler.openIframe();
+}
+
+async function launchPayment(amountNaira, bookingId) {
+  launchPaystack(amountNaira, bookingId);
 }
 
 async function init() {
@@ -492,11 +484,9 @@ async function init() {
     try {
       const total = calculateBookingTotal(currentBooking, getPendingBooking());
       if (bookingId) {
-        await createPendingPayment(currentBooking.id, total);
+        await createPendingPayment(currentBooking.id, total, 'paystack');
       }
-      // Pass the REAL bookingId (may be empty for pending/local bookings),
-      // not currentBooking.id, which can be a synthetic "pending-..." id.
-      launchPaystack(total, bookingId);
+      await launchPayment(total, bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

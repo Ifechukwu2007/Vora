@@ -4,6 +4,7 @@ const COMMON_LINKS = [
   { href: 'my-bookings.html', label: 'My Bookings' },
   { href: 'my-messages.html', label: 'My Messages' },
   { href: 'wishlist.html', label: 'Wishlist' },
+  { href: 'contact-us.html', label: 'Contact Us' },
 ];
 
 function createNavLink(linkInfo) {
