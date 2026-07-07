@@ -29,6 +29,18 @@ function getPendingBooking() {
   }
 }
 
+function calculateBookingTotal(booking, pendingBooking = null) {
+  const peopleCount = Number(booking?.number_of_people || pendingBooking?.numberOfPeople || 1);
+  const perPerson = Number(booking?.price_per_person || booking?.services?.price || pendingBooking?.pricePerPerson || 0);
+  const serviceLocation = booking?.service_location || pendingBooking?.serviceLocation || 'provider';
+  const travelFee = serviceLocation === 'customer'
+    ? (Number(booking?.travel_fee || pendingBooking?.travelFee || booking?.services?.travel_price || 0))
+    : 0;
+
+  const explicitTotal = Number(booking?.total_price || pendingBooking?.totalPrice || 0);
+  return explicitTotal || ((perPerson * peopleCount) + travelFee);
+}
+
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
@@ -141,6 +153,10 @@ async function loadBooking(bookingId, userId = null) {
 async function createBookingFromPending(pendingBooking, userId) {
   if (!pendingBooking) return null;
 
+  const totalAmount = Number(
+    pendingBooking.totalPrice || ((Number(pendingBooking.pricePerPerson || 0) * Number(pendingBooking.numberOfPeople || 1)) + (pendingBooking.serviceLocation === 'customer' ? Number(pendingBooking.travelFee || 0) : 0)) || 0
+  );
+
   const payload = {
     service_id: pendingBooking.serviceId || null,
     provider_id: pendingBooking.providerId || null,
@@ -148,7 +164,7 @@ async function createBookingFromPending(pendingBooking, userId) {
     scheduled_date: pendingBooking.scheduledDate || null,
     status: 'pending_payment',
     booking_status: 'pending_payment',
-    total_price: pendingBooking.totalPrice || 0,
+    total_price: totalAmount,
     number_of_people: pendingBooking.numberOfPeople || 1,
     price_per_person: pendingBooking.pricePerPerson || 0,
     travel_fee: pendingBooking.travelFee || 0,
@@ -222,10 +238,12 @@ function renderBooking(booking) {
     hide('booking-instructions-div');
   }
 
-  const perPerson = Number(booking.price_per_person) || Number(service.price) || 0;
-  const travelFee = Number(booking.travel_fee) || Number(service.travel_price) || 0;
-  const serviceFee = Math.max(0, Number(booking.total_price || 0) - (perPerson * Number(booking.number_of_people || 1)) - travelFee);
-  const total = Number(booking.total_price) || (perPerson * Number(booking.number_of_people || 1)) + serviceFee + travelFee;
+  const peopleCount = Number(booking.number_of_people || pendingBooking?.numberOfPeople || 1);
+  const perPerson = Number(booking.price_per_person) || Number(service.price) || Number(pendingBooking?.pricePerPerson || 0) || 0;
+  const serviceLocation = booking.service_location || pendingBooking?.serviceLocation || 'provider';
+  const travelFee = serviceLocation === 'customer' ? (Number(booking.travel_fee || pendingBooking?.travelFee || service.travel_price || 0)) : 0;
+  const total = calculateBookingTotal(booking, pendingBooking);
+  const serviceFee = Math.max(0, total - (perPerson * peopleCount) - travelFee);
 
   setText('per-person-price', formatNaira(perPerson));
   setText('service-fee', formatNaira(serviceFee));
@@ -358,7 +376,7 @@ function launchPaystack(amountNaira, bookingId) {
   const handler = PaystackPop.setup({
     key: PAYSTACK_PUBLIC_KEY,
     email: currentUser?.email || 'customer@example.com',
-    amount: Math.round(amountNaira * 10),
+    amount: Math.round(amountNaira * 100),
     currency: 'NGN',
     ref: reference,
     metadata: {
@@ -467,7 +485,7 @@ async function init() {
 
     disableConfirmButton(true, 'Processing...');
     try {
-      const total = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
+      const total = calculateBookingTotal(currentBooking, getPendingBooking());
       if (bookingId) {
         await createPendingPayment(currentBooking.id, total);
       }
