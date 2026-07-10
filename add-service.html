@@ -116,6 +116,7 @@
                         <div>
                             <label for="service-location" class="block text-sm font-medium text-gray-700">Where are you based?</label>
                             <input type="text" id="service-location" name="service-location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 15 Admiralty Way, Lekki Phase 1, Lagos, Nigeria">
+                            <p id="error-service-location" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
@@ -126,6 +127,7 @@
                         <div>
                             <label for="service-capacity" class="block text-sm font-medium text-gray-700">How many clients can you serve at once?</label>
                             <input type="number" id="service-capacity" name="service-capacity" min="1" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 4">
+                            <p id="error-service-capacity" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
@@ -148,16 +150,19 @@
                     <div>
                         <label for="service-title" class="block text-sm font-medium text-gray-700">Give your service a title</label>
                         <input type="text" id="service-title" name="service-title" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Certified Bridal Makeup Artist — Lagos">
+                        <p id="error-service-title" class="mt-1 text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label for="service-description" class="block text-sm font-medium text-gray-700">Describe your service</label>
                         <textarea id="service-description" name="service-description" rows="5" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="What makes your work stand out? Share your experience, style, certifications, and what clients can expect."></textarea>
+                        <p id="error-service-description" class="mt-1 text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label for="service-includes" class="block text-sm font-medium text-gray-700" id="service-includes-label">What does your service include?</label>
                         <textarea id="service-includes" name="service-includes" rows="3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Add details that help customers make a decision."></textarea>
+                        <p id="error-service-includes" class="mt-1 text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div id="category-details" class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"></div>
@@ -181,6 +186,7 @@
                         <div>
                             <label for="service-price" class="block text-sm font-medium text-gray-700">Set your rate (NGN)</label>
                             <input type="number" id="service-price" name="service-price" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 15000">
+                            <p id="error-service-price" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
@@ -212,6 +218,7 @@
                         <div>
                             <label for="business-name" class="block text-sm font-medium text-gray-700">Business name</label>
                             <input type="text" id="business-name" name="business-name" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Optional for verification">
+                            <p id="error-business-name" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
                     </div>
                 </section>

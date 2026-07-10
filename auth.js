@@ -547,6 +547,29 @@ document.addEventListener('click', async (e) => {
 // EXPORT
 // ===============================
 
+async function resolveProfilePictureUrl(value) {
+  if (!value) return "";
+
+  if (/^https?:\/\//i.test(value)) return value;
+
+  try {
+    const { data: signedUrlData } = await supabase.storage
+      .from("profile-pictures")
+      .createSignedUrl(value, 60 * 60);
+
+    if (signedUrlData?.signedUrl) return signedUrlData.signedUrl;
+
+    const { data: publicUrlData } = supabase.storage
+      .from("profile-pictures")
+      .getPublicUrl(value);
+
+    return publicUrlData?.publicUrl || "";
+  } catch (error) {
+    console.warn("Failed to resolve profile picture URL:", error);
+    return "";
+  }
+}
+
 // Update profile picture in header
 export async function updateProfilePictureInHeader() {
   try {
@@ -560,7 +583,7 @@ export async function updateProfilePictureInHeader() {
       .from("profiles")
       .select("profile_picture, full_name")
       .eq("id", sessionData.session.user.id)
-      .single();
+      .maybeSingle();
 
     if (!profileFetchError && profileData) {
       userProfile = profileData;
@@ -569,7 +592,7 @@ export async function updateProfilePictureInHeader() {
         .from("users")
         .select("profile_picture, full_name")
         .eq("id", sessionData.session.user.id)
-        .single();
+        .maybeSingle();
 
       if (!userFetchError && userData) {
         userProfile = userData;
@@ -589,11 +612,13 @@ export async function updateProfilePictureInHeader() {
       'User';
 
     const avatarSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&rounded=true`;
-    const profileSrc = userProfile?.profile_picture || avatarSrc;
+    const profilePicturePath = userProfile?.profile_picture;
+    const profileSrc = profilePicturePath ? await resolveProfilePictureUrl(profilePicturePath) : "";
+    const finalSrc = profileSrc || avatarSrc;
 
     const profileIcons = document.querySelectorAll('[data-profile-icon="true"]');
     profileIcons.forEach(icon => {
-      icon.innerHTML = `<img src="${profileSrc}" class="w-full h-full rounded-full object-cover" alt="Profile" />`;
+      icon.innerHTML = `<img src="${finalSrc}" class="w-full h-full rounded-full object-cover" alt="Profile" />`;
       icon.classList.remove('bg-gray-300');
     });
   } catch (error) {

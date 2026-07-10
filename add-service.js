@@ -4,12 +4,232 @@ import { LoadingSpinner } from './loading-utils.js';
 let selectedImageFiles = [];
 let currentStep = 1;
 
+function clearErrors() {
+    document.querySelectorAll('[id^="error-"]').forEach((el) => {
+        el.textContent = '';
+        el.classList.add('hidden');
+    });
+}
+
+function showFieldError(fieldId, message) {
+    const errorEl = document.getElementById(fieldId);
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+}
+
+function setFieldState(inputEl, isValid) {
+    if (!inputEl) return;
+    inputEl.classList.toggle('border-red-500', !isValid);
+    inputEl.classList.toggle('focus:border-red-500', !isValid);
+    inputEl.classList.toggle('border-gray-300', isValid);
+}
+
 function stripDealFields(serviceData) {
     const cleaned = { ...serviceData };
     delete cleaned.deal_message;
     delete cleaned.group_discount_threshold;
     delete cleaned.group_discount_percent;
     return cleaned;
+}
+
+function normalizeText(value) {
+    return (value || '').replace(/\s+/g, ' ').trim();
+}
+
+function isLikelyNonsense(value, { minLength = 8, minWords = 2 } = {}) {
+    const normalized = normalizeText(value).toLowerCase();
+    if (!normalized) return true;
+
+    const bannedTerms = [
+        'lorem ipsum',
+        'asdf',
+        'qwerty',
+        'test service',
+        'testing',
+        'demo',
+        'placeholder',
+        'tbd',
+        'coming soon',
+        'n/a',
+        'none',
+        'nothing',
+        'service provider',
+        'provider service',
+        'good service',
+        'best service',
+        'any service',
+        'hello',
+        'hi there',
+        'sample'
+    ];
+
+    if (bannedTerms.some((term) => normalized.includes(term))) return true;
+
+    const lettersOnly = normalized.replace(/[^a-z]/g, '');
+    if (lettersOnly.length < minLength) return true;
+
+    const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+    if (wordCount < minWords) return true;
+
+    return false;
+}
+
+function validateMeaningfulText(value, label, { minLength = 12, minWords = 3, required = true } = {}) {
+    const normalized = normalizeText(value);
+
+    if (!normalized) {
+        return required ? `${label} is required.` : null;
+    }
+
+    if (normalized.length < minLength) {
+        return `${label} must be at least ${minLength} characters long.`;
+    }
+
+    if (normalized.split(/\s+/).filter(Boolean).length < minWords) {
+        return `${label} must include at least ${minWords} words.`;
+    }
+
+    if (isLikelyNonsense(normalized, { minLength: Math.max(8, minLength - 4), minWords })) {
+        return `${label} looks too generic. Please describe your service more clearly.`;
+    }
+
+    return null;
+}
+
+function validateCurrentStep() {
+    clearErrors();
+
+    if (currentStep === 1) {
+        const categoryInput = document.getElementById('service-category');
+        const locationInput = document.getElementById('service-location');
+        const deliveryInput = document.getElementById('service-delivery');
+        const capacityInput = document.getElementById('service-capacity');
+        const interactionInput = document.getElementById('service-interaction');
+        const category = categoryInput.value;
+        const location = locationInput.value.trim();
+        const delivery = deliveryInput.value;
+        const capacity = capacityInput.value.trim();
+        const interaction = interactionInput.value;
+        let hasError = false;
+
+        if (!category) {
+            showFieldError('error-service-category', 'Please select a category.');
+            setFieldState(categoryInput, false);
+            hasError = true;
+        } else {
+            setFieldState(categoryInput, true);
+        }
+
+        if (!location || isLikelyNonsense(location, { minLength: 4, minWords: 1 })) {
+            showFieldError('error-service-location', 'Please enter a specific location.');
+            setFieldState(locationInput, false);
+            hasError = true;
+        } else {
+            setFieldState(locationInput, true);
+        }
+
+        if (!delivery) {
+            showFieldError('error-service-delivery', 'Please choose how you deliver your service.');
+            setFieldState(deliveryInput, false);
+            hasError = true;
+        } else {
+            setFieldState(deliveryInput, true);
+        }
+
+        if (capacity && (Number.isNaN(parseInt(capacity, 10)) || parseInt(capacity, 10) < 1 || parseInt(capacity, 10) > 100)) {
+            showFieldError('error-service-capacity', 'Please enter a realistic capacity between 1 and 100.');
+            setFieldState(capacityInput, false);
+            hasError = true;
+        } else {
+            setFieldState(capacityInput, true);
+        }
+
+        if (!interaction) {
+            showFieldError('error-service-interaction', 'Please tell us who the customer will interact with.');
+            setFieldState(interactionInput, false);
+            hasError = true;
+        } else {
+            setFieldState(interactionInput, true);
+        }
+
+        return !hasError;
+    }
+
+    if (currentStep === 2) {
+        const titleInput = document.getElementById('service-title');
+        const descriptionInput = document.getElementById('service-description');
+        const includesInput = document.getElementById('service-includes');
+        const title = titleInput.value.trim();
+        const description = descriptionInput.value.trim();
+        const includes = includesInput.value.trim();
+        let hasError = false;
+
+        const titleError = validateMeaningfulText(title, 'Service title', { minLength: 8, minWords: 2 });
+        if (titleError) {
+            showFieldError('error-service-title', titleError);
+            setFieldState(titleInput, false);
+            hasError = true;
+        } else {
+            setFieldState(titleInput, true);
+        }
+
+        const descriptionError = validateMeaningfulText(description, 'Service description', { minLength: 40, minWords: 8 });
+        if (descriptionError) {
+            showFieldError('error-service-description', descriptionError);
+            setFieldState(descriptionInput, false);
+            hasError = true;
+        } else {
+            setFieldState(descriptionInput, true);
+        }
+
+        const includesError = validateMeaningfulText(includes, 'Service details', { minLength: 15, minWords: 3, required: true });
+        if (includesError) {
+            showFieldError('error-service-includes', includesError);
+            setFieldState(includesInput, false);
+            hasError = true;
+        } else {
+            setFieldState(includesInput, true);
+        }
+
+        if (selectedImageFiles.length === 0) {
+            showFieldError('error-service-image', 'Please upload at least one portfolio photo.');
+            hasError = true;
+        }
+
+        const oversizedFiles = selectedImageFiles.filter((file) => file.size > 10 * 1024 * 1024);
+        if (oversizedFiles.length > 0) {
+            showFieldError('error-service-image', 'Each photo must be 10MB or smaller.');
+            hasError = true;
+        }
+
+        return !hasError;
+    }
+
+    const priceInput = document.getElementById('service-price');
+    const businessInput = document.getElementById('business-name');
+    const priceValue = priceInput.value.trim();
+    const priceNumber = Number.parseFloat(priceValue);
+    let hasError = false;
+
+    if (!priceValue || Number.isNaN(priceNumber) || priceNumber < 1000) {
+        showFieldError('error-service-price', 'Please enter a realistic price of at least NGN 1,000.');
+        setFieldState(priceInput, false);
+        hasError = true;
+    } else {
+        setFieldState(priceInput, true);
+    }
+
+    const businessName = businessInput.value.trim();
+    if (businessName && isLikelyNonsense(businessName, { minLength: 4, minWords: 1 })) {
+        showFieldError('error-business-name', 'Please enter a real business name or leave this field blank.');
+        setFieldState(businessInput, false);
+        hasError = true;
+    } else {
+        setFieldState(businessInput, true);
+    }
+
+    return !hasError;
 }
 
 function updateWizardUI() {
@@ -50,47 +270,6 @@ function updateWizardUI() {
     prevBtn.classList.toggle('hidden', currentStep === 1);
     nextBtn.classList.toggle('hidden', currentStep === 3);
     submitBtn.classList.toggle('hidden', currentStep !== 3);
-}
-
-function validateCurrentStep() {
-    if (currentStep === 1) {
-        const category = document.getElementById('service-category').value;
-        const location = document.getElementById('service-location').value.trim();
-        if (!category) {
-            alert('Please select a category for your service.');
-            return false;
-        }
-        if (!location) {
-            alert('Please tell us where you are based.');
-            return false;
-        }
-        return true;
-    }
-
-    if (currentStep === 2) {
-        const title = document.getElementById('service-title').value.trim();
-        const description = document.getElementById('service-description').value.trim();
-        if (!title) {
-            alert('Please enter a service title.');
-            return false;
-        }
-        if (!description) {
-            alert('Please describe your service.');
-            return false;
-        }
-        if (selectedImageFiles.length === 0) {
-            alert('Please upload at least one portfolio photo.');
-            return false;
-        }
-        return true;
-    }
-
-    const priceValue = document.getElementById('service-price').value.trim();
-    if (!priceValue || Number.isNaN(parseFloat(priceValue)) || parseFloat(priceValue) <= 0) {
-        alert('Please enter a valid price greater than 0.');
-        return false;
-    }
-    return true;
 }
 
 function renderCategoryDetails() {
@@ -181,7 +360,17 @@ document.addEventListener('DOMContentLoaded', () => {
     updateWizardUI();
     renderCategoryDetails();
 
-    categorySelect.addEventListener('change', renderCategoryDetails);
+    categorySelect.addEventListener('change', () => {
+        renderCategoryDetails();
+        clearErrors();
+    });
+
+    document.querySelectorAll('#service-location, #service-capacity, #service-interaction, #service-title, #service-description, #service-includes, #service-price, #business-name, #service-category').forEach((input) => {
+        input.addEventListener('input', () => {
+            clearErrors();
+            validateCurrentStep();
+        });
+    });
 
     nextBtn.addEventListener('click', () => {
         if (validateCurrentStep()) {
@@ -267,12 +456,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const capacity = document.getElementById('service-capacity').value.trim();
             const interaction = document.getElementById('service-interaction').value;
             const businessName = document.getElementById('business-name').value.trim();
-            const verificationStatus = document.getElementById('verification-status').value;
-            const payoutMethod = document.getElementById('payout-method').value;
             const instantBooking = document.getElementById('instant-booking').checked;
             const dealMessage = document.getElementById('deal-message').value.trim();
             const groupDiscountThresholdValue = document.getElementById('group-discount-threshold').value.trim();
             const groupDiscountPercentValue = document.getElementById('group-discount-percent').value.trim();
+
+            if (!validateCurrentStep()) {
+                submitBtn.innerText = originalBtnText;
+                submitBtn.disabled = false;
+                return;
+            }
 
             let providerEmail = user.email || 'provider@vora.com';
             try {
@@ -361,8 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Who interacts: ${interaction}`,
                 `Includes: ${includes || 'Not specified'}`,
                 `Booking mode: ${instantBooking ? 'Instant booking enabled' : 'Manual approval for first bookings'}`,
-                `Verification: ${businessName || 'Not provided'} • ${verificationStatus}`,
-                `Payout method: ${payoutMethod}`
+                `Business: ${businessName || 'Not provided'}`
             ].join('\n');
 
             const serviceData = {

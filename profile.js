@@ -132,6 +132,14 @@ async function uploadProfilePicture(userId, file) {
   return objectPath;
 }
 
+async function syncProfileData(userId, updates) {
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert({ id: userId, ...updates }, { onConflict: "id" });
+
+  if (profileError) throw profileError;
+}
+
 async function deleteProfilePicture(userId, currentProfilePicture) {
   if (!currentProfilePicture) return;
 
@@ -189,9 +197,7 @@ async function toggleDashboardButton(userId) {
 async function initAuthAndProfile() {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData?.user) {
-    // If you already handle redirects in auth.js, you can remove this.
-    // Otherwise, redirect to login.
-    window.location.href = "auth.html";
+    window.location.replace("home.html");
     return;
   }
 
@@ -222,8 +228,7 @@ async function initAuthAndProfile() {
 
       const { error: updateError } = await supabase
         .from("profiles")
-        .update(payload)
-        .eq("id", user.id);
+        .upsert({ id: user.id, ...payload }, { onConflict: "id" });
 
       showLoading(false);
 
@@ -251,14 +256,8 @@ async function initAuthAndProfile() {
       // Upload
       const objectPath = await uploadProfilePicture(user.id, file);
 
-      // Update DB
-      // We store objectPath (not public URL) in profile_picture
-      const { error: dbError } = await supabase
-        .from("profiles")
-        .update({ profile_picture: objectPath })
-        .eq("id", user.id);
-
-      if (dbError) throw dbError;
+      // Update DB in both profile stores so the image is visible everywhere
+      await syncProfileData(user.id, { profile_picture: objectPath });
 
       // Refresh UI
       const { data: refreshed, error: refErr } = await supabase
@@ -299,6 +298,7 @@ async function initAuthAndProfile() {
       if (curErr) throw curErr;
 
       await deleteProfilePicture(user.id, current?.profile_picture);
+      await syncProfileData(user.id, { profile_picture: null });
 
       // Reset UI
       els.profilePictureDisplay.src = "";
