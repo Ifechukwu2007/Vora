@@ -2,6 +2,39 @@ import { testConnection, getRequests } from './db.js'
 import { initializeRouter } from './router.js'
 import { updateProfilePictureInHeader } from './auth.js'
 
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    await navigator.serviceWorker.register('/sw.js');
+  } catch (error) {
+    console.warn('Service worker registration failed:', error);
+  }
+}
+
+function setupInstallPrompt() {
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+
+    const installButton = document.getElementById('installAppBtn');
+    if (installButton) {
+      installButton.classList.remove('hidden');
+      installButton.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          installButton.classList.add('hidden');
+        }
+        deferredPrompt = null;
+      }, { once: true });
+    }
+  });
+}
+
 // Run app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -16,6 +49,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Update profile picture in header
     await updateProfilePictureInHeader()
+
+    // Enable installability
+    setupInstallPrompt()
+    await registerServiceWorker()
 
   } catch (error) {
     console.error('App initialization error:', error)
