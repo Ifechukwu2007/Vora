@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { data: sessionData } = await supabase.auth.getSession();
 
     if (!sessionData.session) {
-        window.location.href = "login.html";
+        window.location.href = "home.html";
         return;
     }
 

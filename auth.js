@@ -348,7 +348,7 @@ if (registerForm) {
 // LOGOUT FUNCTIONALITY
 // ===============================
 
-const PUBLIC_PAGES = ['login', 'register', 'home', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service'];
+const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service'];
 
 function isFilePreview() {
   return window.location.protocol === 'file:';
@@ -398,7 +398,7 @@ function updateAuthLinks(isLoggedIn) {
       if (isLoggedIn) {
         link.href = 'profile.html';
       } else {
-        link.href = 'login.html?redirect=profile.html';
+        link.href = 'home.html';
       }
     }
   });
@@ -408,7 +408,7 @@ function updateAuthLinks(isLoggedIn) {
     if (isLoggedIn) {
       link.href = 'add-service.html';
     } else {
-      link.href = 'login.html?redirect=add-service.html';
+      link.href = 'home.html';
     }
   });
 }
@@ -486,7 +486,7 @@ async function redirectIfNotOnPublicPage() {
   const isPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
 
   if (!hasSession && !isPublicPage) {
-    window.location.href = `login.html?redirect=${encodeURIComponent(currentPage.replace(/^\//, ''))}`;
+    window.location.href = 'home.html';
   }
 }
 
@@ -501,7 +501,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     const isFullyPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
 
     if (!isFullyPublicPage) {
-      window.location.href = `login.html?redirect=${encodeURIComponent(currentPage.replace(/^\//, ''))}`;
+      window.location.href = 'home.html';
     }
   }
 });
@@ -539,7 +539,7 @@ document.addEventListener('click', async (e) => {
   if (!hasSession && !isPublicPage) {
     e.preventDefault();
     e.stopPropagation();
-    window.location.href = 'login.html';
+    window.location.href = 'home.html';
   }
 }, true);
 

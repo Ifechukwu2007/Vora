@@ -31,7 +31,7 @@ async function toggleWishlist(serviceId) {
   const { data: session } = await supabase.auth.getSession();
   const user = session?.session?.user;
   if (!user) {
-    window.location.href = 'login.html';
+    window.location.href = 'home.html';
     return;
   }
 

@@ -563,7 +563,7 @@ async function renderServiceMap(service, providerProfile) {
 async function openBookingModal(service, providerId) {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !sessionData?.session?.user) {
-    window.location.href = `login.html?redirect=service.html?id=${service.id}`;
+    window.location.href = 'home.html';
     return;
   }
 
