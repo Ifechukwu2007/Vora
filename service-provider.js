@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from './loading-utils.js';
 import { formatPrice } from './currency-utils.js';
 
@@ -12,7 +13,7 @@ function getNameFromUser(user) {
 async function getProvider(providerId) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, full_name, email, location, profile_picture')
+    .select('id, full_name, email, location, profile_picture, verified')
     .eq('id', providerId)
     .maybeSingle();
 
@@ -114,7 +115,15 @@ async function toggleWishlist(serviceId) {
 async function renderProvider(user, providerId, container) {
   const providerName = getNameFromUser(user);
   const providerLocation = user?.location || 'Not specified';
-  const profilePicture = user?.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(providerName);
+  let profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
+  if (user?.profile_picture) {
+    try {
+      const resolved = await resolveProfilePictureUrl(user.profile_picture);
+      if (resolved) profilePicture = resolved;
+    } catch (e) {
+      console.warn('Could not resolve provider picture:', e);
+    }
+  }
 
   container.innerHTML = `
     <div class="border-b pb-6">
@@ -126,7 +135,10 @@ async function renderProvider(user, providerId, container) {
           <p class="text-lg text-gray-700"><strong>Location:</strong> ${providerLocation}</p>
         </div>
       </div>
-      <div id="average-rating" class="text-lg text-gray-700 mb-2"></div>
+      <div class="flex items-center gap-3 mb-2">
+        ${user?.verified ? `<span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Verified</span>` : ''}
+        <div id="average-rating" class="text-lg text-gray-700"></div>
+      </div>
     </div>
     <div id="provider-services-container" class="mt-6">
       <h3 class="text-2xl font-bold mb-4">Services Offered</h3>
@@ -226,13 +238,31 @@ async function renderReviews(reviews) {
 
   const usersById = Object.fromEntries((users || []).map((user) => [user.id, user]));
 
+  // Resolve reviewer profile pictures
+  let resolvedUsersById = {};
+  if (users && users.length) {
+    const resolved = await Promise.all(users.map(async (u) => {
+      let pic = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || 'Reviewer')}`;
+      if (u?.profile_picture) {
+        try {
+          const r = await resolveProfilePictureUrl(u.profile_picture);
+          if (r) pic = r;
+        } catch (e) {
+          console.warn('Failed to resolve reviewer picture', e);
+        }
+      }
+      return [u.id, { ...u, resolved_profile_picture: pic }];
+    }));
+    resolvedUsersById = Object.fromEntries(resolved);
+  }
+
   let totalRating = 0;
   const reviewsHtml = reviews.map((review) => {
     const rating = Number(review.rating) || 0;
     totalRating += rating;
-    const reviewer = usersById[review.user_id] || {};
+    const reviewer = (resolvedUsersById[review.user_id] || usersById[review.user_id]) || {};
     const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-    const profilePic = reviewer.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(reviewer.full_name || 'Reviewer');
+    const profilePic = reviewer.resolved_profile_picture || reviewer.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(reviewer.full_name || 'Reviewer');
 
     return `
       <div class="border-b py-4 flex gap-3">

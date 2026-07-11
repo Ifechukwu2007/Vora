@@ -199,13 +199,6 @@ function setupButtons() {
       alert("Unexpected error: " + (e?.message || e));
     });
   });
-
-  byId("deleteAccountBtn")?.addEventListener("click", () => {
-    deleteAccountFlow().catch((e) => {
-      console.error(e);
-      alert("Unexpected error: " + (e?.message || e));
-    });
-  });
 }
 
 async function init() {

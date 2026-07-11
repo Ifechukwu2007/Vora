@@ -133,6 +133,7 @@ function buildSection(title, subtitle, services, options = {}) {
         const rating = getAverageRating(service.id);
         const provider = providerMap[service.provider_id] || {};
         const providerName = provider.full_name || 'Verified provider';
+        const providerVerified = provider.verified === true || provider.verified === 'true';
         const price = Number(service.price) || 0;
         const discountPercent = Number(service.group_discount_percent) || 0;
         const hasDeal = Number(service.group_discount_threshold) > 0 && discountPercent > 0;
@@ -152,8 +153,11 @@ function buildSection(title, subtitle, services, options = {}) {
                         <span class="text-sm font-semibold text-pink-600">${formatPrice(discountedPrice)}</span>
                     </div>
                     <p class="mt-2 text-sm text-gray-500 line-clamp-2">${getServiceSummary(service)}</p>
-                    <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
-                        <span>${providerName}</span>
+                    <div class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500">
+                        <div class="flex items-center gap-2">
+                          <span>${providerName}</span>
+                          ${providerVerified ? `<span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Verified</span>` : ''}
+                        </div>
                         <span>${rating ? `${rating} ★` : 'New'}</span>
                     </div>
                 </div>
@@ -296,17 +300,26 @@ async function loadHomepageData() {
 
         if (allServices.length) {
             const serviceIds = allServices.map((service) => service.id).filter(Boolean);
-
-                const { data: reviewsData } = await supabasePublic
-
             reviewStatsMap = {};
-            (reviewsData || []).forEach((review) => {
-                if (!reviewStatsMap[review.service_id]) {
-                    reviewStatsMap[review.service_id] = { sum: 0, count: 0 };
+
+            if (serviceIds.length) {
+                const { data: reviewsData, error: reviewsError } = await supabasePublic
+                    .from('reviews')
+                    .select('service_id, rating')
+                    .in('service_id', serviceIds);
+
+                if (reviewsError) {
+                    console.warn('Could not load homepage reviews:', reviewsError.message || reviewsError);
+                } else {
+                    (reviewsData || []).forEach((review) => {
+                        if (!reviewStatsMap[review.service_id]) {
+                            reviewStatsMap[review.service_id] = { sum: 0, count: 0 };
+                        }
+                        reviewStatsMap[review.service_id].sum += Number(review.rating || 0);
+                        reviewStatsMap[review.service_id].count += 1;
+                    });
                 }
-                reviewStatsMap[review.service_id].sum += Number(review.rating || 0);
-                reviewStatsMap[review.service_id].count += 1;
-            });
+            }
 
             Object.keys(reviewStatsMap).forEach((id) => {
                 const stats = reviewStatsMap[id];
@@ -315,11 +328,20 @@ async function loadHomepageData() {
 
             const providerIds = [...new Set(allServices.map((service) => service.provider_id).filter(Boolean))];
             if (providerIds.length) {
-                const { data: providersData } = await supabasePublic
-                    .from('users')
-                    .select('id, full_name, profile_picture')
+                const { data: profilesData } = await supabasePublic
+                    .from('profiles')
+                    .select('id, full_name, profile_picture, verified')
                     .in('id', providerIds);
-                providerMap = Object.fromEntries((providersData || []).map((provider) => [provider.id, provider]));
+
+                if ((profilesData || []).length) {
+                    providerMap = Object.fromEntries((profilesData || []).map((provider) => [provider.id, provider]));
+                } else {
+                    const { data: usersData } = await supabasePublic
+                        .from('users')
+                        .select('id, full_name, profile_picture, verified')
+                        .in('id', providerIds);
+                    providerMap = Object.fromEntries((usersData || []).map((provider) => [provider.id, provider]));
+                }
             }
         }
     } catch (error) {

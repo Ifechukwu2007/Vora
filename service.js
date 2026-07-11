@@ -1,4 +1,5 @@
 import { supabase, supabasePublic } from "./supabase.js";
+import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from "./loading-utils.js";
 import { formatPrice } from "./currency-utils.js";
 
@@ -82,7 +83,7 @@ async function loadService() {
     // FETCH SERVICE PROVIDER'S PROFILE
     const { data: providerProfile, error: providerError } = await supabasePublic
       .from('users')
-      .select('full_name, email, profile_picture, location')
+      .select('full_name, email, profile_picture, location, verified')
       .eq('id', providerId)
       .single();
 
@@ -103,6 +104,7 @@ async function loadService() {
     const userIds = [...new Set((reviews || []).map(r => r.user_id).filter(Boolean))];
 
     let usersById = {};
+    let resolvedUsersById = {};
     if (userIds.length) {
       const { data: users, error: usersError } = await supabasePublic
         .from('users')
@@ -112,6 +114,17 @@ async function loadService() {
       if (usersError) console.error('Failed to load reviewer profiles', usersError);
 
       usersById = Object.fromEntries((users || []).map(u => [u.id, u]));
+
+      // Resolve reviewer profile pictures
+      const resolvedEntries = await Promise.all((users || []).map(async (u) => {
+        const img = u?.profile_picture
+          ? await (async () => { try { return await resolveProfilePictureUrl(u.profile_picture); } catch (e) { return null; } })()
+          : null;
+        const final = img || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || 'User')}&background=eceff4&color=1f2937`;
+        return [u.id, { ...u, resolved_profile_picture: final }];
+      }));
+
+      resolvedUsersById = Object.fromEntries(resolvedEntries);
     }
 
     // IMAGE
@@ -121,6 +134,17 @@ async function loadService() {
 
     currentServiceContext = { ...service, image_url: serviceImage, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};
+
+    // Resolve provider image (prefer stored profile_picture)
+    let providerImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerProfile?.full_name || 'Service Provider')}&background=eceff4&color=1f2937`;
+    if (providerProfile?.profile_picture) {
+      try {
+        const r = await resolveProfilePictureUrl(providerProfile.profile_picture);
+        if (r) providerImage = r;
+      } catch (e) {
+        console.warn('Could not resolve provider profile picture:', e);
+      }
+    }
 
     // ============================
     // RENDER SERVICE
@@ -153,23 +177,23 @@ async function loadService() {
           <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 hover:border-blue-300 cursor-pointer">
             <div class="flex items-center gap-4">
               <img
-                src="${
-                  providerProfile?.profile_picture ||
-                  'https://ui-avatars.com/api/?name=' + encodeURIComponent(providerProfile?.full_name || 'Service Provider')
-                }"
+                src="${providerImage}"
                 alt="${providerProfile?.full_name || 'Service Provider'}"
                 class="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
               />
               <div>
                 <p class="text-sm text-gray-600">Service Provider</p>
-                <h3 class="text-xl font-bold text-gray-900">
-                ${providerProfile?.full_name || 'Service Provider'}
-              </h3>
-              <p class="text-blue-600 text-sm">
-                ${providerProfile?.email || 'No email'}
-              </p>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-xl font-bold text-gray-900">
+                    ${providerProfile?.full_name || 'Service Provider'}
+                  </h3>
+                  ${providerProfile?.verified ? `<span class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Verified</span>` : ''}
+                </div>
+                <p class="text-blue-600 text-sm">
+                  ${providerProfile?.email || 'No email'}
+                </p>
+              </div>
             </div>
-          </div>
         </a>
 
         <img
@@ -246,7 +270,7 @@ async function loadService() {
     }
 
     renderReviewSummary(reviews || []);
-    renderReviews(reviews || [], usersById);
+    renderReviews(reviews || [], Object.keys(resolvedUsersById).length ? resolvedUsersById : usersById);
     await renderServiceMap(service, providerProfile);
 
   } catch (err) {
@@ -319,9 +343,11 @@ function renderReviews(reviews, usersById) {
 
     card.className = 'border-b py-4 flex gap-3 review-card';
 
+    const reviewerImg = reviewer?.resolved_profile_picture || reviewer?.profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(reviewer?.full_name || 'Reviewer')}&background=eceff4&color=1f2937`;
+
     card.innerHTML = `
       <img
-        src="${reviewer?.profile_picture || 'https://placehold.co/50x50'}"
+        src="${reviewerImg}"
         class="w-10 h-10 rounded-full object-cover"
       />
 

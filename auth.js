@@ -547,7 +547,7 @@ document.addEventListener('click', async (e) => {
 // EXPORT
 // ===============================
 
-async function resolveProfilePictureUrl(value) {
+export async function resolveProfilePictureUrl(value) {
   if (!value) return "";
 
   if (/^https?:\/\//i.test(value)) return value;

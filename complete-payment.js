@@ -1,5 +1,6 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
+import { resolveProfilePictureUrl } from './auth.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -198,14 +199,22 @@ async function createBookingFromPending(pendingBooking, userId) {
   return data;
 }
 
-function renderBooking(booking) {
+async function renderBooking(booking) {
   const service = booking.services || {};
   const provider = booking.providers || {};
   const pendingBooking = getPendingBooking();
   const serviceTitle = service.title || pendingBooking?.serviceTitle || 'Service';
   const serviceImage = service.image_url || pendingBooking?.serviceImage || '';
   const providerName = provider.full_name || pendingBooking?.providerName || 'Provider';
-  const providerPicture = provider.profile_picture || pendingBooking?.providerPicture || '';
+    let resolvedProviderPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
+    if (provider?.profile_picture) {
+      try {
+        const resolved = await resolveProfilePictureUrl(provider.profile_picture);
+        if (resolved) resolvedProviderPic = resolved;
+      } catch (err) {
+        console.warn('Could not resolve provider profile picture:', err);
+      }
+    }
   const providerLocation = provider.location || pendingBooking?.providerLocation || service.location || 'Provider Location';
   const bookingLocation = booking.service_location === 'customer'
     ? (booking.customer_location || 'Customer Location')
@@ -228,7 +237,7 @@ function renderBooking(booking) {
   setText('provider-name', providerName);
   const providerPic = document.getElementById('provider-picture');
   if (providerPic) {
-    providerPic.src = providerPicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}`;
+      providerPic.src = resolvedProviderPic;
   }
 
   const scheduledDate = booking.scheduled_date ? new Date(booking.scheduled_date) : null;

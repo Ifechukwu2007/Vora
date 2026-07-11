@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // FETCH PROVIDER (SERVICE OWNER)
       // =========================
       let providerName = 'Provider';
-      let providerPicture = 'https://ui-avatars.com/api/?name=Provider';
+      let providerPicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
 
       if (serviceData?.provider_full_name) {
         providerName = serviceData.provider_full_name;
@@ -352,12 +352,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else if (provider.email) {
           providerName = provider.email;
         }
-        if (provider.profile_picture) {
-          providerPicture = provider.profile_picture;
-        }
       } else if (providerError) {
         console.error('Error fetching provider profile:', providerError);
       }
+
+      providerPicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
 
       if (providerNameEl) {
         providerNameEl.textContent = providerName;

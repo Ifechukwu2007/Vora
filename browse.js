@@ -531,7 +531,7 @@ async function fetchProviders() {
 
         const { data: providersData, error } = await supabasePublic
             .from('users')
-            .select('id, full_name, profile_picture')
+            .select('id, full_name, profile_picture, verified')
             .in('id', providerIds);
 
         if (error) throw error;

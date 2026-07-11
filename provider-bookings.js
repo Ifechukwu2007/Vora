@@ -304,9 +304,7 @@ function normalize(row, customerProfile) {
 
   const customerName = customerProfile?.full_name || row.customer_name || 'Customer';
   const customerEmail = customerProfile?.email || row.customer_email || 'No email';
-  const customerPicture = customerProfile?.profile_picture?.trim()
-    ? customerProfile.profile_picture
-    : `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=random`;
+  const customerPicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=eceff4&color=1f2937`;
 
   return {
     bookingId: row.id,

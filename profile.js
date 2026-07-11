@@ -1,5 +1,6 @@
 // profile.js
 import { supabase } from "./supabase.js";
+import { updateProfilePictureInHeader } from "./auth.js";
 
 const BUCKET_NAME = "profile-pictures"; // <-- change if your bucket name differs
 
@@ -274,6 +275,7 @@ async function initAuthAndProfile() {
       els.profilePicturePlaceholder.classList.add("hidden");
       els.removeProfilePictureBtn.classList.remove("hidden");
 
+      await updateProfilePictureInHeader();
       alert("Profile picture updated.");
     } catch (err) {
       console.error(err);
@@ -299,6 +301,7 @@ async function initAuthAndProfile() {
 
       await deleteProfilePicture(user.id, current?.profile_picture);
       await syncProfileData(user.id, { profile_picture: null });
+      await updateProfilePictureInHeader();
 
       // Reset UI
       els.profilePictureDisplay.src = "";

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { resolveProfilePictureUrl } from './auth.js';
 
 const MAPTILER_KEY = window.MAPTILER_API_KEY || '';
 const MAPTILER_STYLE_URL = MAPTILER_KEY
@@ -286,7 +287,21 @@ async function loadBookings() {
                 console.error("Providers fetch error:", providersError);
             }
 
-            providersById = Object.fromEntries((providers || []).map(provider => [String(provider.id), provider]));
+            // Resolve provider pictures
+            const resolvedProviders = await Promise.all((providers || []).map(async (p) => {
+                let pic = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'Provider')}&background=eceff4&color=1f2937`;
+                if (p?.profile_picture) {
+                    try {
+                        const r = await resolveProfilePictureUrl(p.profile_picture);
+                        if (r) pic = r;
+                    } catch (e) {
+                        console.warn('Failed to resolve provider picture', e);
+                    }
+                }
+                return { ...p, resolved_profile_picture: pic };
+            }));
+
+            providersById = Object.fromEntries((resolvedProviders || []).map(provider => [String(provider.id), provider]));
         }
 
         const serviceIds = bookings.map(b => b.service_id).filter(Boolean);
@@ -311,6 +326,36 @@ async function loadBookings() {
 
             servicesById = Object.fromEntries((services || []).map(service => [service.id, service]));
         }
+
+            // Fetch booking customers (users who made the bookings)
+            const customerIds = [...new Set(bookings.map(b => b.user_id).filter(Boolean))];
+            let customersById = {};
+
+            if (customerIds.length > 0) {
+                const { data: customers, error: customersError } = await supabase
+                    .from('users')
+                    .select('id, full_name, email, profile_picture')
+                    .in('id', customerIds);
+
+                if (customersError) {
+                    console.error('Customers fetch error:', customersError);
+                } else {
+                    const resolvedCustomers = await Promise.all((customers || []).map(async (u) => {
+                        let pic = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || 'User')}&background=eceff4&color=1f2937`;
+                        if (u?.profile_picture) {
+                            try {
+                                const r = await resolveProfilePictureUrl(u.profile_picture);
+                                if (r) pic = r;
+                            } catch (e) {
+                                console.warn('Failed to resolve customer picture', e);
+                            }
+                        }
+                        return { ...u, resolved_profile_picture: pic };
+                    }));
+
+                    customersById = Object.fromEntries((resolvedCustomers || []).map(c => [String(c.id), c]));
+                }
+            }
 
         const requestIds = bookings.map(b => b.request_id).filter(Boolean);
         let requestsById = {};
@@ -339,7 +384,7 @@ async function loadBookings() {
             const provider = providersById[String(booking.provider_id)] || null;
             const providerName = provider?.full_name || "Unknown Provider";
             const providerEmail = provider?.email || "No Email";
-            const providerPicture = provider?.profile_picture && provider.profile_picture.trim() !== "" ? provider.profile_picture : `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=random`;
+            const providerPicture = provider?.resolved_profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
             const servicePrice = Number(details.price || 0);
             const groupThreshold = Number(details.group_discount_threshold) || 0;
             const groupPercent = Number(details.group_discount_percent) || 0;

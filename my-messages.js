@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.js";
+import { resolveProfilePictureUrl } from './auth.js';
 import { MessageRealtimeService } from "./message-realtime-service.js";
 
 const messagesContainer = document.getElementById("messagesContainer");
@@ -108,7 +109,7 @@ async function renderConversation(chat) {
 
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("full_name, profile_picture")
+      .select("full_name, profile_picture, verified")
       .eq("id", otherUserId)
       .maybeSingle();
 
@@ -149,9 +150,16 @@ async function renderConversation(chat) {
     
     card.id = `chat-card-${chat.id}`;
 
-    const profilePicture = profile?.profile_picture && profile.profile_picture.trim() !== ""
-      ? profile.profile_picture
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || "User")}&background=random`;
+    let profilePicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || "User")}&background=random`;
+    if (profile?.profile_picture && profile.profile_picture.trim() !== "") {
+      try {
+        const resolved = await resolveProfilePictureUrl(profile.profile_picture);
+        if (resolved) profilePicture = resolved;
+      } catch (e) {
+        console.warn('Failed to resolve conversation avatar', e);
+        profilePicture = profile.profile_picture || profilePicture;
+      }
+    }
 
     card.innerHTML = `
       <div class="p-4 flex items-center gap-4">
@@ -168,6 +176,7 @@ async function renderConversation(chat) {
 
             <h3 class="font-bold truncate">
               ${profile?.full_name || "User"}
+              ${profile?.verified ? `<span class="ml-2 inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">Verified</span>` : ''}
             </h3>
 
             <span class="text-xs text-gray-500 flex-shrink-0">
