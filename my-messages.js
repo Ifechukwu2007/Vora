@@ -266,33 +266,13 @@ function setupRealtime() {
 }
 
 function formatTime(dateString) {
-
   if (!dateString) return "";
-
-  const date = new Date(dateString);
-  const now = new Date();
-
-  const diff =
-    now.getTime() - date.getTime();
-
-  const hours =
-    Math.floor(diff / (1000 * 60 * 60));
-
-  const days =
-    Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (hours < 24) {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch (e) {
+    return '';
   }
-
-  if (days < 7) {
-    return `${days}d`;
-  }
-
-  return date.toLocaleDateString();
 }
 
 // =========================

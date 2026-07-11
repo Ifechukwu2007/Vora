@@ -9,6 +9,9 @@ const els = {
   email: document.getElementById("email"),
   phoneLocal: document.getElementById("phoneLocal"),
   location: document.getElementById("location"),
+  profileVerified: document.getElementById("profileVerified"),
+  bookingCount: document.getElementById("bookingCount"),
+  messageCount: document.getElementById("messageCount"),
 
   profilePictureInput: document.getElementById("profilePictureInput"),
   profilePictureDisplay: document.getElementById("profilePictureDisplay"),
@@ -50,7 +53,7 @@ async function ensureBucketExists() {
 async function loadProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, location, profile_picture")
+    .select("id, full_name, email, phone, location, profile_picture, verified")
     .eq("id", userId)
     .maybeSingle();
 
@@ -61,7 +64,7 @@ async function loadProfile(userId) {
   if (!profileData) {
     const { data: userFallback, error: userError } = await supabase
       .from("users")
-      .select("id, full_name, email, location, phone, profile_picture")
+      .select("id, full_name, email, location, phone, profile_picture, verified")
       .eq("id", userId)
       .maybeSingle();
 
@@ -73,20 +76,26 @@ async function loadProfile(userId) {
   els.email.value = profileData.email || "";
   els.phoneLocal.value = profileData.phone || "";
   els.location.value = profileData.location || "";
-
+  if (els.profileVerified) {
+    els.profileVerified.textContent = profileData.verified ? 'Verified' : 'Not verified';
+  }
   const picturePath = profileData.profile_picture;
   const pictureUrl = picturePath ? await getProfilePicturePublicUrl(picturePath) : "";
 
   if (pictureUrl) {
-    els.profilePictureDisplay.src = pictureUrl;
-    els.profilePictureDisplay.classList.remove("hidden");
-    els.profilePicturePlaceholder.classList.add("hidden");
-    els.removeProfilePictureBtn.classList.remove("hidden");
+    if (els.profilePictureDisplay) {
+      els.profilePictureDisplay.src = pictureUrl;
+      els.profilePictureDisplay.classList.remove("hidden");
+    }
+    els.profilePicturePlaceholder?.classList.add("hidden");
+    els.removeProfilePictureBtn?.classList.remove("hidden");
   } else {
-    els.profilePictureDisplay.src = "";
-    els.profilePictureDisplay.classList.add("hidden");
-    els.profilePicturePlaceholder.classList.remove("hidden");
-    els.removeProfilePictureBtn.classList.add("hidden");
+    if (els.profilePictureDisplay) {
+      els.profilePictureDisplay.src = "";
+      els.profilePictureDisplay.classList.add("hidden");
+    }
+    els.profilePicturePlaceholder?.classList.remove("hidden");
+    els.removeProfilePictureBtn?.classList.add("hidden");
   }
 }
 
@@ -195,6 +204,42 @@ async function toggleDashboardButton(userId) {
   els.backToDashboardBtn?.classList.toggle("hidden", !data);
 }
 
+async function loadSummaryCounts(userId) {
+  try {
+    const { count: bookingCount, error: bookingError } = await supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .or(`user_id.eq.${userId},userId.eq.${userId},provider_id.eq.${userId},providerId.eq.${userId}`);
+
+    if (bookingError) {
+      console.warn("Could not load booking count:", bookingError.message);
+      els.bookingCount && (els.bookingCount.textContent = "0");
+    } else if (els.bookingCount) {
+      els.bookingCount.textContent = String(bookingCount || 0);
+    }
+  } catch (error) {
+    console.error("Error loading booking count:", error);
+    els.bookingCount && (els.bookingCount.textContent = "0");
+  }
+
+  try {
+    const { count: messageCount, error: messageError } = await supabase
+      .from("chats")
+      .select("id", { count: "exact", head: true })
+      .or(`participants.eq.${userId},sender_id.eq.${userId}`);
+
+    if (messageError) {
+      console.warn("Could not load message count:", messageError.message);
+      els.messageCount && (els.messageCount.textContent = "0");
+    } else if (els.messageCount) {
+      els.messageCount.textContent = String(messageCount || 0);
+    }
+  } catch (error) {
+    console.error("Error loading message count:", error);
+    els.messageCount && (els.messageCount.textContent = "0");
+  }
+}
+
 async function initAuthAndProfile() {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData?.user) {
@@ -206,6 +251,7 @@ async function initAuthAndProfile() {
 
   // user.id should match profiles.id per your schema
   await loadProfile(user.id);
+  await loadSummaryCounts(user.id);
   await toggleDashboardButton(user.id);
 
   // Save submit handler
@@ -243,11 +289,11 @@ async function initAuthAndProfile() {
   }
 
   // Picture upload
-  els.profilePictureArea.addEventListener("click", () => {
+  els.profilePictureArea?.addEventListener("click", () => {
     els.profilePictureInput?.click();
   });
 
-  els.profilePictureInput.addEventListener("change", async () => {
+  els.profilePictureInput?.addEventListener("change", async () => {
     const file = els.profilePictureInput.files?.[0];
     if (!file) return;
 
@@ -270,10 +316,12 @@ async function initAuthAndProfile() {
       if (refErr) throw refErr;
 
       const signedOrPublic = await getProfilePicturePublicUrl(refreshed.profile_picture);
-      els.profilePictureDisplay.src = signedOrPublic || "";
-      els.profilePictureDisplay.classList.remove("hidden");
-      els.profilePicturePlaceholder.classList.add("hidden");
-      els.removeProfilePictureBtn.classList.remove("hidden");
+      if (els.profilePictureDisplay) {
+        els.profilePictureDisplay.src = signedOrPublic || "";
+        els.profilePictureDisplay.classList.remove("hidden");
+      }
+      els.profilePicturePlaceholder?.classList.add("hidden");
+      els.removeProfilePictureBtn?.classList.remove("hidden");
 
       await updateProfilePictureInHeader();
       alert("Profile picture updated.");
@@ -282,7 +330,9 @@ async function initAuthAndProfile() {
       alert("Failed to upload picture. " + err.message);
     } finally {
       showLoading(false);
-      els.profilePictureInput.value = "";
+      if (els.profilePictureInput) {
+        els.profilePictureInput.value = "";
+      }
     }
   });
 
@@ -304,10 +354,12 @@ async function initAuthAndProfile() {
       await updateProfilePictureInHeader();
 
       // Reset UI
-      els.profilePictureDisplay.src = "";
-      els.profilePictureDisplay.classList.add("hidden");
-      els.profilePicturePlaceholder.classList.remove("hidden");
-      els.removeProfilePictureBtn.classList.add("hidden");
+      if (els.profilePictureDisplay) {
+        els.profilePictureDisplay.src = "";
+        els.profilePictureDisplay.classList.add("hidden");
+      }
+      els.profilePicturePlaceholder?.classList.remove("hidden");
+      els.removeProfilePictureBtn?.classList.add("hidden");
 
       alert("Profile picture removed.");
     } catch (err) {

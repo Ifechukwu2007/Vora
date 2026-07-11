@@ -278,25 +278,13 @@ function escapeHTML(str = '') {
 }
 
 function formatTime(date) {
-  const now = new Date();
-  const diff = now - date;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  if (hours < 1) {
-    const mins = Math.floor(diff / (1000 * 60));
-    return `${mins}m ago`;
+  if (!date) return '';
+  try {
+    const d = (date instanceof Date) ? date : new Date(date);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch (e) {
+    return '';
   }
-
-  if (hours < 24) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  if (days < 7) {
-    return `${days}d ago`;
-  }
-
-  return date.toLocaleDateString();
 }
 
 function scrollToBottom() {
