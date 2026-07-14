@@ -1,6 +1,7 @@
 // chat.js
 import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
+import { sendEmailToUserId } from './email-service.js';
 
 export class ChatService {
   static channels = {};
@@ -91,6 +92,18 @@ export class ChatService {
       );
     } catch (e) {
       console.warn('⚠️ Notification failed (message still sent):', e?.message || e);
+    }
+
+    // 4) Send email notification without blocking the chat send flow
+    try {
+      await sendEmailToUserId(
+        otherUserId,
+        'New Vora message received',
+        `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Open the chat to reply.</small></p>`,
+        `You have a new message: ${message}`
+      );
+    } catch (emailErr) {
+      console.warn('⚠️ Email notification failed (message still sent):', emailErr?.message || emailErr);
     }
 
     return newMessage;

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { ChatService } from './chat.js';
+import { MessageRealtimeService } from './message-realtime-service.js';
 
 const chatBox = document.getElementById('chatBox');
 const messageInput = document.getElementById('messageInput');
@@ -115,6 +116,12 @@ function renderMessage(message, animate = false) {
   const div = document.createElement('div');
   div.className = `flex ${isMine ? 'justify-end' : 'justify-start'} ${animate ? 'message-bubble' : ''}`;
 
+  // Attach client-side id for optimistic messages so we can replace them later
+  if (message._client_ts) {
+    div.dataset.clientTs = String(message._client_ts);
+    div.classList.add('opacity-80');
+  }
+
   const timeStr = formatTime(new Date(message.created_at));
   const displayName = isMine ? 'You' : otherUserName;
 
@@ -155,23 +162,37 @@ async function sendMessage() {
   messageInput.value = '';
   sendBtn.disabled = true;
 
-  // Optimistic UI
+  // Optimistic UI - mark with client timestamp so we can replace it later
+  const clientTs = Date.now();
   renderMessage({
     sender_id: currentUser.id,
     message: text,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    _client_ts: clientTs
   }, true);
 
   scrollToBottom();
 
   try {
-    await ChatService.sendMessage({
+    const serverMessage = await ChatService.sendMessage({
       chatId,
       currentUserId: currentUser.id,
       otherUserId,
       message: text
     });
-    
+
+    // Replace optimistic message with server-saved message (match by client ts)
+    if (serverMessage && serverMessage.id) {
+      // Find optimistic node
+      const optimisticNode = chatBox.querySelector(`[data-client-ts="${clientTs}"]`);
+      if (optimisticNode) {
+        // Remove optimistic marker and replace content with server data
+        optimisticNode.remove();
+        renderMessage(serverMessage, true);
+        scrollToBottom();
+      }
+    }
+
     // Stop typing indicator
     broadcastTyping(false);
   } catch (error) {
@@ -206,6 +227,32 @@ function showTypingIndicator(isTyping) {
   }
 }
 
+function canPlayMessageRing() {
+  return localStorage.getItem('vora_message_notifications') !== 'false';
+}
+
+function playMessageRing() {
+  if (!canPlayMessageRing()) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = 760;
+    gainNode.gain.value = 0.08;
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.14);
+    oscillator.onended = () => context.close();
+  } catch (err) {
+    console.warn('Unable to play message ring:', err);
+  }
+}
+
 function broadcastTyping(isTyping) {
   if (typingChannel) {
     typingChannel.send({
@@ -223,14 +270,11 @@ function broadcastTyping(isTyping) {
 // REAL-TIME SUBSCRIPTION
 // =========================
 function subscribeToMessages() {
-  ChatService.subscribeToChat({
-    chatId,
-    currentUserId: currentUser.id,
-    callback: (message) => {
-      renderMessage(message, true);
-      scrollToBottom();
-      showTypingIndicator(false);
-    }
+  MessageRealtimeService.subscribeToChat(chatId, currentUser.id, (message) => {
+    playMessageRing();
+    renderMessage(message, true);
+    scrollToBottom();
+    showTypingIndicator(false);
   });
 }
 
@@ -259,6 +303,7 @@ function setupEventListeners() {
 function setupLogout() {
   logoutBtn?.addEventListener('click', async () => {
     ChatService.unsubscribe(chatId);
+    MessageRealtimeService.unsubscribe(chatId);
     if (typingChannel) supabase.removeChannel(typingChannel);
     await supabase.auth.signOut();
     window.location.href = 'home.html';
@@ -296,5 +341,6 @@ function scrollToBottom() {
 // Cleanup
 window.addEventListener('beforeunload', () => {
   ChatService.unsubscribe(chatId);
+  MessageRealtimeService.unsubscribe(chatId);
   if (typingChannel) supabase.removeChannel(typingChannel);
 });

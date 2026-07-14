@@ -246,9 +246,39 @@ async function upsertConversationCard(chatId) {
   }
 }
 
+function canPlayMessageRing() {
+  return localStorage.getItem('vora_message_notifications') !== 'false';
+}
+
+function playMessageRing() {
+  if (!canPlayMessageRing()) return;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+    oscillator.type = 'triangle';
+    oscillator.frequency.value = 760;
+    gainNode.gain.value = 0.08;
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.14);
+    oscillator.onended = () => context.close();
+  } catch (err) {
+    console.warn('Unable to play message ring:', err);
+  }
+}
+
 function setupRealtime() {
   realtimeChannel = MessageRealtimeService.subscribeToMessagesList(
-    async (event, chatId) => {
+    async (event, chatId, payload) => {
+      if (event === 'message_inserted' && payload?.sender_id !== currentUser.id) {
+        playMessageRing();
+      }
+
       // Optional batching to avoid thrashing
       clearTimeout(loadConversationsTimeout);
       loadConversationsTimeout = setTimeout(async () => {

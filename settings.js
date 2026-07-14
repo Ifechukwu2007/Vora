@@ -1,5 +1,6 @@
 // settings.js
 import { supabase } from "./supabase.js";
+import { sendEmailToUserId } from "./email-service.js";
 
 const STORAGE_KEYS = {
   currency: "vora_currency",
@@ -145,11 +146,23 @@ async function changePasswordFlow() {
 
   // Supabase client can update password for the current signed-in user.
   // Requires the user to be signed in (and usually the session must still be valid).
-  const { error } = await supabase.auth.updateUser({ password: newPass });
+  const { data, error } = await supabase.auth.updateUser({ password: newPass });
   if (error) {
     alert("Failed to change password: " + error.message);
     return;
   }
+
+  try {
+    await sendEmailToUserId(
+      data.user?.id || data?.user?.id,
+      'Your Vora password was changed',
+      `<p>Your Vora account password was changed successfully.</p><p>If you did not make this change, please contact support immediately.</p>`,
+      'Your Vora account password was changed successfully.'
+    );
+  } catch (emailErr) {
+    console.warn('⚠️ Password change email failed:', emailErr?.message || emailErr);
+  }
+
   alert("Password changed successfully.");
 }
 
@@ -161,6 +174,17 @@ async function deleteAccountFlow() {
     "This will permanently delete your account and associated data (if your DB is configured to cascade). Continue?"
   );
   if (!ok) return;
+
+  try {
+    await sendEmailToUserId(
+      user.id,
+      'Your Vora account deletion request',
+      `<p>Your account deletion request is being processed.</p><p>If you did not request this, please contact support immediately.</p>`,
+      'Your Vora account deletion request is being processed.'
+    );
+  } catch (emailErr) {
+    console.warn('⚠️ Account deletion email failed:', emailErr?.message || emailErr);
+  }
 
   // Client-side deletion support depends on your Supabase auth configuration/version.
   // We'll try the common method first.

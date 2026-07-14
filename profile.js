@@ -1,6 +1,7 @@
 // profile.js
 import { supabase } from "./supabase.js";
 import { updateProfilePictureInHeader } from "./auth.js";
+import { sendEmailToUserId } from "./email-service.js";
 
 const BUCKET_NAME = "profile-pictures"; // <-- change if your bucket name differs
 
@@ -282,6 +283,17 @@ async function initAuthAndProfile() {
       if (updateError) {
         alert("Failed to update profile. " + updateError.message);
         return;
+      }
+
+      try {
+        await sendEmailToUserId(
+          user.id,
+          'Your Vora profile was updated',
+          `<p>Your profile information was updated successfully.</p><p>If you did not make this change, please contact support immediately.</p>`,
+          'Your profile information was updated successfully.'
+        );
+      } catch (emailErr) {
+        console.warn('⚠️ Profile update email failed:', emailErr?.message || emailErr);
       }
 
       alert("Profile updated successfully.");

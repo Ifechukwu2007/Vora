@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { updateProfilePictureInHeader } from './auth.js';
 import { formatPrice } from './currency-utils.js';
+import { sendEmailToUserId } from './email-service.js';
 
 if (typeof window !== 'undefined') {
   window.paymentsScriptLoaded = true;
@@ -16,6 +17,54 @@ function calculatePaymentTotals(subtotal) {
   const serviceFee = Math.round(Number(subtotal || 0) * feeRate);
   const total = Number(subtotal || 0) + serviceFee;
   return { serviceFee, total };
+}
+
+async function sendBookingRequestEmails(booking) {
+  if (!booking) return;
+
+  const bookingUrl = `${window.location.origin}/my-bookings.html?bookingId=${booking.id}`;
+  const scheduledDate = booking.scheduled_date
+    ? new Date(booking.scheduled_date).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'TBD';
+
+  const promises = [];
+
+  if (booking.provider_id) {
+    promises.push(
+      sendEmailToUserId(
+        booking.provider_id,
+        'New Vora booking request received',
+        `<p>A new booking request has been made and is pending payment.</p><p><strong>Booking ID:</strong> ${booking.id}</p><p><strong>Total:</strong> ${formatPrice(booking.total_price)}</p><p><strong>Scheduled:</strong> ${scheduledDate}</p><p><a href="${bookingUrl}">View booking</a></p>`,
+        `New booking request: ${booking.id} — ${formatPrice(booking.total_price)}`
+      )
+    );
+  }
+
+  if (booking.user_id) {
+    promises.push(
+      sendEmailToUserId(
+        booking.user_id,
+        'Your Vora booking request is pending payment',
+        `<p>Your booking request has been saved and is pending payment.</p><p><strong>Booking ID:</strong> ${booking.id}</p><p><strong>Total:</strong> ${formatPrice(booking.total_price)}</p><p><strong>Scheduled:</strong> ${scheduledDate}</p><p><a href="${bookingUrl}">View your booking</a></p>`,
+        `Booking request received: ${booking.id}`
+      )
+    );
+  }
+
+  if (promises.length === 0) return;
+
+  const results = await Promise.allSettled(promises);
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.warn('⚠️ Booking request email failed:', result.reason);
+    }
+  });
 }
 
 function calculateBookingPrice(service, peopleCount, location = 'provider') {
@@ -591,6 +640,26 @@ document.addEventListener('DOMContentLoaded', async () => {
           .eq('id', booking.id);
 
         if (bookingUpdateError) throw bookingUpdateError;
+
+        booking = {
+          ...booking,
+          status: 'pending_payment',
+          total_price: totalToCharge,
+          price_per_person: perPersonToCharge,
+          scheduled_date: scheduledDate,
+          number_of_people: numberOfPeople,
+          service_location: serviceLocation,
+          customer_location: customerLocation,
+          travel_fee: travelFee,
+          special_instructions: specialInstructions,
+          updated_at: new Date().toISOString(),
+        };
+      }
+
+      try {
+        await sendBookingRequestEmails(booking);
+      } catch (emailErr) {
+        console.warn('⚠️ Booking request email notification failed:', emailErr?.message || emailErr);
       }
 
       // Create payment record (status: pending)

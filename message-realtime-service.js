@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
+import { sendEmailToUserId } from './email-service.js';
 
 export class MessageRealtimeService {
   static channels = {};
@@ -43,6 +44,19 @@ export class MessageRealtimeService {
       } catch (notifError) {
         console.error('⚠️ Error creating notification:', notifError);
         // Don't throw - message was sent successfully even if notification failed
+      }
+
+      // Send email notification to recipient as well
+      try {
+        await sendEmailToUserId(
+          otherUserId,
+          'New Vora message received',
+          `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Visit your messages to reply.</small></p>`,
+          `You have a new message: ${message}`
+        );
+        console.log('✉️ Email notification sent for new message to user:', otherUserId);
+      } catch (emailError) {
+        console.warn('⚠️ Email notification failed (message still sent):', emailError?.message || emailError);
       }
 
       return newMessage;
@@ -140,7 +154,7 @@ export class MessageRealtimeService {
         },
         (payload) => {
           console.log('📨 Messages List - New message inserted:', payload.new);
-          callback('message_inserted', payload.new.chat_id);
+          callback('message_inserted', payload.new.chat_id, payload.new);
         }
       )
       .on(
@@ -152,7 +166,7 @@ export class MessageRealtimeService {
         },
         (payload) => {
           console.log('📨 Messages List - Message updated:', payload.new);
-          callback('message_updated', payload.new.chat_id);
+          callback('message_updated', payload.new.chat_id, payload.new);
         }
       )
       .on('subscribe', (status) => {

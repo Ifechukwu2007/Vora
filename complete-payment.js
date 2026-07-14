@@ -2,6 +2,7 @@
 import { supabase } from './supabase.js';
 import { resolveProfilePictureUrl } from './auth.js';
 import { getServiceImages } from './service-images.js';
+import { sendEmailToUserId } from './email-service.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -374,6 +375,17 @@ async function finishSuccessfulPayment(reference, bookingId) {
 
     if (bookingId) {
       await markBookingPaid(bookingId, reference);
+
+      try {
+        await sendEmailToUserId(
+          currentBooking?.user_id || currentUser?.id,
+          'Your Vora booking is confirmed',
+          `<p>Your booking has been confirmed successfully.</p><p><strong>Booking ID:</strong> ${bookingId}</p><p><strong>Reference:</strong> ${reference}</p><p>You can view the booking in your dashboard.</p>`,
+          `Your booking ${bookingId} has been confirmed.`
+        );
+      } catch (emailErr) {
+        console.warn('⚠️ Booking confirmation email failed:', emailErr?.message || emailErr);
+      }
     }
 
     goToConfirmation(bookingId, reference);
