@@ -1,5 +1,6 @@
 import { supabase } from "./supabase.js";
 import { resolveProfilePictureUrl } from './auth.js';
+import { getServiceImages } from './service-images.js';
 
 const MAPTILER_KEY = window.MAPTILER_API_KEY || '';
 const MAPTILER_STYLE_URL = MAPTILER_KEY
@@ -381,6 +382,7 @@ async function loadBookings() {
             const serviceDetails = servicesById[booking.service_id];
             const requestDetails = requestsById[booking.request_id];
             const details = serviceDetails || requestDetails || {};
+            const serviceImage = (getServiceImages(details)[0]) || '';
             const provider = providersById[String(booking.provider_id)] || null;
             const providerName = provider?.full_name || "Unknown Provider";
             const providerEmail = provider?.email || "No Email";
@@ -437,7 +439,7 @@ async function loadBookings() {
                                 })()}
                             </div>
                         </div>
-                        ${details.image_url && details.image_url.trim() !== "" ? `<img src="${details.image_url}" alt="${details.title || 'Service'}" class="w-full h-48 object-cover rounded-xl mb-5" onerror="this.style.display='none'">` : ''}
+                        ${serviceImage ? `<img src="${serviceImage}" alt="${details.title || 'Service'}" class="w-full h-48 object-cover rounded-xl mb-5" onerror="this.style.display='none'">` : ''}
                         <h3 class="text-2xl font-bold text-gray-900 mb-3">${details.title || "Untitled Booking"}</h3>
                         <p class="text-gray-600 leading-relaxed mb-5">${details.description || "No description"}</p>
                         

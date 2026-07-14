@@ -3,6 +3,7 @@ import { LoadingSpinner } from './loading-utils.js';
 
 let selectedImageFiles = [];
 let currentStep = 1;
+const MAX_PORTFOLIO_IMAGES = 3;
 
 function clearErrors() {
     document.querySelectorAll('[id^="error-"]').forEach((el) => {
@@ -30,7 +31,31 @@ function stripDealFields(serviceData) {
     delete cleaned.deal_message;
     delete cleaned.group_discount_threshold;
     delete cleaned.group_discount_percent;
+    delete cleaned.image_urls;
     return cleaned;
+}
+
+async function prepareImageForUpload(file) {
+    const bitmap = await createImageBitmap(file);
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context unavailable.');
+        context.drawImage(bitmap, 0, 0);
+
+        const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1));
+        if (!pngBlob) throw new Error('Unable to convert this image to PNG.');
+        if (pngBlob.size > 10 * 1024 * 1024) {
+            throw new Error('This image is larger than 10MB after conversion.');
+        }
+
+        const baseName = (file.name || 'portfolio-image').replace(/\.[^/.]+$/i, '') || 'portfolio-image';
+        return new File([pngBlob], `${baseName}.png`, { type: 'image/png' });
+    } finally {
+        bitmap.close();
+    }
 }
 
 function normalizeText(value) {
@@ -194,6 +219,11 @@ function validateCurrentStep() {
 
         if (selectedImageFiles.length === 0) {
             showFieldError('error-service-image', 'Please upload at least one portfolio photo.');
+            hasError = true;
+        }
+
+        if (selectedImageFiles.length > MAX_PORTFOLIO_IMAGES) {
+            showFieldError('error-service-image', `Please select no more than ${MAX_PORTFOLIO_IMAGES} portfolio photos.`);
             hasError = true;
         }
 
@@ -394,13 +424,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (files.length > 5) {
-                alert('Please select up to 5 photos.');
+            if (files.length > MAX_PORTFOLIO_IMAGES) {
+                alert(`Please select up to ${MAX_PORTFOLIO_IMAGES} photos.`);
                 imageInput.value = '';
+                selectedImageFiles = [];
+                imagePreview.classList.add('hidden');
+                photoFileList.innerHTML = '';
                 return;
             }
 
-            selectedImageFiles = files.slice(0, 5);
+            selectedImageFiles = files;
             const primaryFile = selectedImageFiles[0];
             const reader = new FileReader();
             reader.onload = (event) => {
@@ -490,23 +523,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let imageUrl = null;
+            let imageUrls = [];
             try {
-                const primaryImageFile = selectedImageFiles[0];
-                const fileName = `${user.id}_${Date.now()}_${primaryImageFile.name}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('services')
-                    .upload(fileName, primaryImageFile);
+                for (const [index, selectedFile] of selectedImageFiles.entries()) {
+                    const uploadFile = await prepareImageForUpload(selectedFile);
+                    const fileName = `${user.id}_${Date.now()}_${index}_${uploadFile.name}`;
+                    console.log('Uploading:', {
+                        originalName: selectedFile.name,
+                        originalType: selectedFile.type,
+                        convertedName: uploadFile.name,
+                        convertedType: uploadFile.type,
+                        fileName
+                    });
 
-                if (uploadError) {
-                    throw new Error(`Image upload failed: ${uploadError.message}`);
+                    const { error: uploadError } = await supabase.storage
+                        .from('services')
+                        .upload(fileName, uploadFile, { contentType: 'image/png', upsert: true });
+
+                    if (uploadError) {
+                        throw new Error(`Image upload failed: ${uploadError.message}`);
+                    }
+
+                    const { data: urlData } = supabase.storage
+                        .from('services')
+                        .getPublicUrl(fileName);
+                    if (!urlData?.publicUrl) throw new Error('Could not create a public URL for this image.');
+                    imageUrls.push(urlData.publicUrl);
                 }
-
-                const { data: urlData } = supabase.storage
-                    .from('services')
-                    .getPublicUrl(fileName);
-
-                imageUrl = urlData?.publicUrl;
             } catch (error) {
                 console.error('Error uploading image:', error);
                 alert(`Error uploading image: ${error.message}`);
@@ -565,7 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 category,
                 price: parseFloat(priceValue),
                 location,
-                image_url: imageUrl
+                image_url: imageUrls[0] || null,
+                image_urls: imageUrls
             };
 
             if (dealMessage) {
@@ -625,4 +669,4 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+}); 

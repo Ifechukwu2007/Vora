@@ -301,6 +301,8 @@ function normalize(row, customerProfile) {
   const imageUrl =
     (Array.isArray(services) ? services[0]?.image_url : services?.image_url) ||
     '';
+  // Prefer multiple images if available
+  const serviceImage = (Array.isArray(services) ? (services[0]?.image_urls || services[0]?.image_url) : (services?.image_urls || services?.image_url)) || '';
 
   const customerName = customerProfile?.full_name || row.customer_name || 'Customer';
   const customerEmail = customerProfile?.email || row.customer_email || 'No email';
@@ -309,7 +311,7 @@ function normalize(row, customerProfile) {
   return {
     bookingId: row.id,
     serviceTitle: title,
-    serviceImage: imageUrl,
+    serviceImage: serviceImage,
     customerId: row.user_id,
     customerName,
     customerEmail,

@@ -1,6 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 import { resolveProfilePictureUrl } from './auth.js';
+import { getServiceImages } from './service-images.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -204,7 +205,7 @@ async function renderBooking(booking) {
   const provider = booking.providers || {};
   const pendingBooking = getPendingBooking();
   const serviceTitle = service.title || pendingBooking?.serviceTitle || 'Service';
-  const serviceImage = service.image_url || pendingBooking?.serviceImage || '';
+  const serviceImage = (getServiceImages(service)[0]) || pendingBooking?.serviceImage || '';
   const providerName = provider.full_name || pendingBooking?.providerName || 'Provider';
     let resolvedProviderPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=eceff4&color=1f2937`;
     if (provider?.profile_picture) {

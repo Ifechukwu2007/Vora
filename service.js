@@ -2,6 +2,7 @@ import { supabase, supabasePublic } from "./supabase.js";
 import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from "./loading-utils.js";
 import { formatPrice } from "./currency-utils.js";
+import { getServiceImages, renderServiceImageGallery } from "./service-images.js";
 
 // ============================
 // GET URL PARAMS
@@ -127,12 +128,11 @@ async function loadService() {
       resolvedUsersById = Object.fromEntries(resolvedEntries);
     }
 
-    // IMAGE
-    const serviceImage =
-      service.image_url ||
-      'https://placehold.co/800x500?text=Vora';
+    // IMAGES (support multiple)
+    const images = getServiceImages(service);
+    const serviceImageHtml = renderServiceImageGallery(images, service.title, { wrapperClass: 'grid grid-cols-1 gap-2', imageClass: 'w-full h-80 object-cover rounded-xl' }) || `\n        <img src="https://placehold.co/800x500?text=Vora" class="w-full h-80 object-cover rounded-xl"/>\n    `;
 
-    currentServiceContext = { ...service, image_url: serviceImage, provider_name: providerProfile?.full_name || service.provider_name || '' };
+    currentServiceContext = { ...service, image_url: images[0] || '', image_urls: images, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};
 
     // Resolve provider image (prefer stored profile_picture)
@@ -196,10 +196,7 @@ async function loadService() {
             </div>
         </a>
 
-        <img
-          src="${serviceImage}"
-          class="w-full h-80 object-cover rounded-xl"
-        />
+        ${serviceImageHtml}
 
         <div>
           <h2 class="text-3xl font-bold text-gray-900">
