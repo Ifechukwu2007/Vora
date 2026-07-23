@@ -4,6 +4,17 @@ const badge = document.getElementById('notificationBadge');
 let currentUser = null;
 let badgeChannel = null;
 
+function clearBadgeState() {
+  currentUser = null;
+
+  if (badgeChannel) {
+    supabase.removeChannel(badgeChannel);
+    badgeChannel = null;
+  }
+
+  updateBadge(0);
+}
+
 async function loadUnreadCount() {
   if (!currentUser || !badge) return;
 
@@ -62,12 +73,28 @@ function setupBadgeRealtime() {
 
 async function initializeBadge() {
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return;
+  if (error || !user) {
+    clearBadgeState();
+    return;
+  }
 
   currentUser = user;
   await loadUnreadCount();
   setupBadgeRealtime();
 }
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    clearBadgeState();
+    return;
+  }
+
+  if (event === 'SIGNED_IN' && session?.user) {
+    currentUser = session.user;
+    await loadUnreadCount();
+    setupBadgeRealtime();
+  }
+});
 
 window.addEventListener('beforeunload', () => {
   if (badgeChannel) {

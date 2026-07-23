@@ -5,11 +5,19 @@ const markAllBtn = document.getElementById('markAll');
 let currentUser = null;
 let notificationChannel = null;
 
+function stopRealtimeUpdates() {
+  if (notificationChannel) {
+    supabase.removeChannel(notificationChannel);
+    notificationChannel = null;
+  }
+}
+
 function getNotificationStyle(type) { 
   const notificationStyles = {
     offer_received: { icon: '💰', color: 'bg-blue-50 border-blue-200', category: 'Offers' },
     offer_accepted: { icon: '✅', color: 'bg-green-50 border-green-200', category: 'Offers' },
     offer_rejected: { icon: '❌', color: 'bg-red-50 border-red-200', category: 'Offers' },
+    booking_request: { icon: '🔔', color: 'bg-purple-50 border-purple-200', category: 'Bookings' },
     booking_confirmed: { icon: '📅', color: 'bg-purple-50 border-purple-200', category: 'Bookings' },
     booking_cancelled: { icon: '⛔', color: 'bg-orange-50 border-orange-200', category: 'Bookings' },
     booking_completed: { icon: '🎉', color: 'bg-green-50 border-green-200', category: 'Bookings' },
@@ -47,6 +55,20 @@ function formatTime(date) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function signedOutState() {
+  return `
+    <div class="bg-white p-8 rounded-xl shadow border border-gray-200 text-center">
+      <p class="text-5xl mb-3">🔔</p>
+      <p class="text-lg font-semibold text-gray-800">Sign in to view your notifications</p>
+      <p class="text-sm text-gray-500 mt-2">Your alerts and updates will appear here once you're signed in.</p>
+      <div class="mt-5 flex items-center justify-center gap-3 flex-wrap">
+        <a href="login.html" class="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Login</a>
+        <a href="register.html" class="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Create account</a>
+      </div>
+    </div>
+  `;
 }
 
 function emptyState() {
@@ -124,7 +146,12 @@ function renderNotifications(items) {
 }
 
 async function fetchNotifications() {
-  if (!currentUser) return;
+  if (!currentUser) {
+    if (list) {
+      list.innerHTML = signedOutState();
+    }
+    return;
+  }
 
   try {
     const { data, error } = await supabase
@@ -155,10 +182,7 @@ function setupRealTimeUpdates() {
   if (!currentUser) return;
   
   try {
-    if (notificationChannel) {
-      supabase.removeChannel(notificationChannel);
-      notificationChannel = null;
-    }
+    stopRealtimeUpdates();
 
     notificationChannel = supabase
       .channel(`notifications-${currentUser.id}`)
@@ -182,7 +206,14 @@ async function initializeNotifications() {
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
-      console.warn('No user session found');
+      currentUser = null;
+      stopRealtimeUpdates();
+      if (list) {
+        list.innerHTML = signedOutState();
+      }
+      if (markAllBtn) {
+        markAllBtn.classList.add('hidden');
+      }
       return;
     }
 
@@ -191,11 +222,44 @@ async function initializeNotifications() {
     setupRealTimeUpdates();
   } catch (err) {
     console.error('Error initializing notifications:', err);
+    currentUser = null;
+    stopRealtimeUpdates();
+    if (list) {
+      list.innerHTML = signedOutState();
+    }
   }
 }
 
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    stopRealtimeUpdates();
+    if (list) {
+      list.innerHTML = signedOutState();
+    }
+    if (markAllBtn) {
+      markAllBtn.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (event === 'SIGNED_IN' && session?.user) {
+    currentUser = session.user;
+    if (markAllBtn) {
+      markAllBtn.classList.remove('hidden');
+    }
+    await fetchNotifications();
+    setupRealTimeUpdates();
+  }
+});
+
 markAllBtn?.addEventListener('click', async () => {
-  if (!currentUser) return;
+  if (!currentUser) {
+    if (list) {
+      list.innerHTML = signedOutState();
+    }
+    return;
+  }
 
   try {
     const { error } = await supabase
@@ -215,9 +279,7 @@ markAllBtn?.addEventListener('click', async () => {
 });
 
 window.addEventListener('beforeunload', () => {
-  if (notificationChannel) {
-    supabase.removeChannel(notificationChannel);
-  }
+  stopRealtimeUpdates();
 });
 
 initializeNotifications();

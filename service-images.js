@@ -36,9 +36,10 @@ export function getServiceImages(service) {
 
 export function renderServiceImageGallery(images, title = 'Service image', {
   wrapperClass = 'grid grid-cols-1 gap-2',
-  imageClass = 'h-48 w-full object-cover'
+  imageClass = 'h-48 w-full object-cover',
+  maxImages = MAX_SERVICE_IMAGES
 } = {}) {
-  const urls = (Array.isArray(images) ? images : getServiceImages(images)).slice(0, MAX_SERVICE_IMAGES);
+  const urls = (Array.isArray(images) ? images : getServiceImages(images)).slice(0, maxImages);
   if (!urls.length) return '';
 
   return `
@@ -49,7 +50,30 @@ export function renderServiceImageGallery(images, title = 'Service image', {
           alt="${escapeHtml(title)} — photo ${index + 1}"
           class="${imageClass}"
           loading="${index === 0 ? 'eager' : 'lazy'}"
-          onerror="this.closest('div').style.display='none'"
+          onerror="this.style.display='none'"
+        >
+      `).join('')}
+    </div>
+  `;
+}
+
+export function renderServiceImageThumbnails(images, title = 'Service image', {
+  wrapperClass = 'grid grid-cols-3 gap-2',
+  imageClass = 'h-24 w-full object-cover rounded-xl',
+  maxImages = MAX_SERVICE_IMAGES
+} = {}) {
+  const urls = (Array.isArray(images) ? images : getServiceImages(images)).slice(0, maxImages);
+  if (!urls.length) return '';
+
+  return `
+    <div class="${wrapperClass}" aria-label="Service photos thumbnails">
+      ${urls.map((url, index) => `
+        <img
+          src="${escapeHtml(url)}"
+          alt="${escapeHtml(title)} — photo ${index + 1}"
+          class="${imageClass}"
+          loading="${index === 0 ? 'eager' : 'lazy'}"
+          onerror="this.style.display='none'"
         >
       `).join('')}
     </div>

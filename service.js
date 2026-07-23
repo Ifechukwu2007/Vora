@@ -130,7 +130,11 @@ async function loadService() {
 
     // IMAGES (support multiple)
     const images = getServiceImages(service);
-    const serviceImageHtml = renderServiceImageGallery(images, service.title, { wrapperClass: 'grid grid-cols-1 gap-2', imageClass: 'w-full h-80 object-cover rounded-xl' }) || `\n        <img src="https://placehold.co/800x500?text=Vora" class="w-full h-80 object-cover rounded-xl"/>\n    `;
+    const serviceImageHtml = renderServiceImageGallery(images, service.title, {
+      wrapperClass: 'grid grid-cols-1 gap-2 md:grid-cols-3',
+      imageClass: 'w-full h-72 object-cover rounded-xl',
+      maxImages: 3
+    }) || `\n        <img src="https://placehold.co/800x500?text=Vora" class="w-full h-80 object-cover rounded-xl"/>\n    `;
 
     currentServiceContext = { ...service, image_url: images[0] || '', image_urls: images, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};

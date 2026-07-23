@@ -1,7 +1,9 @@
 import { supabase } from './supabase.js';
 import { updateProfilePictureInHeader } from './auth.js';
 import { formatPrice } from './currency-utils.js';
+import { getServiceImages } from './service-images.js';
 import { sendEmailToUserId } from './email-service.js';
+import { NotificationService } from './notification-service.js';
 
 if (typeof window !== 'undefined') {
   window.paymentsScriptLoaded = true;
@@ -65,6 +67,15 @@ async function sendBookingRequestEmails(booking) {
       console.warn('⚠️ Booking request email failed:', result.reason);
     }
   });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 function calculateBookingPrice(service, peopleCount, location = 'provider') {
@@ -166,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const serviceTitleEl = document.getElementById('service-title');
   const serviceCoverEl = document.getElementById('service-cover');
+  const serviceGalleryThumbsEl = document.getElementById('service-gallery-thumbs');
   const providerNameEl = document.getElementById('provider-name');
   const providerPictureEl = document.getElementById('provider-picture');
 
@@ -417,7 +429,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (serviceCoverEl) {
-      const coverUrl =
+      const serviceImages = getServiceImages(serviceData || {});
+      const coverUrl = serviceImages[0] ||
         serviceData?.image_url ||
         serviceData?.cover_image ||
         serviceData?.image ||
@@ -425,6 +438,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         pendingBooking?.serviceImage ||
         'https://placehold.co/1200x720';
       serviceCoverEl.src = coverUrl;
+
+      if (serviceGalleryThumbsEl) {
+        const thumbnails = serviceImages.slice(1);
+        if (thumbnails.length) {
+          serviceGalleryThumbsEl.innerHTML = thumbnails.map((url, index) => `
+            <button type="button" class="overflow-hidden rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500" data-src="${escapeHtml(url)}">
+              <img src="${escapeHtml(url)}" alt="Additional photo ${index + 2}" class="h-24 w-full object-cover rounded-2xl" onerror="this.style.display='none'" />
+            </button>
+          `).join('');
+          serviceGalleryThumbsEl.classList.remove('hidden');
+          serviceGalleryThumbsEl.querySelectorAll('button[data-src]').forEach((button) => {
+            button.addEventListener('click', () => {
+              const src = button.dataset.src;
+              if (src) serviceCoverEl.src = src;
+            });
+          });
+        } else {
+          serviceGalleryThumbsEl.classList.add('hidden');
+        }
+      }
     }
 
     // =========================
@@ -654,6 +687,21 @@ document.addEventListener('DOMContentLoaded', async () => {
           special_instructions: specialInstructions,
           updated_at: new Date().toISOString(),
         };
+      }
+
+      if (providerId) {
+        try {
+          await NotificationService.createNotification(
+            providerId,
+            'booking_request',
+            'New Booking Request',
+            'A customer has requested your service.',
+            {},
+            currentUser.id
+          );
+        } catch (notificationErr) {
+          console.warn('⚠️ Booking request notification failed:', notificationErr?.message || notificationErr);
+        }
       }
 
       try {

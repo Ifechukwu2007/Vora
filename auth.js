@@ -348,7 +348,7 @@ if (registerForm) {
 // LOGOUT FUNCTIONALITY
 // ===============================
 
-const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service'];
+const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service', 'notifications', 'add-service'];
 
 function isFilePreview() {
   return window.location.protocol === 'file:';
@@ -398,18 +398,14 @@ function updateAuthLinks(isLoggedIn) {
       if (isLoggedIn) {
         link.href = 'profile.html';
       } else {
-        link.href = 'home.html';
+        link.href = 'login.html';
       }
     }
   });
 
   const addServiceLinks = document.querySelectorAll('a[href="add-service.html"]');
   addServiceLinks.forEach((link) => {
-    if (isLoggedIn) {
-      link.href = 'add-service.html';
-    } else {
-      link.href = 'home.html';
-    }
+    link.href = 'add-service.html';
   });
 }
 

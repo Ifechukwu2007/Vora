@@ -93,6 +93,7 @@
                         <div>
                             <label for="service-category" class="block text-sm font-medium text-gray-700">Which category best describes your service?</label>
                             <select id="service-category" name="service-category" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                              <option value="">Select a category</option>
                                 <option value="Fashion Design">Fashion Design</option>
                                 <option value="Barber Shop">Barber Shop</option>
                                 <option value="Hair Saloon">Hair Saloon</option>
@@ -104,7 +105,8 @@
 
                         <div>
                             <label for="service-delivery" class="block text-sm font-medium text-gray-700">How do you deliver your service?</label>
-                            <select id="service-delivery" name="service-delivery" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <select id="service-delivery" name="service-delivery" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                              <option value="">Select a delivery method</option>
                                 <option value="At my location">At my location</option>
                                 <option value="At customer's location">At customer's location</option>
                                 <option value="Remote / virtual">Remote / virtual</option>
@@ -119,18 +121,20 @@
 
                         <div>
                             <label for="service-area" class="block text-sm font-medium text-gray-700">Service area</label>
-                            <input type="text" id="service-area" name="service-area" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Lekki, Victoria Island, or 10 km radius">
+                            <input type="text" id="service-area" name="service-area" required minlength="2" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Lekki, Victoria Island, or 10 km radius">
+                            <p id="error-service-area" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
                             <label for="service-capacity" class="block text-sm font-medium text-gray-700">How many clients can you serve at once?</label>
-                            <input type="number" id="service-capacity" name="service-capacity" min="1" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 4">
+                            <input type="number" id="service-capacity" name="service-capacity" required min="1" max="100" step="1" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., 4">
                             <p id="error-service-capacity" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
                             <label for="service-interaction" class="block text-sm font-medium text-gray-700">Who will the customer interact with?</label>
-                            <select id="service-interaction" name="service-interaction" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <select id="service-interaction" name="service-interaction" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                              <option value="">Select who customers interact with</option>
                                 <option value="Just me">Just me</option>
                                 <option value="Me + staff">Me + staff</option>
                                 <option value="Team of providers">Team of providers</option>
@@ -138,8 +142,9 @@
                         </div>
 
                         <div>
-                            <label for="travel-price" class="block text-sm font-medium text-gray-700">Travel price (NGN) <span class="text-gray-500">(Optional)</span></label>
-                            <input type="number" id="travel-price" name="travel-price" placeholder="e.g., 2000" min="0" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <label for="travel-price" class="block text-sm font-medium text-gray-700">Travel price (NGN)</label>
+                            <input type="number" id="travel-price" name="travel-price" required placeholder="e.g., 2000" min="0" step="0.01" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <p id="error-travel-price" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
                     </div>
                 </section>
@@ -147,7 +152,7 @@
                 <section data-step-panel="2" class="hidden space-y-6">
                     <div>
                         <label for="service-title" class="block text-sm font-medium text-gray-700">Give your service a title</label>
-                        <input type="text" id="service-title" name="service-title" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Certified Bridal Makeup Artist — Lagos">
+                        <input type="text" id="service-title" name="service-title" required minlength="8" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Certified Bridal Makeup Artist - Lagos">
                         <p id="error-service-title" class="mt-1 text-sm text-red-600 hidden"></p>
                     </div>
 
@@ -159,7 +164,7 @@
 
                     <div>
                         <label for="service-includes" class="block text-sm font-medium text-gray-700" id="service-includes-label">What does your service include?</label>
-                        <textarea id="service-includes" name="service-includes" rows="3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Add details that help customers make a decision."></textarea>
+                        <textarea id="service-includes" name="service-includes" rows="3" required minlength="15" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Add details that help customers make a decision."></textarea>
                         <p id="error-service-includes" class="mt-1 text-sm text-red-600 hidden"></p>
                     </div>
 
@@ -183,13 +188,14 @@
                     <div class="grid gap-6 md:grid-cols-2">
                         <div>
                             <label for="service-price" class="block text-sm font-medium text-gray-700">Set your rate (NGN)</label>
-                            <input type="number" id="service-price" name="service-price" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 15000">
+                            <input type="number" id="service-price" name="service-price" required min="1000" step="0.01" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 15000">
                             <p id="error-service-price" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div>
-                            <label for="deal-message" class="block text-sm font-medium text-gray-700">Promotional headline <span class="text-gray-500">(Optional)</span></label>
-                            <input type="text" id="deal-message" name="deal-message" placeholder="e.g. First booking discount" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <label for="deal-message" class="block text-sm font-medium text-gray-700">Promotional headline</label>
+                            <input type="text" id="deal-message" name="deal-message" required minlength="4" placeholder="e.g. First booking discount" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                            <p id="error-deal-message" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
 
                         <div class="md:col-span-2">
@@ -204,18 +210,20 @@
 
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
                             <div>
-                                <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount <span class="text-gray-500">(Optional)</span></label>
-                                <input type="number" id="group-discount-threshold" name="group-discount-threshold" min="2" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <label for="group-discount-threshold" class="block text-sm font-medium text-gray-700">Group size for discount</label>
+                                <input type="number" id="group-discount-threshold" name="group-discount-threshold" required min="2" step="1" placeholder="e.g. 3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <p id="error-group-discount-threshold" class="mt-1 text-sm text-red-600 hidden"></p>
                             </div>
                             <div>
-                                <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent <span class="text-gray-500">(Optional)</span></label>
-                                <input type="number" id="group-discount-percent" name="group-discount-percent" min="1" max="100" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <label for="group-discount-percent" class="block text-sm font-medium text-gray-700">Discount percent</label>
+                                <input type="number" id="group-discount-percent" name="group-discount-percent" required min="1" max="100" step="0.01" placeholder="e.g. 20" class="mt-1 block w-full px-4 py-2 border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+                                <p id="error-group-discount-percent" class="mt-1 text-sm text-red-600 hidden"></p>
                             </div>
                         </div>
 
                         <div>
                             <label for="business-name" class="block text-sm font-medium text-gray-700">Business name</label>
-                            <input type="text" id="business-name" name="business-name" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Optional for verification">
+                            <input type="text" id="business-name" name="business-name" required minlength="2" pattern="[A-Za-z][A-Za-z .'-]{1,}" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Ada's Beauty Studio">
                             <p id="error-business-name" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
                     </div>

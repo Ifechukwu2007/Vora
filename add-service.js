@@ -122,17 +122,44 @@ function validateMeaningfulText(value, label, { minLength = 12, minWords = 3, re
     return null;
 }
 
+function validateLocation(value, label) {
+    const normalized = normalizeText(value);
+    if (!normalized) return `${label} is required.`;
+    if (normalized.length < 2 || !/[a-zA-Z]/.test(normalized)) {
+        return `${label} must contain a real place name.`;
+    }
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9 .,'()\-/]{1,119}$/.test(normalized)) {
+        return `${label} contains invalid characters.`;
+    }
+    if (isLikelyNonsense(normalized, { minLength: 3, minWords: 1 })) {
+        return `${label} must be a real location.`;
+    }
+    return null;
+}
+
+function validateName(value, label) {
+    const normalized = normalizeText(value);
+    if (!normalized) return `${label} is required.`;
+    if (normalized.length < 2) return `${label} must be at least 2 characters.`;
+    if (!/^[A-Za-z][A-Za-z .'-]*$/.test(normalized)) {
+        return `${label} can contain letters, spaces, apostrophes, periods, and hyphens only.`;
+    }
+    return null;
+}
+
 function validateCurrentStep() {
     clearErrors();
 
     if (currentStep === 1) {
         const categoryInput = document.getElementById('service-category');
         const locationInput = document.getElementById('service-location');
+        const areaInput = document.getElementById('service-area');
         const deliveryInput = document.getElementById('service-delivery');
         const capacityInput = document.getElementById('service-capacity');
         const interactionInput = document.getElementById('service-interaction');
         const category = categoryInput.value;
         const location = locationInput.value.trim();
+        const serviceArea = areaInput.value.trim();
         const delivery = deliveryInput.value;
         const capacity = capacityInput.value.trim();
         const interaction = interactionInput.value;
@@ -146,12 +173,22 @@ function validateCurrentStep() {
             setFieldState(categoryInput, true);
         }
 
-        if (!location || isLikelyNonsense(location, { minLength: 4, minWords: 1 })) {
-            showFieldError('error-service-location', 'Please enter a specific location.');
+        const locationError = validateLocation(location, 'Location');
+        if (locationError) {
+            showFieldError('error-service-location', locationError);
             setFieldState(locationInput, false);
             hasError = true;
         } else {
             setFieldState(locationInput, true);
+        }
+
+        const areaError = validateLocation(serviceArea, 'Service area');
+        if (areaError) {
+            showFieldError('error-service-area', areaError);
+            setFieldState(areaInput, false);
+            hasError = true;
+        } else {
+            setFieldState(areaInput, true);
         }
 
         if (!delivery) {
@@ -162,7 +199,7 @@ function validateCurrentStep() {
             setFieldState(deliveryInput, true);
         }
 
-        if (capacity && (Number.isNaN(parseInt(capacity, 10)) || parseInt(capacity, 10) < 1 || parseInt(capacity, 10) > 100)) {
+        if (!capacity || !/^\d+$/.test(capacity) || parseInt(capacity, 10) < 1 || parseInt(capacity, 10) > 100) {
             showFieldError('error-service-capacity', 'Please enter a realistic capacity between 1 and 100.');
             setFieldState(capacityInput, false);
             hasError = true;
@@ -237,9 +274,18 @@ function validateCurrentStep() {
     }
 
     const priceInput = document.getElementById('service-price');
+    const travelPriceInput = document.getElementById('travel-price');
+    const dealMessageInput = document.getElementById('deal-message');
+    const thresholdInput = document.getElementById('group-discount-threshold');
+    const percentInput = document.getElementById('group-discount-percent');
     const businessInput = document.getElementById('business-name');
     const priceValue = priceInput.value.trim();
     const priceNumber = Number.parseFloat(priceValue);
+    const travelPrice = travelPriceInput.value.trim();
+    const travelPriceNumber = Number.parseFloat(travelPrice);
+    const dealMessage = dealMessageInput.value.trim();
+    const threshold = thresholdInput.value.trim();
+    const percent = percentInput.value.trim();
     let hasError = false;
 
     if (!priceValue || Number.isNaN(priceNumber) || priceNumber < 1000) {
@@ -250,9 +296,43 @@ function validateCurrentStep() {
         setFieldState(priceInput, true);
     }
 
+    if (!travelPrice || Number.isNaN(travelPriceNumber) || travelPriceNumber < 0) {
+        showFieldError('error-travel-price', 'Please enter a valid travel price of 0 or more.');
+        setFieldState(travelPriceInput, false);
+        hasError = true;
+    } else {
+        setFieldState(travelPriceInput, true);
+    }
+
+    const dealMessageError = validateMeaningfulText(dealMessage, 'Promotional headline', { minLength: 4, minWords: 1 });
+    if (dealMessageError) {
+        showFieldError('error-deal-message', dealMessageError);
+        setFieldState(dealMessageInput, false);
+        hasError = true;
+    } else {
+        setFieldState(dealMessageInput, true);
+    }
+
+    if (!/^\d+$/.test(threshold) || Number(threshold) < 2) {
+        showFieldError('error-group-discount-threshold', 'Enter a whole number of at least 2.');
+        setFieldState(thresholdInput, false);
+        hasError = true;
+    } else {
+        setFieldState(thresholdInput, true);
+    }
+
+    if (!/^\d+(\.\d+)?$/.test(percent) || Number(percent) < 1 || Number(percent) > 100) {
+        showFieldError('error-group-discount-percent', 'Enter a discount from 1 to 100 percent.');
+        setFieldState(percentInput, false);
+        hasError = true;
+    } else {
+        setFieldState(percentInput, true);
+    }
+
     const businessName = businessInput.value.trim();
-    if (businessName && isLikelyNonsense(businessName, { minLength: 4, minWords: 1 })) {
-        showFieldError('error-business-name', 'Please enter a real business name or leave this field blank.');
+    const businessNameError = validateName(businessName, 'Business name');
+    if (businessNameError) {
+        showFieldError('error-business-name', businessNameError);
         setFieldState(businessInput, false);
         hasError = true;
     } else {
@@ -395,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearErrors();
     });
 
-    document.querySelectorAll('#service-location, #service-capacity, #service-interaction, #service-title, #service-description, #service-includes, #service-price, #business-name, #service-category').forEach((input) => {
+    document.querySelectorAll('#service-location, #service-area, #service-capacity, #service-interaction, #service-title, #service-description, #service-includes, #service-price, #travel-price, #deal-message, #group-discount-threshold, #group-discount-percent, #business-name, #service-category').forEach((input) => {
         input.addEventListener('input', () => {
             clearErrors();
             validateCurrentStep();

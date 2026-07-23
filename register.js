@@ -61,11 +61,30 @@ function hideAlerts() {
 // ===============================
 
 function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/.test(email)
+    && !email.includes('..');
 }
 
 function validatePassword(password) {
-  return password.length >= 6;
+  return password.length >= 8
+    && /[A-Za-z]/.test(password)
+    && /\d/.test(password);
+}
+
+function validateName(name) {
+  const normalized = name.replace(/\s+/g, ' ').trim();
+  return normalized.length >= 2 && /^[A-Za-z][A-Za-z .'-]*$/.test(normalized);
+}
+
+function validatePhone(phone) {
+  const digits = phone.replace(/\D/g, '');
+  return /^[789]\d{9}$/.test(digits);
+}
+
+function validateLocation(location) {
+  const normalized = location.replace(/\s+/g, ' ').trim();
+  if (normalized.length < 3 || !/[A-Za-z]/.test(normalized)) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9 .,'()\-/]{2,119}$/.test(normalized);
 }
 
 // ===============================
@@ -166,7 +185,7 @@ if (loginForm) {
     }
 
     if (!validatePassword(password)) {
-      showError("Password must be at least 6 characters.");
+      showError("Password must be at least 8 characters and include a letter and a number.");
       return;
     }
 
@@ -299,8 +318,8 @@ if (registerForm) {
     const sanitizedPhone = phone.replace(/\s+/g, "");
     const fullPhone = countryCode ? `${countryCode}${sanitizedPhone}` : sanitizedPhone;
 
-    if (fullname.length < 2) {
-      showError("Full name is too short.");
+    if (!validateName(fullname)) {
+      showError("Please enter a valid name with at least 2 letters.");
       return;
     }
 
@@ -309,18 +328,18 @@ if (registerForm) {
       return;
     }
 
-    if (!countryCode || !sanitizedPhone || sanitizedPhone.length < 5) {
-      showError("Please select your country code and enter a valid phone number.");
+    if (!countryCode || !validatePhone(phone)) {
+      showError("Please enter a valid 10-digit Nigerian phone number.");
       return;
     }
 
-    if (!location || location.length < 2) {
-      showError("Please enter your location.");
+    if (!validateLocation(location)) {
+      showError("Please enter a valid location using a real place or address.");
       return;
     }
 
     if (!validatePassword(password)) {
-      showError("Password must be at least 6 characters.");
+      showError("Password must be at least 8 characters and include a letter and a number.");
       return;
     }
 
@@ -398,7 +417,7 @@ if (registerForm) {
           showError("This email is already registered.");
           break;
         case "Password should be at least 6 characters":
-          showError("Password must be at least 6 characters.");
+          showError("Password must be at least 8 characters and include a letter and a number.");
           break;
         default:
           showError(error.message || "Registration failed. Please try again.");

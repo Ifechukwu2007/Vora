@@ -43,6 +43,33 @@ function patchDesktopNav(header) {
   }
 }
 
+function patchNotificationIcon() {
+  const header = document.querySelector('header');
+  if (!header) return;
+
+  let actions = header.querySelector('.flex.items-center.gap-4, [data-header-actions="true"]');
+  if (!actions) {
+    actions = header.querySelector('.flex.items-center.justify-between')?.querySelector('div:last-child');
+  }
+  if (!actions) return;
+
+  const existingNotificationLink = header.querySelector('#notificationIconLink');
+  if (existingNotificationLink) return;
+
+  const notificationLink = document.createElement('a');
+  notificationLink.id = 'notificationIconLink';
+  notificationLink.href = 'notifications.html';
+  notificationLink.className = 'relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-lg text-slate-700 transition hover:bg-slate-200 hover:text-slate-900';
+  notificationLink.setAttribute('aria-label', 'Notifications');
+  notificationLink.title = 'Notifications';
+  notificationLink.innerHTML = `
+    <span aria-hidden="true">🔔</span>
+    <span id="notificationBadge" class="hidden absolute -right-1 -top-1 min-w-[1.25rem] rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white"></span>
+  `;
+
+  actions.insertBefore(notificationLink, actions.firstChild);
+}
+
 function patchProfileIcons() {
   const profileIcons = document.querySelectorAll('[data-profile-icon="true"]');
   profileIcons.forEach((icon) => {
@@ -118,6 +145,7 @@ export function toggleMenu() {
     patchDesktopNav(header);
   }
 
+  patchNotificationIcon();
   patchProfileIcons();
   patchLogoutButtons();
   patchMobileMenu();
