@@ -313,19 +313,32 @@ function validateCurrentStep() {
         setFieldState(dealMessageInput, true);
     }
 
-    if (!/^\d+$/.test(threshold) || Number(threshold) < 2) {
-        showFieldError('error-group-discount-threshold', 'Enter a whole number of at least 2.');
-        setFieldState(thresholdInput, false);
-        hasError = true;
+    if (threshold || percent) {
+        if (!threshold) {
+            showFieldError('error-group-discount-threshold', 'Please add a threshold if you want to offer a group discount.');
+            setFieldState(thresholdInput, false);
+            hasError = true;
+        } else if (!/^\d+$/.test(threshold) || Number(threshold) < 2) {
+            showFieldError('error-group-discount-threshold', 'Enter a whole number of at least 2.');
+            setFieldState(thresholdInput, false);
+            hasError = true;
+        } else {
+            setFieldState(thresholdInput, true);
+        }
+
+        if (!percent) {
+            showFieldError('error-group-discount-percent', 'Please add a discount percentage if you want to offer a group discount.');
+            setFieldState(percentInput, false);
+            hasError = true;
+        } else if (!/^\d+(\.\d+)?$/.test(percent) || Number(percent) < 1 || Number(percent) > 100) {
+            showFieldError('error-group-discount-percent', 'Enter a discount from 1 to 100 percent.');
+            setFieldState(percentInput, false);
+            hasError = true;
+        } else {
+            setFieldState(percentInput, true);
+        }
     } else {
         setFieldState(thresholdInput, true);
-    }
-
-    if (!/^\d+(\.\d+)?$/.test(percent) || Number(percent) < 1 || Number(percent) > 100) {
-        showFieldError('error-group-discount-percent', 'Enter a discount from 1 to 100 percent.');
-        setFieldState(percentInput, false);
-        hasError = true;
-    } else {
         setFieldState(percentInput, true);
     }
 
@@ -442,6 +455,26 @@ function renderCategoryDetails() {
             label: 'What is covered in your service?',
             placeholder: 'e.g. Materials, diagnosis, and whether emergency visits are available.',
             content: 'Repair providers should mention tools, common problem areas, and whether parts are included.'
+        },
+        'WiFi Installation': {
+            label: 'What does your installation package include?',
+            placeholder: 'e.g. Router setup, cabling, signal testing, and aftercare support.',
+            content: 'Installation providers should mention coverage area, equipment used, testing performed, and whether follow-up support is included.'
+        },
+        'Solar Installation': {
+            label: 'What does your solar installation service include?',
+            placeholder: 'e.g. Site assessment, panel mounting, wiring, and system testing.',
+            content: 'Solar installation profiles should explain the scope of work, equipment used, site requirements, and warranty or maintenance support.'
+        },
+        'CCTV Installation': {
+            label: 'What is included in your CCTV setup?',
+            placeholder: 'e.g. Camera placement, wiring, remote access setup, and testing.',
+            content: 'Security installation listings should highlight camera coverage, installation area, remote access features, and support after setup.'
+        },
+        'Smart Home Installation': {
+            label: 'What is included in your smart home setup?',
+            placeholder: 'e.g. Device installation, app configuration, and network setup.',
+            content: 'Smart home providers should mention compatible devices, setup complexity, and whether troubleshooting support is included.'
         }
     };
 

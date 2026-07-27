@@ -15,22 +15,31 @@
 <body class="bg-gray-100">
 
 <!-- ================= HEADER ================= -->
-<header class="fixed top-0 left-0 w-full bg-white border-b border-slate-200 z-50 shadow-sm">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex h-16 items-center justify-between gap-4">
-      <div class="flex items-center gap-8">
+<header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
+
+  <div class="max-w-7xl mx-auto px-4">
+
+    <div class="flex items-center justify-between h-16">
+
+      <!-- LEFT -->
+      <div class="flex items-center gap-10">
         <a href="home.html" class="flex items-center gap-2">
           <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
           <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
+
         <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
           <a href="home.html" class="transition hover:text-slate-900">Home</a>
           <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
           <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
           <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
         </nav>
+
       </div>
-      <div class="flex items-center gap-3">
+
+      <!-- RIGHT -->
+      <div class="flex items-center gap-4">
+
         <!-- PROFILE -->
         <a href="profile.html"
           data-profile-icon="true"
@@ -41,29 +50,63 @@
           👤
 
         </a>
+
         <!-- LOGOUT -->
-        <button id="logoutBtn" class="hidden rounded-full px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-slate-100">Logout</button>
+        <button id="logoutBtn-payout-settings" data-logout
+          class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
+          Logout
+        </button>
+
+        <!-- MOBILE MENU -->
         <button id="hamburger"
           class="lg:hidden text-2xl">
           ☰
         </button>
+
       </div>
+
     </div>
+
   </div>
+
 </header>
 
-<div id="sideMenu" class="fixed top-0 left-0 z-50 h-full w-72 transform -translate-x-full overflow-y-auto bg-white shadow-xl transition-transform duration-300 lg:hidden">
-  <div class="flex items-center justify-between border-b p-4">
-    <h2 class="text-xl font-bold">Menu</h2>
+<!-- ================= MOBILE MENU ================= -->
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
+  transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
+
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
     <button id="closeMenu" class="text-2xl">✕</button>
   </div>
-  <div class="space-y-4 p-4">
-    <a href="home.html" class="block font-semibold text-slate-900">Home</a>
-    <a href="my-bookings.html" class="block font-semibold text-slate-900">My Bookings</a>
-    <a href="my-messages.html" class="block font-semibold text-slate-900">My Messages</a>
-    <a href="wishlist.html" class="block font-semibold text-slate-900">Wishlist</a>
+
+  <nav class="p-4 space-y-1">
+    <a href="home.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="my-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>My Bookings</span>
+    </a>
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
+    </a>
+    <a href="wishlist.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">❤️</span>
+      <span>My Wishlist</span>
+    </a>
     <button id="logoutBtnSideMenu" class="w-full rounded-full border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Logout</button>
-  </div>
+
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
+
 </div>
 
   <!-- ================= OVERLAY ================= -->

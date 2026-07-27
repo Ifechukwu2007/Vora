@@ -95,6 +95,12 @@ function renderServiceCard(service) {
     </div>
 
     ${imgEl}
+
+    <div class="mt-4 flex items-center justify-end">
+      <a href="edit-service.html?service_id=${encodeURIComponent(id)}" class="edit-service-btn inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700">
+        Edit
+      </a>
+    </div>
   `;
 
   card.addEventListener('click', (event) => {
