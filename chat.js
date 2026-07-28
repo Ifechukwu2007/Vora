@@ -6,6 +6,20 @@ import { sendEmailToUserId } from './email-service.js';
 export class ChatService {
   static channels = {};
 
+  static async ensureAuthenticated() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      throw error;
+    }
+    if (!session) {
+      throw new Error('User is not authenticated');
+    }
+    if (session.access_token) {
+      await supabase.auth.setAuth(session.access_token);
+    }
+    return session;
+  }
+
   /**
    * Get or create a chat row for two users.
    * - We store one chat row with:
@@ -53,6 +67,8 @@ export class ChatService {
    * - Creates notification (non-blocking)
    */
   static async sendMessage({ chatId, currentUserId, otherUserId, message }) {
+    await this.ensureAuthenticated();
+
     // 1) Insert message
     const { data: newMessage, error: insertError } = await supabase
       .from('messages')
@@ -160,6 +176,8 @@ export class ChatService {
    * Fetch messages for a chat (use on page load).
    */
   static async fetchMessages({ chatId, limit = 50, offset = 0 }) {
+    await this.ensureAuthenticated();
+
     const { data, error } = await supabase
       .from('messages')
       .select('*')

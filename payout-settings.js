@@ -7,6 +7,7 @@ import { supabase } from "./supabase.js";
 const TABLE_NAME = "payout_settings";     // e.g. "payout_settings", "provider_profiles", "profiles", etc.
 const COL_OWNER_ID = "user_id";          // column that stores the auth user id (or provider id)
 const COL_BANK_NAME = "bank_name";
+const COL_ACCOUNT_NAME = "account_name";
 const COL_ACCOUNT_NUMBER = "account_number";
 
 /**
@@ -14,6 +15,7 @@ const COL_ACCOUNT_NUMBER = "account_number";
  */
 const form = document.getElementById("payout-settings-form");
 const bankInput = document.getElementById("bank-name");
+const accountNameInput = document.getElementById("account-name");
 const accountInput = document.getElementById("account-number");
 
 // optional logout handling if you already use data-logout elsewhere
@@ -84,7 +86,7 @@ async function requireSessionUser() {
 async function loadPayout(userId) {
   const { data, error } = await supabase
     .from(TABLE_NAME)
-    .select(`${COL_BANK_NAME}, ${COL_ACCOUNT_NUMBER}`)
+    .select(`${COL_BANK_NAME}, ${COL_ACCOUNT_NAME}, ${COL_ACCOUNT_NUMBER}`)
     .eq(COL_OWNER_ID, userId)
     .maybeSingle();
 
@@ -92,11 +94,12 @@ async function loadPayout(userId) {
   return data ?? null;
 }
 
-async function updatePayout(userId, bankName, accountNumber) {
+async function updatePayout(userId, bankName, accountName, accountNumber) {
   const { error } = await supabase
     .from(TABLE_NAME)
     .update({
       [COL_BANK_NAME]: bankName,
+      [COL_ACCOUNT_NAME]: accountName,
       [COL_ACCOUNT_NUMBER]: accountNumber,
     })
     .eq(COL_OWNER_ID, userId);
@@ -104,10 +107,11 @@ async function updatePayout(userId, bankName, accountNumber) {
   if (error) throw error;
 }
 
-async function insertPayout(userId, bankName, accountNumber) {
+async function insertPayout(userId, bankName, accountName, accountNumber) {
   const payload = {
     [COL_OWNER_ID]: userId,
     [COL_BANK_NAME]: bankName,
+    [COL_ACCOUNT_NAME]: accountName,
     [COL_ACCOUNT_NUMBER]: accountNumber,
   };
 
@@ -119,12 +123,14 @@ async function refreshForm(userId) {
   const existing = await loadPayout(userId);
   if (!existing) {
     bankInput.value = "";
+    accountNameInput.value = "";
     accountInput.value = "";
     setMessage("No payout settings found yet.", "info");
     return;
   }
 
   bankInput.value = existing[COL_BANK_NAME] ?? "";
+  accountNameInput.value = existing[COL_ACCOUNT_NAME] ?? "";
   accountInput.value = existing[COL_ACCOUNT_NUMBER] ?? "";
   setMessage("Loaded your payout settings.", "success");
 }
@@ -156,11 +162,16 @@ form?.addEventListener("submit", async (ev) => {
   if (!form) return;
 
   const bankName = bankInput?.value?.trim() ?? "";
+  const accountName = accountNameInput?.value?.trim() ?? "";
   const accountNumber = onlyDigits(accountInput?.value);
 
   // Client validation (matches your HTML pattern too)
   if (!bankName) {
     setMessage("Bank name is required.", "error");
+    return;
+  }
+  if (!accountName) {
+    setMessage("Account name is required.", "error");
     return;
   }
   if (!/^\d{10}$/.test(accountNumber)) {
@@ -177,9 +188,9 @@ form?.addEventListener("submit", async (ev) => {
     // Decide insert vs update
     const existing = await loadPayout(user.id);
     if (existing) {
-      await updatePayout(user.id, bankName, accountNumber);
+      await updatePayout(user.id, bankName, accountName, accountNumber);
     } else {
-      await insertPayout(user.id, bankName, accountNumber);
+      await insertPayout(user.id, bankName, accountName, accountNumber);
     }
 
     setMessage("Saved ✅", "success");

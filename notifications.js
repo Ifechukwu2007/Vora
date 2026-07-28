@@ -180,7 +180,7 @@ async function fetchNotifications() {
 
 function setupRealTimeUpdates() {
   if (!currentUser) return;
-  
+
   try {
     stopRealtimeUpdates();
 
@@ -196,9 +196,14 @@ function setupRealTimeUpdates() {
         { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` },
         () => fetchNotifications()
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') {
+          console.warn('Notification realtime status:', status);
+        }
+      });
   } catch (err) {
     console.error('Error setting up real-time updates:', err);
+    notificationChannel = null;
   }
 }
 

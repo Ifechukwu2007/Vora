@@ -141,8 +141,13 @@
             </div>
 
             <div>
+                <label for="account-name" class="block text-sm font-medium text-gray-700">Account Name</label>
+                <input type="text" id="account-name" name="account-name" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., John Doe">
+            </div>
+
+            <div>
                 <label for="account-number" class="block text-sm font-medium text-gray-700">Account Number</label>
-                <input type="text" id="account-number" name="account-number" required pattern="[0-9]{10}" title="A 10-digit account number" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Your 10-digit account number">
+                <input type="text" id="account-number" name="account-number" inputmode="numeric" required pattern="[0-9]{10}" title="A 10-digit account number" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Your 10-digit account number">
             </div>
 
             <div class="flex justify-end">
@@ -187,7 +192,7 @@
 </footer>
 
 <!-- ================= SCRIPTS ================= -->
-<script src="./payout-settings.js?v=2" type="module"></script>
+<script src="./payout-settings.js?v=3" type="module"></script>
 <script src="./auth.js?v=2" type="module"></script>
 <script src="./menu.js?v=2" type="module"></script>
 <script src="./notifications.js?v=2" type="module"></script>

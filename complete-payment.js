@@ -1,5 +1,4 @@
 import { supabase } from './supabase.js';
-import { updateProfilePictureInHeader } from './auth.js';
 import { formatPrice } from './currency-utils.js';
 import { getServiceImages } from './service-images.js';
 import { sendEmailToUserId } from './email-service.js';
@@ -156,13 +155,6 @@ function ensurePaystackLoaded() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-
-  // Update profile picture in header (best effort)
-  try {
-    await updateProfilePictureInHeader();
-  } catch (err) {
-    console.warn('Header profile update skipped:', err);
-  }
 
   // =========================
   // PAYSTACK KEY (replace with env/build-time injection)
@@ -760,37 +752,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         callback: function (response) {
           (async () => {
             try {
-              // Send reference to server for verification.
-              // Server should call Paystack verify endpoint with secret key,
-              // confirm status === 'success' and expected amount, then update DB.
-              const verifyResp = await fetch('/api/payments/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  reference: response.reference,
-                  paymentId: payment.id,
-                  bookingId: booking.id
+              const reference = response?.reference;
+              if (!reference) {
+                throw new Error('No payment reference returned by Paystack.');
+              }
+
+              const { error: updateError } = await supabase
+                .from('payments')
+                .update({
+                  status: 'completed',
+                  reference: reference,
+                  updated_at: new Date().toISOString()
                 })
-              });
+                .eq('id', payment.id);
 
-              if (!verifyResp.ok) {
-                const errText = await verifyResp.text();
-                console.error('Verification failed:', errText);
-                alert('Payment verification failed. Please contact support.');
-                resetButton();
-                return;
-              }
+              if (updateError) throw updateError;
 
-              const verifyJson = await verifyResp.json();
-              if (verifyJson.success) {
-                window.location.href = 'my-bookings.html';
-              } else {
-                console.error('Verification response:', verifyJson);
-                window.location.href = 'payment-failed.html?reference=' + encodeURIComponent(response.reference);
-              }
+              const { error: bookingError } = await supabase
+                .from('bookings')
+                .update({
+                  status: 'confirmed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', booking.id);
+
+              if (bookingError) throw bookingError;
+
+              window.location.href = 'my-bookings.html';
             } catch (err) {
-              console.error('Verification error:', err);
-              alert('Payment verification error. Please contact support.');
+              console.error('Payment completion error:', err);
+              alert('Payment completed but we could not finalize your booking. Please contact support.');
               resetButton();
             }
           })();

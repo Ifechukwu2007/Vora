@@ -25,6 +25,7 @@ let typingChannel = null;
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('Chat auth session loaded:', session);
 
     if (!session) {
       window.location.href = 'login.html';
@@ -32,6 +33,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     currentUser = session.user;
+    if (session?.access_token) {
+      try {
+        await supabase.auth.setAuth(session.access_token);
+      } catch (authError) {
+        console.warn('Could not set Supabase auth token:', authError);
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     chatId = params.get('chat_id');
 
@@ -44,7 +53,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadChatInfo();
     await loadMessages();
     subscribeToMessages();
-    subscribeToTyping();
     setupEventListeners();
     setupLogout();
   } catch (error) {
@@ -197,7 +205,7 @@ async function sendMessage() {
     broadcastTyping(false);
   } catch (error) {
     console.error('Error sending message:', error);
-    alert('Failed to send message');
+    alert('Failed to send message: ' + (error?.message || 'unknown error'));
   } finally {
     sendBtn.disabled = false;
     messageInput.focus();
@@ -207,17 +215,6 @@ async function sendMessage() {
 // =========================
 // TYPING INDICATOR
 // =========================
-function subscribeToTyping() {
-  typingChannel = supabase
-    .channel(`typing-${chatId}`)
-    .on('broadcast', { event: 'user_typing' }, (payload) => {
-      if (payload.payload.userId !== currentUser.id) {
-        showTypingIndicator(payload.payload.isTyping);
-      }
-    })
-    .subscribe();
-}
-
 function showTypingIndicator(isTyping) {
   if (isTyping) {
     typingUser.textContent = otherUserName;
@@ -254,16 +251,7 @@ function playMessageRing() {
 }
 
 function broadcastTyping(isTyping) {
-  if (typingChannel) {
-    typingChannel.send({
-      type: 'broadcast',
-      event: 'user_typing',
-      payload: {
-        userId: currentUser.id,
-        isTyping
-      }
-    });
-  }
+  return;
 }
 
 // =========================

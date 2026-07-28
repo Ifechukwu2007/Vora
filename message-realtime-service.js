@@ -87,54 +87,58 @@ export class MessageRealtimeService {
     }
 
     console.log('🔌 Creating new subscription for chat:', chatId);
-    
-    const channel = supabase
-      .channel(`chat-${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`
-        },
-        (payload) => {
-          console.log('📨 Postgres Change Event - INSERT:', payload);
-          // Prevent duplicate render - sender already sees message immediately
-          if (payload.new.sender_id === currentUserId) {
-            console.log('⏭️ Skipping - this is sender\'s own message');
-            return;
-          }
-          console.log('🎯 Delivering message to callback');
-          callback(payload.new);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`
-        },
-        (payload) => {
-          console.log('📨 Postgres Change Event - UPDATE:', payload);
-          callback(payload.new, 'update');
-        }
-      )
-      .on('subscribe', (status) => {
-        console.log('✅ Subscription status:', status);
-      })
-      .on('error', (error) => {
-        console.error('❌ Subscription error:', error);
-      })
-      .subscribe((status, err) => {
-        console.log('📡 Subscribe callback - Status:', status, 'Error:', err);
-      });
 
-    this.channels[chatId] = channel;
-    console.log('✅ Subscription created for chat:', chatId);
-    return channel;
+    try {
+      const channel = supabase
+        .channel(`chat-${chatId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=eq.${chatId}`
+          },
+          (payload) => {
+            console.log('📨 Postgres Change Event - INSERT:', payload);
+            if (payload.new.sender_id === currentUserId) {
+              console.log('⏭️ Skipping - this is sender\'s own message');
+              return;
+            }
+            console.log('🎯 Delivering message to callback');
+            callback(payload.new);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=eq.${chatId}`
+          },
+          (payload) => {
+            console.log('📨 Postgres Change Event - UPDATE:', payload);
+            callback(payload.new, 'update');
+          }
+        )
+        .on('subscribe', (status) => {
+          console.log('✅ Subscription status:', status);
+        })
+        .on('error', (error) => {
+          console.error('❌ Subscription error:', error);
+        })
+        .subscribe((status, err) => {
+          console.log('📡 Subscribe callback - Status:', status, 'Error:', err);
+        });
+
+      this.channels[chatId] = channel;
+      console.log('✅ Subscription created for chat:', chatId);
+      return channel;
+    } catch (error) {
+      console.warn('⚠️ Realtime subscription unavailable, continuing without it:', error?.message || error);
+      return null;
+    }
   }
 
   /**
@@ -142,45 +146,50 @@ export class MessageRealtimeService {
    */
   static subscribeToMessagesList(callback) {
     console.log('🔌 Creating subscription for messages list');
-    
-    const channel = supabase 
-      .channel('messages-list-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
-          console.log('📨 Messages List - New message inserted:', payload.new);
-          callback('message_inserted', payload.new.chat_id, payload.new);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
-          console.log('📨 Messages List - Message updated:', payload.new);
-          callback('message_updated', payload.new.chat_id, payload.new);
-        }
-      )
-      .on('subscribe', (status) => {
-        console.log('✅ Messages List subscription status:', status);
-      })
-      .on('error', (error) => {
-        console.error('❌ Messages List subscription error:', error);
-      })
-      .subscribe((status, err) => {
-        console.log('📡 Messages List subscribe callback - Status:', status, 'Error:', err);
-      });
 
-    console.log('✅ Messages List subscription created');
-    return channel;
+    try {
+      const channel = supabase 
+        .channel('messages-list-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            console.log('📨 Messages List - New message inserted:', payload.new);
+            callback('message_inserted', payload.new.chat_id, payload.new);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            console.log('📨 Messages List - Message updated:', payload.new);
+            callback('message_updated', payload.new.chat_id, payload.new);
+          }
+        )
+        .on('subscribe', (status) => {
+          console.log('✅ Messages List subscription status:', status);
+        })
+        .on('error', (error) => {
+          console.error('❌ Messages List subscription error:', error);
+        })
+        .subscribe((status, err) => {
+          console.log('📡 Messages List subscribe callback - Status:', status, 'Error:', err);
+        });
+
+      console.log('✅ Messages List subscription created');
+      return channel;
+    } catch (error) {
+      console.warn('⚠️ Messages list realtime unavailable, continuing without it:', error?.message || error);
+      return null;
+    }
   }
 
   /**

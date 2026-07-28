@@ -25,6 +25,13 @@ async function initialize() {
     }
 
     currentUser = session.user;
+    if (session?.access_token) {
+      try {
+        await supabase.auth.setAuth(session.access_token);
+      } catch (authError) {
+        console.warn('Could not set Supabase auth token:', authError);
+      }
+    }
 
     setupLogout();
     await loadConversations();
