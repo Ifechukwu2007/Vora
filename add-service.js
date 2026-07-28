@@ -640,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 for (const [index, selectedFile] of selectedImageFiles.entries()) {
                     const uploadFile = await prepareImageForUpload(selectedFile);
-                    const fileName = `${user.id}_${Date.now()}_${index}_${uploadFile.name}`;
+                    const fileName = `${user.id}/${Date.now()}_${index}_${uploadFile.name}`;
                     console.log('Uploading:', {
                         originalName: selectedFile.name,
                         originalType: selectedFile.type,
