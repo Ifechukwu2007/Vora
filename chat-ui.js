@@ -189,6 +189,12 @@ async function sendMessage() {
       message: text
     });
 
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('notifications:updated', {
+        detail: { source: 'chat', markAll: false }
+      }));
+    }
+
     // Replace optimistic message with server-saved message (match by client ts)
     if (serverMessage && serverMessage.id) {
       // Find optimistic node

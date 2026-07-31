@@ -4,6 +4,7 @@ const list = document.getElementById('list');
 const markAllBtn = document.getElementById('markAll');
 let currentUser = null;
 let notificationChannel = null;
+let notificationsCache = [];
 
 function stopRealtimeUpdates() {
   if (notificationChannel) {
@@ -35,6 +36,65 @@ function getNotificationStyle(type) {
     update: { icon: '📢', color: 'bg-gray-50 border-gray-200', category: 'Updates' }
   };
   return notificationStyles[type] || notificationStyles.update;
+}
+
+function getNotificationDestination(type) {
+  const destinations = {
+    message: 'my-messages.html',
+    new_message: 'my-messages.html',
+    booking_request: 'provider-bookings.html',
+    booking_confirmed: 'provider-bookings.html',
+    booking_cancelled: 'provider-bookings.html',
+    booking_completed: 'provider-bookings.html',
+    new_booking: 'provider-bookings.html',
+    payment_received: 'provider-bookings.html',
+    payment_failed: 'provider-bookings.html',
+    payout_processed: 'provider-bookings.html',
+    review_received: 'provider-reviews.html',
+    review_response: 'provider-reviews.html',
+    new_request: 'my-requests.html',
+    offer_received: 'my-bookings.html',
+    offer_accepted: 'my-bookings.html',
+    offer_rejected: 'my-bookings.html',
+    service_approved: 'my-services.html',
+    service_rejected: 'my-services.html',
+    verification_update: 'settings.html',
+    profile_viewed: 'profile.html'
+  };
+
+  return destinations[type] || 'notifications.html';
+}
+
+function resolveNotificationDestination(notification) {
+  if (notification?.metadata?.link) {
+    return notification.metadata.link;
+  }
+
+  if (typeof notification?.metadata === 'string' && notification.metadata.trim()) {
+    return notification.metadata;
+  }
+
+  return getNotificationDestination(notification?.type);
+}
+
+async function pruneReadNotificationsOlderThanSevenDays() {
+  if (!currentUser) return;
+
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('read', true)
+      .lt('created_at', cutoff);
+
+    if (error) {
+      console.warn('Unable to prune old read notifications:', error);
+    }
+  } catch (err) {
+    console.error('Exception pruning old read notifications:', err);
+  }
 }
 
 function formatTime(date) {
@@ -81,7 +141,66 @@ function emptyState() {
   `;
 }
 
+async function markNotificationAsRead(notificationId) {
+  if (!notificationId || !currentUser) return false;
+
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', notificationId)
+      .eq('user_id', currentUser.id)
+      .eq('read', false);
+
+    if (error) {
+      console.error('Error marking notification as read:', error);
+      return false;
+    }
+
+    notificationsCache = notificationsCache.map((item) =>
+      item.id === notificationId ? { ...item, read: true, read_at: new Date().toISOString() } : item
+    );
+
+    const card = list?.querySelector(`[data-notification-id="${notificationId}"]`);
+    if (card) {
+      card.innerHTML = `
+        <div class="flex gap-3 flex-1">
+          <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-xl shadow-sm">${getNotificationStyle(notificationsCache.find((item) => item.id === notificationId)?.type || 'update').icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <p class="font-semibold text-gray-700">${notificationsCache.find((item) => item.id === notificationId)?.title || 'Notification'}</p>
+              <span class="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">${getNotificationStyle(notificationsCache.find((item) => item.id === notificationId)?.type || 'update').category}</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-5">${notificationsCache.find((item) => item.id === notificationId)?.message || 'No message provided'}</p>
+            <p class="text-xs text-gray-500 mt-2">${formatTime(new Date(notificationsCache.find((item) => item.id === notificationId)?.created_at || Date.now()))}</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-end gap-2 shrink-0">
+          <span class="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">Read</span>
+          <span class="text-[11px] text-gray-400">Open</span>
+        </div>
+      `;
+      card.className = `${card.className.replace(/opacity-[^\s]+/g, '').trim()} opacity-80`;
+    } else {
+      renderNotifications(notificationsCache);
+    }
+
+    await pruneReadNotificationsOlderThanSevenDays();
+
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('notifications:updated'));
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Exception marking notification as read:', err);
+    return false;
+  }
+}
+
 function renderNotifications(items) {
+  notificationsCache = Array.isArray(items) ? items : [];
+
   if (!list) return;
 
   if (!items || items.length === 0) {
@@ -101,43 +220,57 @@ function renderNotifications(items) {
 
     const item = document.createElement('div');
     item.className = `
-      ${style.color} border-l-4 p-5 rounded-lg shadow
+      ${style.color} border border-gray-200 rounded-2xl p-4 shadow-sm
       flex justify-between items-start gap-4
-      cursor-pointer transition hover:shadow-lg hover:translate-x-1
-      ${read ? 'opacity-75' : 'opacity-100'}
+      cursor-pointer transition hover:shadow-md hover:-translate-y-0.5
+      ${read ? 'opacity-80' : 'opacity-100'}
     `;
+    item.dataset.notificationId = n.id;
+    item.setAttribute('role', 'button');
+    item.setAttribute('tabindex', '0');
+    item.setAttribute('aria-label', title);
 
     item.innerHTML = `
       <div class="flex gap-3 flex-1">
-        <div class="text-3xl">${style.icon}</div>
-        <div class="flex-1">
-          <div class="flex items-center gap-2 mb-1">
-            <p class="font-bold ${read ? 'text-gray-600' : 'text-black'}">${title}</p>
-            <span class="text-xs px-2 py-1 rounded-full ${read ? 'bg-gray-200 text-gray-600' : 'bg-blue-200 text-blue-700'} font-medium">${style.category}</span>
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-xl shadow-sm">${style.icon}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
+            <p class="font-semibold ${read ? 'text-gray-700' : 'text-gray-900'}">${title}</p>
+            <span class="text-[11px] px-2 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'} font-medium">${style.category}</span>
           </div>
-          <p class="text-sm text-gray-700 mb-2">${message}</p>
-          <p class="text-xs text-gray-500">${timeStr}</p>
+          <p class="text-sm text-gray-700 leading-5">${message}</p>
+          <p class="text-xs text-gray-500 mt-2">${timeStr}</p>
         </div>
       </div>
-      <div class="flex flex-col gap-2">
-        <span class="text-xs px-3 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-600'} font-medium">${read ? 'Read' : 'New'}</span>
+      <div class="flex flex-col items-end gap-2 shrink-0">
+        <span class="text-[11px] px-2.5 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-500' : 'bg-orange-100 text-orange-700'} font-semibold">${read ? 'Read' : 'New'}</span>
+        <span class="text-[11px] text-gray-400">Open</span>
       </div>
     `;
 
-    item.addEventListener('click', async () => {
+    const openNotification = async () => {
       try {
         if (!n.read) {
-          await supabase
-            .from('notifications')
-            .update({ read: true, updated_at: new Date().toISOString() })
-            .eq('id', n.id);
+          await markNotificationAsRead(n.id);
         }
 
-        if (n.metadata?.link) {
-          window.location.href = n.metadata.link;
+        const destination = resolveNotificationDestination(n);
+        if (destination) {
+          window.location.href = destination;
         }
       } catch (error) {
         console.error('Error updating notification:', error);
+      }
+    };
+
+    item.addEventListener('click', () => {
+      openNotification();
+    });
+
+    item.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openNotification();
       }
     });
 
@@ -266,20 +399,41 @@ markAllBtn?.addEventListener('click', async () => {
     return;
   }
 
+  if (markAllBtn) {
+    markAllBtn.disabled = true;
+    markAllBtn.textContent = 'Updating...';
+  }
+
   try {
     const { error } = await supabase
       .from('notifications')
       .update({ read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('user_id', currentUser.id);
+      .eq('user_id', currentUser.id)
+      .eq('read', false);
 
     if (error) {
       console.error('Error marking all notifications as read:', error);
       return;
     }
 
-    await fetchNotifications();
+    notificationsCache = notificationsCache.map((item) => ({
+      ...item,
+      read: true,
+      read_at: new Date().toISOString()
+    }));
+
+    renderNotifications(notificationsCache);
+
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('notifications:updated', { detail: { markAll: true } }));
+    }
   } catch (err) {
     console.error('Exception marking notifications as read:', err);
+  } finally {
+    if (markAllBtn) {
+      markAllBtn.disabled = false;
+      markAllBtn.textContent = 'Mark all as read';
+    }
   }
 });
 

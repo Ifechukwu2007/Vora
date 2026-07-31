@@ -18,31 +18,49 @@ function clearBadgeState() {
 async function loadUnreadCount() {
   if (!currentUser || !badge) return;
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .or(`user_id.eq.${currentUser.id},userId.eq.${currentUser.id}`)
-    .eq('read', false);
- 
-  if (error) {
-    console.error('Error loading notification badge count:', error);
-    return;
-  }
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .or(`user_id.eq.${currentUser.id},userId.eq.${currentUser.id}`)
+      .eq('read', false);
 
-  const unreadCount = data?.length || 0;
-  updateBadge(unreadCount);
+    if (error) {
+      console.warn('Notification badge query failed, trying fallback:', error);
+      const { count: fallbackCount, error: fallbackError } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .eq('read', false);
+
+      if (fallbackError) {
+        console.error('Error loading notification badge count:', fallbackError);
+        return;
+      }
+
+      updateBadge(fallbackCount || 0);
+      return;
+    }
+
+    updateBadge(count || 0);
+  } catch (err) {
+    console.error('Error loading notification badge count:', err);
+  }
 }
 
 function updateBadge(count) {
   if (!badge) return;
 
-  if (count <= 0) {
+  const safeCount = Number(count || 0);
+
+  if (safeCount <= 0) {
     badge.classList.add('hidden');
+    badge.textContent = '';
     return;
   }
 
   badge.classList.remove('hidden');
-  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
   badge.classList.add('animate-pulse');
   setTimeout(() => {
     badge.classList.remove('animate-pulse');
@@ -72,15 +90,19 @@ function setupBadgeRealtime() {
 }
 
 async function initializeBadge() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    clearBadgeState();
-    return;
-  }
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
+      clearBadgeState();
+      return;
+    }
 
-  currentUser = user;
-  await loadUnreadCount();
-  setupBadgeRealtime();
+    currentUser = user;
+    await loadUnreadCount();
+    setupBadgeRealtime();
+  } catch (err) {
+    console.error('Badge initialization failed:', err);
+  }
 }
 
 supabase.auth.onAuthStateChange(async (event, session) => {
@@ -102,4 +124,20 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
-initializeBadge(); 
+window.addEventListener('notifications:updated', async (event) => {
+  const detail = event?.detail || {};
+
+  if (detail.markAll) {
+    updateBadge(0);
+    return;
+  }
+
+  if (detail.source === 'chat') {
+    await loadUnreadCount();
+    return;
+  }
+
+  updateBadge(0);
+});
+
+initializeBadge();
