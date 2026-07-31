@@ -141,6 +141,35 @@ function emptyState() {
   `;
 }
 
+async function deleteNotificationItem(notificationId) {
+  if (!notificationId || !currentUser) return false;
+
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', currentUser.id);
+
+    if (error) {
+      console.error('Error deleting notification:', error);
+      return false;
+    }
+
+    notificationsCache = notificationsCache.filter((item) => item.id !== notificationId);
+    renderNotifications(notificationsCache);
+
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('notifications:updated'));
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Exception deleting notification:', err);
+    return false;
+  }
+}
+
 async function markNotificationAsRead(notificationId) {
   if (!notificationId || !currentUser) return false;
 
@@ -168,15 +197,15 @@ async function markNotificationAsRead(notificationId) {
           <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-xl shadow-sm">${getNotificationStyle(notificationsCache.find((item) => item.id === notificationId)?.type || 'update').icon}</div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1 flex-wrap">
-              <p class="font-semibold text-gray-700">${notificationsCache.find((item) => item.id === notificationId)?.title || 'Notification'}</p>
-              <span class="text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">${getNotificationStyle(notificationsCache.find((item) => item.id === notificationId)?.type || 'update').category}</span>
+              <p class="notification-title font-semibold text-gray-700">${notificationsCache.find((item) => item.id === notificationId)?.title || 'Notification'}</p>
+              <span class="notification-category text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">${getNotificationStyle(notificationsCache.find((item) => item.id === notificationId)?.type || 'update').category}</span>
             </div>
             <p class="text-sm text-gray-700 leading-5">${notificationsCache.find((item) => item.id === notificationId)?.message || 'No message provided'}</p>
             <p class="text-xs text-gray-500 mt-2">${formatTime(new Date(notificationsCache.find((item) => item.id === notificationId)?.created_at || Date.now()))}</p>
           </div>
         </div>
         <div class="flex flex-col items-end gap-2 shrink-0">
-          <span class="text-[11px] px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">Read</span>
+          <span class="status-badge text-[11px] px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold">Read</span>
           <span class="text-[11px] text-gray-400">Open</span>
         </div>
       `;
@@ -235,16 +264,16 @@ function renderNotifications(items) {
         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-xl shadow-sm">${style.icon}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <p class="font-semibold ${read ? 'text-gray-700' : 'text-gray-900'}">${title}</p>
-            <span class="text-[11px] px-2 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'} font-medium">${style.category}</span>
+            <p class="notification-title font-semibold ${read ? 'text-gray-700' : 'text-gray-900'}">${title}</p>
+            <span class="notification-category text-[11px] px-2 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-600' : 'bg-blue-100 text-blue-700'} font-medium">${style.category}</span>
           </div>
           <p class="text-sm text-gray-700 leading-5">${message}</p>
           <p class="text-xs text-gray-500 mt-2">${timeStr}</p>
         </div>
       </div>
       <div class="flex flex-col items-end gap-2 shrink-0">
-        <span class="text-[11px] px-2.5 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-500' : 'bg-orange-100 text-orange-700'} font-semibold">${read ? 'Read' : 'New'}</span>
-        <span class="text-[11px] text-gray-400">Open</span>
+        <span class="status-badge text-[11px] px-2.5 py-1 rounded-full ${read ? 'bg-gray-100 text-gray-500' : 'bg-orange-100 text-orange-700'} font-semibold">${read ? 'Read' : 'New'}</span>
+        <button class="delete-btn text-[11px] text-gray-400 hover:text-red-600" data-delete-id="${n.id}" type="button">Delete</button>
       </div>
     `;
 
@@ -272,6 +301,13 @@ function renderNotifications(items) {
         event.preventDefault();
         openNotification();
       }
+    });
+
+    item.querySelector('.delete-btn')?.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const confirmed = window.confirm('Delete this notification?');
+      if (!confirmed) return;
+      await deleteNotificationItem(n.id);
     });
 
     list.appendChild(item);
@@ -423,6 +459,30 @@ markAllBtn?.addEventListener('click', async () => {
     }));
 
     renderNotifications(notificationsCache);
+    const cards = list?.querySelectorAll('[data-notification-id]');
+    cards?.forEach((card) => {
+      const id = card.getAttribute('data-notification-id');
+      const item = notificationsCache.find((entry) => entry.id === id);
+      if (!item) return;
+
+      const statusBadge = card.querySelector('.status-badge');
+      if (statusBadge) {
+        statusBadge.textContent = 'Read';
+        statusBadge.className = 'status-badge text-[11px] px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-semibold';
+      }
+
+      const title = card.querySelector('.notification-title');
+      if (title) {
+        title.className = 'notification-title font-semibold text-gray-700';
+      }
+
+      const categoryBadge = card.querySelector('.notification-category');
+      if (categoryBadge) {
+        categoryBadge.className = 'notification-category text-[11px] px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium';
+      }
+
+      card.className = `${card.className.replace(/opacity-[^\s]+/g, '').trim()} opacity-80`;
+    });
 
     if (window.dispatchEvent) {
       window.dispatchEvent(new CustomEvent('notifications:updated', { detail: { markAll: true } }));
