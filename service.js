@@ -52,6 +52,48 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
   return { perPerson, total, meetsDeal, travelFee };
 }
 
+function parseServiceSummary(description = '') {
+  const summaryStart = description.indexOf('\n\nCategory:');
+  const mainDescription = summaryStart >= 0 ? description.slice(0, summaryStart).trim() : description.trim();
+
+  const summary = {};
+  if (summaryStart >= 0) {
+    const summaryBlock = description.slice(summaryStart + 2).trim();
+    const lines = summaryBlock.split(/\n/).map((line) => line.trim()).filter(Boolean);
+    lines.forEach((line) => {
+      if (line.startsWith('Category:')) summary.category = line.replace('Category:', '').trim();
+      if (line.startsWith('Delivery:')) summary.delivery = line.replace('Delivery:', '').trim();
+      if (line.startsWith('Location:')) summary.location = line.replace('Location:', '').trim();
+      if (line.startsWith('Service area:')) summary.serviceArea = line.replace('Service area:', '').trim();
+      if (line.startsWith('Capacity:')) summary.capacity = line.replace('Capacity:', '').trim();
+      if (line.startsWith('Who interacts:')) summary.interaction = line.replace('Who interacts:', '').trim();
+      if (line.startsWith('Includes:')) summary.includes = line.replace('Includes:', '').trim();
+      if (line.startsWith('Business:')) summary.businessName = line.replace('Business:', '').trim();
+      if (line.startsWith('Booking mode:')) summary.bookingMode = line.replace('Booking mode:', '').trim();
+      if (line.startsWith('Availability:')) summary.availability = line.replace('Availability:', '').trim();
+    });
+  }
+
+  return { mainDescription, ...summary };
+}
+
+function getAvailabilityDetails(service) {
+  if (Array.isArray(service?.availability_days) && service.availability_days.length > 0) {
+    return service.availability_days;
+  }
+
+  if (typeof service?.availability_note === 'string' && service.availability_note.trim()) {
+    return service.availability_note.replace(/^Available on\s+/i, '').split(',').map((day) => day.trim()).filter(Boolean);
+  }
+
+  const match = String(service?.description || '').match(/Availability:\s*([^\n]+)/i);
+  if (match?.[1]) {
+    return match[1].split(',').map((day) => day.trim()).filter(Boolean);
+  }
+
+  return [];
+}
+
 // ============================
 // LOAD SERVICE
 // ============================
@@ -161,6 +203,38 @@ async function loadService() {
       ? Math.round(Number(service.price || 0) * (1 - discountPercent / 100))
       : null;
     const discountedPriceText = hasDeal ? formatPrice(discountedPrice) : null;
+    const summaryDetails = parseServiceSummary(service.description || '');
+    const availabilityDays = getAvailabilityDetails(service);
+    const availabilityHtml = availabilityDays.length ? `
+          <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p class="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Availability</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${availabilityDays.map((day) => `<span class="rounded-full bg-white px-3 py-1 text-sm font-medium text-emerald-800 border border-emerald-200">${day}</span>`).join('')}
+            </div>
+          </div>
+        ` : '';
+    const detailCardsHtml = [
+      { label: 'Category', value: summaryDetails.category || service.category || 'Not specified' },
+      { label: 'Delivery', value: summaryDetails.delivery || 'Not specified' },
+      { label: 'Location', value: summaryDetails.location || service.location || 'Not specified' },
+      { label: 'Service area', value: summaryDetails.serviceArea || 'Not specified' },
+      { label: 'Capacity', value: summaryDetails.capacity || 'Flexible' },
+      { label: 'Who interacts', value: summaryDetails.interaction || 'Not specified' },
+      { label: 'Business', value: summaryDetails.businessName || 'Not provided' },
+      { label: 'Travel fee', value: service.travel_price ? formatPrice(service.travel_price) : 'Not specified' },
+      { label: 'Booking mode', value: summaryDetails.bookingMode || (service.instant_booking ? 'Instant booking enabled' : 'Manual approval for first bookings') }
+    ].map((item) => `
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">${item.label}</p>
+        <p class="mt-2 text-sm font-semibold text-slate-900">${item.value}</p>
+      </div>
+    `).join('');
+    const includesHtml = summaryDetails.includes ? `
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">What’s included</p>
+        <p class="mt-3 text-sm leading-6 text-slate-700">${summaryDetails.includes}</p>
+      </div>
+    ` : '';
     const dealMessageHtml = hasDeal ? `
           <div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-4 mb-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -230,10 +304,26 @@ async function loadService() {
           </div>
         </div>
 
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">About this service</p>
+              <h3 class="mt-1 text-xl font-bold text-slate-900">Everything you need to know</h3>
+            </div>
+          </div>
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            ${detailCardsHtml}
+          </div>
+        </div>
+
+        ${includesHtml ? `<div class="space-y-3">${includesHtml}</div>` : ''}
+
+        ${availabilityHtml ? `<div class="space-y-3">${availabilityHtml}</div>` : ''}
+
         <div>
           <h3 class="text-xl font-bold mb-2">Description</h3>
           <p class="text-gray-700 leading-relaxed">
-            ${service.description || 'No description'}
+            ${summaryDetails.mainDescription || service.description || 'No description'}
           </p>
         </div>
 

@@ -32,7 +32,13 @@ function stripDealFields(serviceData) {
     delete cleaned.group_discount_threshold;
     delete cleaned.group_discount_percent;
     delete cleaned.image_urls;
+    delete cleaned.availability_days;
+    delete cleaned.availability_note;
     return cleaned;
+}
+
+function getSelectedAvailabilityDays() {
+    return Array.from(document.querySelectorAll('input[name="availability-day"]:checked')).map((input) => input.value);
 }
 
 async function prepareImageForUpload(file) {
@@ -606,6 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const dealMessage = document.getElementById('deal-message').value.trim();
             const groupDiscountThresholdValue = document.getElementById('group-discount-threshold').value.trim();
             const groupDiscountPercentValue = document.getElementById('group-discount-percent').value.trim();
+            const availabilityDays = getSelectedAvailabilityDays();
 
             if (!validateCurrentStep()) {
                 submitBtn.innerText = originalBtnText;
@@ -701,6 +708,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const availabilityText = availabilityDays.length
+                ? `Availability: ${availabilityDays.join(', ')}`
+                : '';
             const summaryDetails = [
                 `Category: ${category}`,
                 `Delivery: ${delivery}`,
@@ -710,8 +720,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 `Who interacts: ${interaction}`,
                 `Includes: ${includes || 'Not specified'}`,
                 `Booking mode: ${instantBooking ? 'Instant booking enabled' : 'Manual approval for first bookings'}`,
-                `Business: ${businessName || 'Not provided'}`
-            ].join('\n');
+                `Business: ${businessName || 'Not provided'}`,
+                availabilityText || 'Availability: Not specified'
+            ].filter(Boolean).join('\n');
 
             const serviceData = {
                 provider_id: user.id,
@@ -733,6 +744,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (groupDiscountPercent) {
                 serviceData.group_discount_percent = groupDiscountPercent;
+            }
+            if (availabilityDays.length > 0) {
+                serviceData.availability_days = availabilityDays;
+                serviceData.availability_note = `Available on ${availabilityDays.join(', ')}`;
             }
 
             const travelPrice = document.getElementById('travel-price').value.trim();

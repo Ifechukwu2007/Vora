@@ -69,6 +69,17 @@ function normalizeText(value) {
   return (value || "").replace(/\s+/g, " ").trim();
 }
 
+function getSelectedAvailabilityDays() {
+  return Array.from(document.querySelectorAll('input[name="availability-day"]:checked')).map((input) => input.value);
+}
+
+function setAvailabilityDays(days = []) {
+  const values = Array.isArray(days) ? days : [];
+  document.querySelectorAll('input[name="availability-day"]').forEach((checkbox) => {
+    checkbox.checked = values.includes(checkbox.value);
+  });
+}
+
 function isLikelyNonsense(value, { minLength = 8, minWords = 2 } = {}) {
   const normalized = normalizeText(value).toLowerCase();
   if (!normalized) return true;
@@ -515,6 +526,7 @@ function parseSummaryDetails(description = "") {
       if (line.startsWith("Includes:")) summary.includes = line.replace("Includes:", "").trim();
       if (line.startsWith("Business:")) summary.businessName = line.replace("Business:", "").trim();
       if (line.startsWith("Booking mode:")) summary.bookingMode = line.replace("Booking mode:", "").trim();
+      if (line.startsWith("Availability:")) summary.availability = line.replace("Availability:", "").trim();
     });
   }
 
@@ -602,6 +614,7 @@ function fillForm(service) {
   els.groupDiscountThreshold.value = service.group_discount_threshold ?? "";
   els.groupDiscountPercent.value = service.group_discount_percent ?? "";
   els.businessName.value = businessName || "";
+  setAvailabilityDays(service.availability_days || (parseSummaryDetails(service.description || "").availability ? parseSummaryDetails(service.description || "").availability.split(",").map((day) => day.trim()).filter(Boolean) : []));
 
   if (service.image_url) {
     showPreview(service.image_url);
@@ -748,6 +761,7 @@ async function main() {
         const groupDiscountThreshold = els.groupDiscountThreshold.value.trim();
         const groupDiscountPercent = els.groupDiscountPercent.value.trim();
         const travelPrice = els.travelPrice.value.trim();
+        const availabilityDays = getSelectedAvailabilityDays();
 
         const summaryDetails = [
           `Category: ${category}`,
@@ -758,7 +772,8 @@ async function main() {
           `Who interacts: ${interaction}`,
           `Includes: ${includes || "Not specified"}`,
           `Booking mode: ${instantBooking ? "Instant booking enabled" : "Manual approval for first bookings"}`,
-          `Business: ${businessName || "Not provided"}`
+          `Business: ${businessName || "Not provided"}`,
+          availabilityDays.length ? `Availability: ${availabilityDays.join(", ")}` : "Availability: Not specified"
         ].join("\n");
 
         let imageUrl = service.image_url ?? null;
@@ -784,6 +799,8 @@ async function main() {
           group_discount_percent: groupDiscountPercent ? parseFloat(groupDiscountPercent) : null,
           image_url: imageUrl,
           image_urls: imageUrls.length > 0 ? imageUrls : null,
+          availability_days: availabilityDays.length > 0 ? availabilityDays : null,
+          availability_note: availabilityDays.length > 0 ? `Available on ${availabilityDays.join(", ")}` : null,
           updated_at: new Date().toISOString(),
         };
 
