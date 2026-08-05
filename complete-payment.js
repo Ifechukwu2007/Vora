@@ -1,7 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 
-const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_test_296d47b57e4865b935a5f6b84241942c172e7a16';
+const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
 
 let currentBooking = null;
