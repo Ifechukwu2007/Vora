@@ -24,3 +24,5 @@ export const supabasePublic = createClient(
     },
   }
 )   
+
+export const SUPABASE_URL = supabaseUrl;

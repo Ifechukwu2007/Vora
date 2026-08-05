@@ -163,8 +163,9 @@ function getActionButtonsHtml(b, status) {
   // treated as a separate, unhandled status here, it used to fall through
   // to an empty action column with no Accept/Decline buttons at all.
   if (status === 'pending' || status === 'confirmed') {
+    const statusAttr = escapeHtml(status);
     return `
-      <button data-action="accept" data-id="${bookingId}" class="${baseClass} bg-indigo-600 text-white hover:bg-indigo-700">Accept</button>
+      <button data-action="accept" data-id="${bookingId}" data-status="${statusAttr}" class="${baseClass} bg-indigo-600 text-white hover:bg-indigo-700">Accept</button>
       <button data-action="decline" data-id="${bookingId}" class="${baseClass} bg-red-50 text-red-700 border border-red-100 hover:bg-red-100">Decline</button>
     `;
   }
@@ -206,6 +207,17 @@ async function updateBookingStatus(id, nextStatus) {
   if (error) throw error;
 }
 
+async function isProviderPayoutReady(providerId) {
+  const { data, error } = await supabase
+    .from('payout_settings')
+    .select('account_verified, recipient_code')
+    .eq('user_id', providerId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data?.account_verified && data?.recipient_code);
+}
+
 // simple toast helper
 function toast(msg, kind = 'info'){
   const root = document.getElementById('vora-toasts') || (()=>{ const d=document.createElement('div'); d.id='vora-toasts'; d.className='fixed bottom-6 right-6 flex flex-col gap-2 z-50'; document.body.appendChild(d); return d; })();
@@ -221,6 +233,13 @@ function bindActionButtons(preview){
       const orig = btn.textContent;
       try{
         if (action==='accept'){
+          const bookingStatus = btn.getAttribute('data-status') || '';
+          if (bookingStatus === 'confirmed' || bookingStatus === 'paid') {
+            const ready = await isProviderPayoutReady(currentProviderId);
+            if (!ready) {
+              throw new Error('You must verify your payout account before accepting paid bookings. Go to Payout Settings to complete verification.');
+            }
+          }
           if (!confirm('Accept this booking?')) return;
           btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'accepted'); toast('Booking accepted'); await refreshCurrentBookings();
         } else if (action==='decline'){

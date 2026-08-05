@@ -97,66 +97,127 @@
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
 
-<main class="pt-20 pb-12 px-4 md:px-6">
-  <div class="max-w-7xl mx-auto lg:grid lg:grid-cols-[280px_1fr] gap-6">
-    <aside class="hidden lg:block">
-      <div class="sticky top-20">
-        <nav class="w-20 h-[calc(100vh-5rem)] bg-slate-900 text-white rounded-3xl p-3 flex flex-col items-center gap-3">
-          <a href="dashboard.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
-            <span class="text-2xl">🏠</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Dash</span>
-          </a>
-          <a href="browse.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
-            <span class="text-2xl">🔎</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Browse</span>
-          </a>
-          <a href="my-services.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
-            <span class="text-2xl">🧾</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Services</span>
-          </a>
-          <a href="provider-bookings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
-            <span class="text-2xl">📥</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Bookings</span>
-          </a>
-          <a href="my-messages.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
-            <span class="text-2xl">💬</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Messages</span>
-          </a>
-          <a href="payout-settings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 bg-slate-800">
-            <span class="text-2xl">💳</span>
-            <span class="text-[10px] uppercase tracking-[0.2em]">Payout</span>
-          </a>
-        </nav>
-      </div>
-    </aside>
-      <div>
-        <div>
-          <h1 class="text-3xl font-extrabold text-gray-900 mb-8">Payout Settings</h1>
-          <p class="text-gray-600 mb-8">Please provide your bank account details below. This information is required to receive payments for your services. It will be stored securely and will not be shared publicly.</p>
-          
-          <form id="payout-settings-form" novalidate class="bg-white p-8 rounded-lg shadow-lg space-y-6">
-            <div>
-                <label for="bank-name" class="block text-sm font-medium text-gray-700">Bank Name</label>
-                <input type="text" id="bank-name" name="bank-name" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Guaranty Trust Bank">
-            </div>
-
-            <div>
-                <label for="account-name" class="block text-sm font-medium text-gray-700">Account Name</label>
-                <input type="text" id="account-name" name="account-name" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., John Doe">
-            </div>
-
-            <div>
-                <label for="account-number" class="block text-sm font-medium text-gray-700">Account Number</label>
-                <input type="text" id="account-number" name="account-number" inputmode="numeric" required pattern="[0-9]{10}" title="A 10-digit account number" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Your 10-digit account number">
-            </div>
-
-            <div class="flex justify-end">
-                <button type="submit" class="py-3 px-8 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Save Settings</button>
-            </div>
-          </form>
+<main class="pt-24 pb-16 px-4 md:px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+      <section class="rounded-[30px] border border-slate-200 bg-white p-8 shadow-sm">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div class="max-w-3xl">
+            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Payout settings</p>
+            <h1 class="mt-3 text-4xl font-semibold text-slate-900">Set up your payout account</h1>
+            <p class="mt-4 text-slate-600 leading-7">Add the bank account where you want to receive your earnings. We’ll verify your details with Paystack before enabling payouts.</p>
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-700">
+            <p class="font-semibold text-slate-900">What you need</p>
+            <ul class="mt-4 space-y-3">
+              <li class="flex items-start gap-3"><span class="mt-1 text-indigo-600">●</span> A valid bank code from Paystack</li>
+              <li class="flex items-start gap-3"><span class="mt-1 text-indigo-600">●</span> A 10-digit account number</li>
+              <li class="flex items-start gap-3"><span class="mt-1 text-indigo-600">●</span> The exact account name</li>
+            </ul>
+          </div>
         </div>
-      </div>
-    </main>
+
+        <div class="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div class="space-y-6">
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Bank transfer</p>
+                  <h2 class="mt-2 text-2xl font-semibold text-slate-900">Primary payout account</h2>
+                </div>
+                <span class="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900">Secure</span>
+              </div>
+              <p class="mt-4 text-sm text-slate-600">This account will receive deposits for your completed bookings.</p>
+            </div>
+
+            <form id="payout-settings-form" novalidate class="space-y-6">
+              <div class="grid gap-6 md:grid-cols-2">
+                <div>
+                  <label for="bank-code" class="block text-sm font-medium text-slate-700">Bank</label>
+                  <select id="bank-code" name="bank-code" required class="mt-1 block w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                    <option value="">Select your bank</option>
+                    <option value="044">Access Bank</option>
+                    <option value="058">GTBank</option>
+                    <option value="057">Zenith Bank</option>
+                    <option value="011">First Bank</option>
+                    <option value="033">UBA</option>
+                    <option value="214">FCMB</option>
+                    <option value="032">Union Bank</option>
+                    <option value="221">Stanbic IBTC</option>
+                    <option value="232">Sterling Bank</option>
+                    <option value="070">Fidelity Bank</option>
+                    <option value="035">Wema Bank</option>
+                    <option value="050">Ecobank</option>
+                    <option value="082">Keystone Bank</option>
+                    <option value="076">Polaris Bank</option>
+                    <option value="200">OPay</option>
+                    <option value="213">Moniepoint</option>
+                    <option value="301">Kuda Bank</option>
+                    <option value="302">PalmPay</option>
+                  </select>
+                  <p class="mt-2 text-sm text-slate-500">Choose the bank for this account. We'll verify the account name with Paystack before saving.</p>
+                  <p id="error-bank-code" class="mt-2 text-sm text-red-600 hidden"></p>
+                </div>
+                <div>
+                  <label for="account-number" class="block text-sm font-medium text-slate-700">Account Number</label>
+                  <input type="text" id="account-number" name="account-number" inputmode="numeric" required pattern="[0-9]{10}" title="A 10-digit account number" class="mt-1 block w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="1234567890">
+                  <p id="error-account-number" class="mt-2 text-sm text-red-600 hidden"></p>
+                </div>
+              </div>
+
+              <div>
+                <label for="account-name" class="block text-sm font-medium text-slate-700">Account Name</label>
+                <input type="text" id="account-name" name="account-name" class="mt-1 block w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="John Doe">
+                <p class="mt-2 text-sm text-slate-500">This name can be confirmed by Paystack after verifying the account number; it will be filled automatically on save.</p>
+              </div>
+
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <button type="submit" class="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Save payout settings</button>
+                <p id="payout-status-text" class="text-sm text-slate-600">Enter your bank details and save to enable payouts.</p>
+              </div>
+            </form>
+          </div>
+
+          <aside class="space-y-6">
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+              <p class="text-sm uppercase tracking-[0.3em] text-slate-500">Ready to receive payments</p>
+              <h2 class="mt-3 text-xl font-semibold text-slate-900">How payouts work</h2>
+              <ul class="mt-4 space-y-3 text-sm text-slate-700">
+                <li class="leading-6">• We verify your bank details with Paystack before payouts are enabled.</li>
+                <li class="leading-6">• Once verified, earnings are sent to this account automatically.</li>
+                <li class="leading-6">• You can update your payout account at any time.</li>
+              </ul>
+            </div>
+            <div class="rounded-3xl border border-slate-200 bg-white p-6">
+              <p class="text-sm uppercase tracking-[0.3em] text-slate-500">Need help?</p>
+              <p class="mt-3 text-sm text-slate-700 leading-6">If your account number or bank code is rejected, verify the correct bank code from Paystack’s bank list and ensure the number belongs to that bank.</p>
+            </div>
+            <div class="rounded-3xl border border-slate-200 bg-white p-6">
+              <p class="text-sm uppercase tracking-[0.3em] text-slate-500">What happens next</p>
+              <p class="mt-3 text-sm text-slate-700 leading-6">Save your bank account details here. You will verify the account manually in Supabase and add the recipient_code there once it is ready.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <aside class="rounded-[30px] border border-slate-200 bg-slate-900 p-8 text-white shadow-sm">
+        <p class="text-sm uppercase tracking-[0.3em] text-slate-400">Payout preference</p>
+        <h2 class="mt-3 text-3xl font-semibold">Bank transfer</h2>
+        <p class="mt-4 text-slate-300 leading-7">Your earnings will be deposited to this account after booking completion and payment confirmation.</p>
+        <div class="mt-8 space-y-4 text-sm text-slate-200">
+          <div class="rounded-3xl bg-slate-800 p-5">
+            <p class="font-semibold">Verified data</p>
+            <p class="mt-2 text-slate-400">Account name, number, and bank code are checked with Paystack.</p>
+          </div>
+          <div class="rounded-3xl bg-slate-800 p-5">
+            <p class="font-semibold">Payment timeline</p>
+            <p class="mt-2 text-slate-400">Payouts are sent after payment clears and your provider account is active.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
 
     <!-- ================= FOOTER ================= -->
 <footer class="bg-gray-900 text-gray-300 py-12 px-6 mt-16">
@@ -199,12 +260,6 @@
 <script src="./notification-service.js?v=2" type="module"></script>
 <script src="./notification-badge.js?v=2" type="module"></script>
 <script src="./supabase.js?v=2" type="module"></script>
-<script type="module">
-  import { supabase } from './supabase.js'
-
-  console.log(supabase)
-</script>
-
 <!-- ================= TAWK ================= -->
 <script type="text/javascript">
 

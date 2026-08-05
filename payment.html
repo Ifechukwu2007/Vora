@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Your Booking | Vora</title>
+    <title>Payment | Vora</title>
 <link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
 <link rel="icon" type="image/png" sizes="512x512" href="/vora-logo.svg">
 <link rel="shortcut icon" href="/vora-logo.svg">
@@ -11,7 +11,6 @@
 <link rel="manifest" href="/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
-    <script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 <body class="bg-gray-100">
 
@@ -33,17 +32,6 @@
 
       <!-- RIGHT -->
       <div class="flex items-center gap-4">
-
-        <!-- PROFILE -->
-        <a href="profile.html"
-          data-profile-icon="true"
-          class="w-10 h-10 rounded-full bg-gray-300
-          flex items-center justify-center
-          hover:bg-gray-400 transition">
-
-          👤
-
-        </a>
 
         <!-- LOGOUT -->
         <button id="logoutBtn"
@@ -88,7 +76,6 @@
 </button>
 
 <script>
-  // Robust back behavior with returnUrl fallback
   (function(){
     const btn = document.getElementById('icon-back');
     function getParam(name) {
@@ -119,12 +106,12 @@
   })();
 </script>
 
-            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Checkout</p>
-            <h1 class="mt-3 text-4xl font-bold text-slate-950">Complete your booking</h1>
-            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Review your booking details, confirm the amount, and pay securely.</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Payment</p>
+            <h1 class="mt-3 text-4xl font-bold text-slate-950">Review your payment details</h1>
+            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Confirm your reservation and prepare to pay the provider directly once the booking is accepted.</p>
           </div>
           <div class="rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Booking total</p>
             <p class="mt-3 text-3xl font-semibold text-slate-950" id="service-price-summary">NGN 0</p>
             <p class="mt-1 text-sm text-slate-500">Includes service fee and travel cost.</p>
           </div>
@@ -141,6 +128,7 @@
                   <p class="mt-2 text-sm text-slate-200" id="booking-location">Location</p>
                 </div>
               </div>
+              <div id="service-gallery-thumbs" class="mt-3 grid grid-cols-3 gap-2 hidden"></div>
 
               <div class="p-6 space-y-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -166,7 +154,7 @@
                     <p class="mt-3 text-base font-semibold text-slate-950" id="booking-time">-</p>
                   </div>
                   <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Customers</p>
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Guests</p>
                     <p class="mt-3 text-base font-semibold text-slate-950" id="booking-people">1</p>
                   </div>
                   <div id="travel-fee-card" class="rounded-3xl border border-orange-200 bg-orange-50 p-5 hidden">
@@ -176,7 +164,7 @@
                 </div>
 
                 <div id="booking-instructions-div" class="rounded-3xl border border-slate-200 bg-slate-50 p-5 hidden">
-                  <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Customer note</p>
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Guest note</p>
                   <p class="mt-3 text-sm leading-6 text-slate-700" id="booking-instructions">-</p>
                 </div>
               </div>
@@ -206,33 +194,32 @@
                   <span id="service-price-total">NGN 0</span>
                 </div>
               </div>
-              <p class="mt-4 text-xs leading-5 text-slate-500">Service fee helps cover secure payments and support your provider.</p>
+              <p class="mt-4 text-xs leading-5 text-slate-500">This price is an estimate based on your selected booking details.</p>
             </div>
           </section>
 
           <aside class="space-y-6">
             <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Payment method</p>
-              <h2 class="mt-3 text-2xl font-semibold text-slate-950">Pay securely</h2>
-              <p class="mt-2 text-sm leading-6 text-slate-600">Complete your booking with Paystack for cards and bank transfers.</p>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Request booking</p>
+              <h2 class="mt-3 text-2xl font-semibold text-slate-950">Pay the provider directly</h2>
+              <p class="mt-2 text-sm leading-6 text-slate-600">Submit your request now. The provider will confirm availability and you can arrange payment offline.</p>
 
-              <div class="mt-6 space-y-4">
-                <label class="flex cursor-pointer rounded-3xl border border-slate-200 p-4 hover:border-slate-300">
-                  <input type="radio" name="paymentMethod" value="paystack" checked class="mt-1 h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500">
-                  <div class="ml-3">
-                    <p class="font-semibold text-slate-950">Pay with Paystack</p>
-                    <p class="mt-1 text-sm text-slate-600">Secure payment processing for cards and transfers.</p>
-                  </div>
-                </label>
+              <div class="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p class="font-semibold text-slate-900">What happens next</p>
+                <ul class="mt-3 space-y-2 list-disc pl-5">
+                  <li>Your request is sent to the provider.</li>
+                  <li>The provider confirms the booking.</li>
+                  <li>Then you pay directly outside Vora.</li>
+                </ul>
               </div>
 
-              <button id="confirm-booking-btn" class="mt-6 w-full rounded-3xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-indigo-700">Confirm and pay</button>
+              <button id="confirm-booking-btn" class="mt-6 w-full rounded-3xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-indigo-700">Request booking</button>
             </div>
 
             <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Need help?</p>
-              <h3 class="mt-3 text-lg font-semibold text-slate-950">Questions before booking?</h3>
-              <p class="mt-3 text-sm leading-6 text-slate-600">Contact the provider or review the booking details before payment.</p>
+              <h3 class="mt-3 text-lg font-semibold text-slate-950">Questions about payment?</h3>
+              <p class="mt-3 text-sm leading-6 text-slate-600">Contact the provider or support if you need assistance before booking.</p>
               <a href="contact-us.html" class="mt-5 inline-flex rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">Contact support</a>
             </div>
           </aside>
@@ -262,6 +249,7 @@
         <ul class="space-y-2 text-sm">
           <li><a href="privacy-policy.html" class="hover:text-white transition">Privacy Policy</a></li>
           <li><a href="terms-of-service.html" class="hover:text-white transition">Terms of Service</a></li>
+          <li><a href="contact-us.html" class="hover:text-white transition">Contact Us</a></li>
         </ul>
       </div>
       </div>
@@ -272,12 +260,14 @@
   </div>
 </footer>
 
-<script src="./complete-payment.js?v=2" type="module"></script>
+<script src="./complete-payment.js?v=3" type="module"></script>
 <script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
 <script src="./notifications.js?v=2" type="module"></script>
 <script src="./notification-service.js?v=2" type="module"></script>
 <script src="./notification-badge.js?v=2" type="module"></script>
 <script src="./supabase.js?v=2" type="module"></script>
+<script src="./index.ts?v=2" type="module"></script>
 <script type="module">
   import { supabase } from './supabase.js'
 

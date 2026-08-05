@@ -1,206 +1,156 @@
-// payout-settings.js
 import { supabase } from "./supabase.js";
 
-/**
- * CHANGE THESE to match your schema
- */
-const TABLE_NAME = "payout_settings";     // e.g. "payout_settings", "provider_profiles", "profiles", etc.
-const COL_OWNER_ID = "user_id";          // column that stores the auth user id (or provider id)
-const COL_BANK_NAME = "bank_name";
-const COL_ACCOUNT_NAME = "account_name";
-const COL_ACCOUNT_NUMBER = "account_number";
-
-/**
- * UI refs
- */
 const form = document.getElementById("payout-settings-form");
-const bankInput = document.getElementById("bank-name");
+const bankSelect = document.getElementById("bank-code");
+const accountNumberInput = document.getElementById("account-number");
 const accountNameInput = document.getElementById("account-name");
-const accountInput = document.getElementById("account-number");
+const errorBankCode = document.getElementById("error-bank-code");
+const errorAccountNumber = document.getElementById("error-account-number");
+const payoutStatusText = document.getElementById("payout-status-text");
 
-// optional logout handling if you already use data-logout elsewhere
-document.getElementById("logoutBtn-payout-settings")?.addEventListener("click", async () => {
-  try {
-    await supabase.auth.signOut();
-    window.location.href = "auth.html";
-  } catch (e) {
-    console.error(e);
+function setStatus(text) {
+  if (!payoutStatusText) return;
+  payoutStatusText.textContent = text;
+}
+
+function showError(element, message) {
+  if (!element) return;
+  if (!message) {
+    element.textContent = "";
+    element.classList.add("hidden");
+    return;
   }
-});
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
 
-function setMessage(html, type = "info") {
-  // type: info|error|success
-  let el = document.getElementById("payout-status");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "payout-status";
-    el.className = "mt-4 text-sm font-semibold";
-    form?.appendChild(el);
+function clearErrors() {
+  showError(errorBankCode, "");
+  showError(errorAccountNumber, "");
+}
+
+function digitsOnly(value) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function validate() {
+  const bank_code = bankSelect?.value ?? "";
+  const account_number = digitsOnly(accountNumberInput?.value);
+
+  if (!bank_code) {
+    showError(errorBankCode, "Please select your bank.");
+    setStatus("Please select your bank.");
+    return null;
   }
-  const color =
-    type === "error" ? "text-red-700" :
-    type === "success" ? "text-green-700" :
-    "text-gray-700";
 
-  el.className = `mt-4 text-sm font-semibold ${color}`;
-  el.innerHTML = html;
-}
+  showError(errorBankCode, "");
 
-function setLoading(isLoading) {
-  const btn = form?.querySelector('button[type="submit"]');
-  if (!btn) return;
-  btn.disabled = !!isLoading;
-  btn.textContent = isLoading ? "Saving..." : "Save Settings";
-}
-
-function onlyDigits(s) {
-  return String(s ?? "").replace(/\D/g, "");
-}
-
-async function withTimeout(promise, ms, label) {
-  let t;
-  const timeout = new Promise((_, reject) => {
-    t = setTimeout(() => reject(new Error(`Timeout: ${label} after ${ms}ms`)), ms);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(t);
+  if (!account_number || account_number.length !== 10) {
+    showError(errorAccountNumber, "Account number must be a 10-digit number.");
+    setStatus("Fix your account number and try again.");
+    return null;
   }
+
+  showError(errorAccountNumber, "");
+
+  return {
+    bank_code,
+    bank_name: bankSelect?.selectedOptions?.[0]?.text ?? "",
+    account_number,
+  };
 }
 
-async function requireSessionUser() {
-  // Your earlier issue was a timeout on getUser(), so use getSession().
-  const { data, error } = await withTimeout(
-    supabase.auth.getSession(),
-    8000,
-    "supabase.auth.getSession()"
-  );
+async function loadPayoutSettings() {
+  setStatus("Loading payout settings...");
 
-  if (error) throw error;
-  const user = data?.session?.user;
-  if (!user) throw new Error("Not logged in (no active session). Please login again.");
-  return user;
-}
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-async function loadPayout(userId) {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select(`${COL_BANK_NAME}, ${COL_ACCOUNT_NAME}, ${COL_ACCOUNT_NUMBER}`)
-    .eq(COL_OWNER_ID, userId)
+  if (userError || !user?.id) {
+    console.error("Failed to load user", userError);
+    setStatus("Unable to load payout settings. Please sign in again.");
+    return;
+  }
+
+  const { data: payout, error: payoutError } = await supabase
+    .from("payout_settings")
+    .select("bank_name, bank_code, account_number, account_name, account_verified, recipient_code, last_verified_at")
+    .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) throw error;
-  return data ?? null;
-}
-
-async function updatePayout(userId, bankName, accountName, accountNumber) {
-  const { error } = await supabase
-    .from(TABLE_NAME)
-    .update({
-      [COL_BANK_NAME]: bankName,
-      [COL_ACCOUNT_NAME]: accountName,
-      [COL_ACCOUNT_NUMBER]: accountNumber,
-    })
-    .eq(COL_OWNER_ID, userId);
-
-  if (error) throw error;
-}
-
-async function insertPayout(userId, bankName, accountName, accountNumber) {
-  const payload = {
-    [COL_OWNER_ID]: userId,
-    [COL_BANK_NAME]: bankName,
-    [COL_ACCOUNT_NAME]: accountName,
-    [COL_ACCOUNT_NUMBER]: accountNumber,
-  };
-
-  const { error } = await supabase.from(TABLE_NAME).insert(payload);
-  if (error) throw error;
-}
-
-async function refreshForm(userId) {
-  const existing = await loadPayout(userId);
-  if (!existing) {
-    bankInput.value = "";
-    accountNameInput.value = "";
-    accountInput.value = "";
-    setMessage("No payout settings found yet.", "info");
+  if (payoutError) {
+    console.error("Failed to load payout settings", payoutError);
+    setStatus("Unable to load payout settings.");
     return;
   }
 
-  bankInput.value = existing[COL_BANK_NAME] ?? "";
-  accountNameInput.value = existing[COL_ACCOUNT_NAME] ?? "";
-  accountInput.value = existing[COL_ACCOUNT_NUMBER] ?? "";
-  setMessage("Loaded your payout settings.", "success");
+  if (!payout) {
+    setStatus("Enter your bank details and save to enable payouts.");
+    return;
+  }
+
+  if (bankSelect) bankSelect.value = payout.bank_code ?? "";
+  if (accountNumberInput) accountNumberInput.value = payout.account_number ?? "";
+  if (accountNameInput) accountNameInput.value = payout.account_name ?? "";
+
+  if (payout.account_verified && payout.recipient_code) {
+    setStatus("✅ Your bank account is verified and ready for payouts.");
+  } else if (payout.recipient_code) {
+    setStatus("Payout recipient created. Waiting for account verification.");
+  } else {
+    setStatus("Enter your bank details and save to enable payouts.");
+  }
 }
 
-async function init() {
-  if (!form) return;
+form?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearErrors();
 
-  setMessage("Loading your payout settings…", "info");
-  setLoading(true);
+  const valid = validate();
+  if (!valid) return;
+
+  setStatus("Saving your payout details. Verify them manually in Supabase to enable payouts.");
 
   try {
-    const user = await requireSessionUser();
-    await refreshForm(user.id);
-  } catch (e) {
-    console.error(e);
-    setMessage(`Error: ${e?.message ?? "Unknown error"}`, "error");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    // If auth session missing, send them to login.
-    if (String(e?.message ?? "").toLowerCase().includes("not logged in")) {
-      window.location.href = "auth.html";
-    }
-  } finally {
-    setLoading(false);
-  }
-}
+    if (userError) throw new Error(userError.message);
+    if (!user?.id) throw new Error("User not found.");
 
-form?.addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  if (!form) return;
+    const payload = {
+      user_id: user.id,
+      bank_name: valid.bank_name,
+      bank_code: valid.bank_code,
+      account_number: valid.account_number,
+      account_name: accountNameInput?.value?.trim() || null,
+      recipient_code: null,
+      account_verified: false,
+      last_verified_at: null,
+      updated_at: new Date().toISOString(),
+    };
 
-  const bankName = bankInput?.value?.trim() ?? "";
-  const accountName = accountNameInput?.value?.trim() ?? "";
-  const accountNumber = onlyDigits(accountInput?.value);
+    const { error: dbError } = await supabase.from("payout_settings").upsert(payload, { onConflict: "user_id" });
+    if (dbError) throw dbError;
 
-  // Client validation (matches your HTML pattern too)
-  if (!bankName) {
-    setMessage("Bank name is required.", "error");
-    return;
-  }
-  if (!accountName) {
-    setMessage("Account name is required.", "error");
-    return;
-  }
-  if (!/^\d{10}$/.test(accountNumber)) {
-    setMessage("Account number must be exactly 10 digits.", "error");
-    return;
-  }
-
-  setLoading(true);
-  setMessage("Saving payout settings…", "info");
-
-  try {
-    const user = await requireSessionUser();
-
-    // Decide insert vs update
-    const existing = await loadPayout(user.id);
-    if (existing) {
-      await updatePayout(user.id, bankName, accountName, accountNumber);
-    } else {
-      await insertPayout(user.id, bankName, accountName, accountNumber);
-    }
-
-    setMessage("Saved ✅", "success");
-  } catch (e) {
-    console.error(e);
-    setMessage(`Save failed: ${e?.message ?? "Unknown error"}`, "error");
-  } finally {
-    setLoading(false);
+    setStatus("✅ Your bank details are saved. Verify them manually in Supabase to enable payouts.");
+  } catch (error) {
+    console.error(error);
+    setStatus(`❌ ${error?.message ?? "Failed to save payout settings."}`);
   }
 });
 
-// start
-init();
+accountNumberInput?.addEventListener("input", () => {
+  if (!accountNumberInput) return;
+  accountNumberInput.value = digitsOnly(accountNumberInput.value).slice(0, 10);
+});
+
+setStatus("Enter your bank details and save to enable payouts.");
+
+loadPayoutSettings().catch((error) => {
+  console.error("Could not load initial payout settings", error);
+});

@@ -787,8 +787,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 console.log('Service added with ID:', insertedService[0].id);
-                alert('Service added successfully!');
-                LoadingSpinner.navigateTo('my-services.html');
+                const successPageParams = new URLSearchParams({
+                  serviceId: insertedService[0].id,
+                  message: 'published'
+                }).toString();
+                LoadingSpinner.navigateTo(`service-publish-success.html?${successPageParams}`);
             } catch (error) {
                 console.error('Error adding service: ', error);
                 alert(`Error adding service: ${error.message}`);
