@@ -138,7 +138,7 @@ form?.addEventListener("submit", async (event) => {
     if (dbError) throw dbError;
 
     localStorage.setItem('payoutSettingsUpdated', new Date().toISOString());
-    setStatus("✅ Your bank details are saved. Verify them manually in Supabase to enable payouts.");
+    setStatus("✅ Your bank details have been saved. We'll review and verify them before enabling payouts.");
   } catch (error) {
     console.error(error);
     setStatus(`❌ ${error?.message ?? "Failed to save payout settings."}`);
