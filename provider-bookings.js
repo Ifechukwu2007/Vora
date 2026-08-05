@@ -210,12 +210,12 @@ async function updateBookingStatus(id, nextStatus) {
 async function isProviderPayoutReady(providerId) {
   const { data, error } = await supabase
     .from('payout_settings')
-    .select('account_verified, recipient_code')
+    .select('bank_code, account_number')
     .eq('user_id', providerId)
     .maybeSingle();
 
   if (error) throw error;
-  return Boolean(data?.account_verified && data?.recipient_code);
+  return Boolean(data?.bank_code && data?.account_number);
 }
 
 // simple toast helper

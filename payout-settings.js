@@ -137,6 +137,7 @@ form?.addEventListener("submit", async (event) => {
     const { error: dbError } = await supabase.from("payout_settings").upsert(payload, { onConflict: "user_id" });
     if (dbError) throw dbError;
 
+    localStorage.setItem('payoutSettingsUpdated', new Date().toISOString());
     setStatus("✅ Your bank details are saved. Verify them manually in Supabase to enable payouts.");
   } catch (error) {
     console.error(error);

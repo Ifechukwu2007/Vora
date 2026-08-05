@@ -5,7 +5,7 @@ const banner = document.getElementById('payoutReminderBanner');
 async function shouldShowPayoutBanner(userId) {
   const { data, error } = await supabase
     .from('payout_settings')
-    .select('account_verified, recipient_code')
+    .select('bank_code, account_number')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -14,7 +14,7 @@ async function shouldShowPayoutBanner(userId) {
     return false;
   }
 
-  return !(data?.account_verified && data?.recipient_code);
+  return !(data?.bank_code && data?.account_number);
 }
 
 async function initPayoutBanner() {
@@ -34,3 +34,8 @@ async function initPayoutBanner() {
 }
 
 initPayoutBanner();
+
+window.addEventListener('storage', (event) => {
+  if (event.key !== 'payoutSettingsUpdated') return;
+  initPayoutBanner();
+});
