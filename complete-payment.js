@@ -1,7 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 
-const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
+const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_test_296d47b57e4865b935a5f6b84241942c172e7a16';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
 
 let currentBooking = null;
@@ -26,6 +26,25 @@ function getPendingBooking() {
   } catch (err) {
     console.warn('Could not read pending booking:', err);
     return null;
+  }
+}
+
+async function requireAuth() {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data?.session?.user) {
+      const isFileProtocol = window.location.protocol === 'file:';
+      if (isFileProtocol) {
+        return { id: 'preview-user', email: 'preview@vora.com' };
+      }
+      const returnUrl = encodeURIComponent(window.location.href);
+      window.location.href = `login.html?returnUrl=${returnUrl}`;
+      return null;
+    }
+    return data.session.user;
+  } catch (err) {
+    console.warn('Auth check skipped for preview:', err);
+    return { id: 'preview-user', email: 'preview@vora.com' };
   }
 }
 
@@ -115,54 +134,6 @@ function ensurePaystackLoaded() {
       setTimeout(maybeResolve, 0);
     }
   });
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-
-  // =========================
-  // PAYSTACK KEY (replace with env/build-time injection)
-  // =========================
-  // Use test key locally; do NOT commit live secret keys to client code.
-  const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
-
-  // =========================
-  // ELEMENTS (single declarations)
-  // =========================
-  const confirmBtn = document.getElementById('confirm-booking-btn');
-
-  const serviceTitleEl = document.getElementById('service-title');
-  const serviceCoverEl = document.getElementById('service-cover');
-  const serviceGalleryThumbsEl = document.getElementById('service-gallery-thumbs');
-  const providerNameEl = document.getElementById('provider-name');
-  const providerPictureEl = document.getElementById('provider-picture');
-
-  const basePriceEl = document.getElementById('base-price');
-  const feeEl = document.getElementById('service-fee');
-  const totalAmountEl = document.getElementById('service-price-total');
-  const perPersonPriceEl = document.getElementById('per-person-price');
-  const servicePriceSummaryEl = document.getElementById('service-price-summary');
-
-  const userInfoEl = document.getElementById('user-info');
-
-  // Ensure confirm button exists
-  if (!confirmBtn) {
-    console.error('Missing confirm button: #confirm-booking-btn');
-    return;
-  }
-
-  // =========================
-  // URL PARAMS and local pending booking
-  // =========================
-  const params = new URLSearchParams(window.location.search);
-  const isFileProtocol = window.location.protocol === 'file:';
-
-  let pendingBooking = null;
-  try {
-    pendingBooking = JSON.parse(localStorage.getItem('voraPendingBooking') || 'null');
-  } catch (err) {
-    console.warn('Auth check skipped for preview:', err);
-    return { id: 'preview-user', email: 'preview@vora.com' };
-  }
 }
 
 async function loadBooking(bookingId) {
@@ -423,14 +394,17 @@ async function handlePaymentSuccess(bookingId, reference) {
   }
 }
 
-function launchPaystack(amountNaira, bookingId) {
+async function launchPaystack(amountNaira, bookingId) {
   if (window.location.protocol === 'file:') {
     showError('Preview mode: payment would open here.');
     disableConfirmButton(false, 'Confirm and pay');
     return;
   }
 
-  if (typeof PaystackPop === 'undefined') {
+  try {
+    await ensurePaystackLoaded();
+  } catch (err) {
+    console.error('Paystack initialization failed:', err);
     showError('Payment library failed to load. Please refresh and try again.');
     disableConfirmButton(false, 'Confirm and pay');
     return;
