@@ -3,6 +3,7 @@
 // ===============================
 
 import { supabase } from "./supabase.js";
+import { getStatesForCountry } from "./location-data.js";
 
 // ===============================
 // CHECK SESSION - REDIRECT IF LOGGED IN
@@ -81,10 +82,48 @@ function validatePhone(phone) {
   return /^[789]\d{9}$/.test(digits);
 }
 
+function validateLandmark(landmark) {
+  const normalized = landmark.replace(/\s+/g, ' ').trim();
+  return normalized.length >= 2;
+}
+
+function validateCountry(country) {
+  return typeof country === 'string' && country.trim().length > 0;
+}
+
+function validateState(state) {
+  const normalized = state.replace(/\s+/g, ' ').trim();
+  return normalized.length >= 2;
+}
+
+const COUNTRY_PHONE_CODE = {
+  "Nigeria": "+234",
+  "United States": "+1",
+  "United Kingdom": "+44",
+  "Canada": "+1",
+  "Australia": "+61",
+  "India": "+91"
+};
+
 function validateLocation(location) {
   const normalized = location.replace(/\s+/g, ' ').trim();
   if (normalized.length < 3 || !/[A-Za-z]/.test(normalized)) return false;
   return /^[A-Za-z0-9][A-Za-z0-9 .,'()\-/]{2,119}$/.test(normalized);
+}
+
+function setCountryCodeForCountry(country, countryCodeSelect) {
+  const code = COUNTRY_PHONE_CODE[country];
+  if (!code || !countryCodeSelect) return;
+  const option = Array.from(countryCodeSelect.options).find((opt) => opt.value === code);
+  if (option) {
+    countryCodeSelect.value = code;
+  } else {
+    const newOption = document.createElement('option');
+    newOption.value = code;
+    newOption.textContent = code;
+    countryCodeSelect.appendChild(newOption);
+    countryCodeSelect.value = code;
+  }
 }
 
 // ===============================
@@ -240,6 +279,9 @@ if (registerForm) {
   const emailInput = document.getElementById("email");
   const phoneInput = document.getElementById("phone");
   const countryCodeSelect = document.getElementById("countryCode");
+  const landmarkInput = document.getElementById("landmark");
+  const countryInput = document.getElementById("country");
+  const stateInput = document.getElementById("state");
   const locationInput = document.getElementById("location");
   const passwordInput = document.getElementById("password");
   const confirmPasswordInput = document.getElementById("confirmPassword");
@@ -274,6 +316,27 @@ if (registerForm) {
     });
   }
 
+  function populateStateOptions() {
+    if (!countryInput || !stateInput) return;
+    const selectedCountry = countryInput.value || "";
+    const states = getStatesForCountry(selectedCountry);
+    stateInput.innerHTML = "<option value=\"\" disabled selected>Select state</option>" +
+      states.map((state) => `
+        <option value="${state}">${state}</option>
+      `).join("");
+  }
+
+  if (landmarkInput) landmarkInput.addEventListener("input", checkRegisterInputs);
+  if (countryInput) countryInput.addEventListener("change", () => {
+    populateStateOptions();
+    setCountryCodeForCountry(countryInput.value, countryCodeSelect);
+    checkRegisterInputs();
+  });
+  if (stateInput) stateInput.addEventListener("change", checkRegisterInputs);
+
+  populateStateOptions();
+  if (countryInput) setCountryCodeForCountry(countryInput.value, countryCodeSelect);
+
   // ===============================
   // ENABLE BUTTON
   // ===============================
@@ -285,6 +348,9 @@ if (registerForm) {
         !emailInput?.value.trim() ||
         !countryCodeSelect?.value.trim() ||
         !phoneInput?.value.trim() ||
+        !landmarkInput?.value.trim() ||
+        !countryInput?.value.trim() ||
+        !stateInput?.value.trim() ||
         !locationInput?.value.trim() ||
         !passwordInput?.value.trim() ||
         !confirmPasswordInput?.value.trim() ||
@@ -295,9 +361,14 @@ if (registerForm) {
   if (fullnameInput) fullnameInput.addEventListener("input", checkRegisterInputs);
   if (emailInput) emailInput.addEventListener("input", checkRegisterInputs);
   if (phoneInput) phoneInput.addEventListener("input", checkRegisterInputs);
+  if (landmarkInput) landmarkInput.addEventListener("input", checkRegisterInputs);
+  if (countryInput) countryInput.addEventListener("change", checkRegisterInputs);
+  if (stateInput) stateInput.addEventListener("change", checkRegisterInputs);
   if (locationInput) locationInput.addEventListener("input", checkRegisterInputs);
   if (confirmPasswordInput) confirmPasswordInput.addEventListener("input", checkRegisterInputs);
   if (termsInput) termsInput.addEventListener("change", checkRegisterInputs);
+
+  checkRegisterInputs();
 
   // ===============================
   // REGISTER SUBMIT
@@ -312,7 +383,10 @@ if (registerForm) {
     const email = emailInput?.value.trim() || "";
     const countryCode = countryCodeSelect?.value.trim() || "";
     const phone = phoneInput?.value.trim() || "";
-    const location = locationInput?.value.trim() || "";
+    const landmark = landmarkInput?.value.trim() || "";
+    const country = countryInput?.value.trim() || "";
+    const state = stateInput?.value.trim() || "";
+    const mapAddress = locationInput?.value.trim() || "";
     const password = passwordInput?.value.trim() || "";
     const confirmPassword = confirmPasswordInput?.value.trim() || "";
     const sanitizedPhone = phone.replace(/\s+/g, "");
@@ -333,8 +407,32 @@ if (registerForm) {
       return;
     }
 
-    if (!validateLocation(location)) {
-      showError("Please enter a valid location using a real place or address.");
+    if (!validateLandmark(landmark)) {
+      showError("Please enter a valid landmark.");
+      return;
+    }
+
+    if (!validateCountry(country)) {
+      showError("Please select your country.");
+      return;
+    }
+
+    if (!validateState(state)) {
+      showError("Please select your state or region.");
+      return;
+    }
+
+    if (!validateLocation(mapAddress)) {
+      showError("Please enter a valid map-friendly address.");
+      return;
+    }
+
+    const combinedLocation = [landmark, mapAddress, state, country]
+      .filter(Boolean)
+      .join(", ");
+
+    if (!validateLocation(combinedLocation)) {
+      showError("Please enter a valid full address for maps.");
       return;
     }
 
@@ -379,7 +477,7 @@ if (registerForm) {
           full_name: fullname,
           email: email,
           phone: fullPhone,
-          location: location,
+          location: combinedLocation,
           role: 'user',
           verified: false
         }]);
@@ -394,7 +492,7 @@ if (registerForm) {
           email: email,
           full_name: fullname,
           phone: fullPhone,
-          location: location,
+          location: combinedLocation,
           profile_picture: null
         }]);
 
