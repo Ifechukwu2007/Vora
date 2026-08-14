@@ -39,6 +39,12 @@ function normalizeProfile(profile) {
   return Array.isArray(profile) ? profile[0] : profile;
 }
 
+function getTravelFeeForLocation(service, location = 'provider') {
+  if (!service) return 0;
+  if (location !== 'customer') return 0;
+  return Number(service.travel_price || 0) || 0;
+}
+
 function bookingPriceInfo(service, peopleCount, location = 'provider') {
   const threshold = Number(service?.group_discount_threshold) || 0;
   const discountPercent = Number(service?.group_discount_percent) || 0;
@@ -47,7 +53,7 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
   const perPerson = meetsDeal
     ? Math.round(basePrice * (1 - discountPercent / 100))
     : basePrice;
-  const travelFee = location === 'customer' ? Number(service.travel_price || 0) : 0;
+  const travelFee = getTravelFeeForLocation(service, location);
   const total = (peopleCount * perPerson) + travelFee;
   return { perPerson, total, meetsDeal, travelFee };
 }
@@ -684,10 +690,18 @@ async function openBookingModal(service, providerId) {
     return;
   }
 
-  // Store service globally so functions can access travel_price
-  window.currentService = service;
-  
-  const travelPrice = service.travel_price || 0;
+  try {
+    localStorage.removeItem('voraPendingBooking');
+    localStorage.removeItem('bookingId');
+    localStorage.removeItem('currentBookingId');
+  } catch (err) {
+    console.warn('Could not clear stale booking state before opening a new booking modal:', err);
+  }
+
+  // Store the exact selected service so pricing and travel fee logic always match the active booking.
+  window.currentService = { ...(service || {}) };
+
+  const travelPrice = getTravelFeeForLocation(service, 'customer');
   const threshold = Number(service?.group_discount_threshold) || 0;
   const discountPercent = Number(service?.group_discount_percent) || 0;
   const hasGroupDeal = threshold > 0 && discountPercent > 0;
@@ -893,8 +907,16 @@ function submitBooking(service, providerId) {
 
   const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
 
+  try {
+    localStorage.removeItem('bookingId');
+    localStorage.removeItem('currentBookingId');
+    localStorage.removeItem('voraPendingBooking');
+  } catch (err) {
+    console.warn('Could not clear previous booking state before creating a new pending booking:', err);
+  }
+
   const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation);
-  const resolvedService = currentServiceContext || service || {};
+  const resolvedService = service || currentServiceContext || {};
   const resolvedProvider = currentProviderContext || {};
   const pendingBooking = {
     serviceId: resolvedService.id || service.id,

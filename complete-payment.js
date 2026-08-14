@@ -184,6 +184,12 @@ async function loadBooking(bookingId) {
   return { ...data, services: serviceData, providers: providerData };
 }
 
+function getTravelFeeForBooking(booking, service = {}) {
+  const location = booking?.service_location || 'provider';
+  if (location !== 'customer') return 0;
+  return Number(booking?.travel_fee ?? service?.travel_price ?? 0) || 0;
+}
+
 function renderBooking(booking) {
   const service = booking.services || {};
   const provider = booking.providers || {};
@@ -230,9 +236,10 @@ function renderBooking(booking) {
   }
 
   const perPerson = Number(booking.price_per_person) || Number(service.price) || 0;
-  const travelFee = Number(booking.travel_fee) || Number(service.travel_price) || 0;
-  const serviceFee = Math.max(0, Number(booking.total_price || 0) - (perPerson * Number(booking.number_of_people || 1)) - travelFee);
-  const total = Number(booking.total_price) || (perPerson * Number(booking.number_of_people || 1)) + serviceFee + travelFee;
+  const travelFee = getTravelFeeForBooking(booking, service);
+  const serviceSubtotal = perPerson * Number(booking.number_of_people || 1);
+  const serviceFee = Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee);
+  const total = Number(booking.total_price) || serviceSubtotal + serviceFee + travelFee;
 
   setText('per-person-price', formatNaira(perPerson));
   setText('service-fee', formatNaira(serviceFee));
@@ -441,8 +448,8 @@ async function init() {
   currentUser = await requireAuth();
   if (!currentUser) return;
 
-  let bookingId = getBookingId();
   const pendingBooking = getPendingBooking();
+  const bookingId = pendingBooking ? '' : getBookingId();
 
   if (!bookingId && !pendingBooking) {
     showError('No booking was specified. Please start your booking again.');
@@ -479,7 +486,7 @@ async function init() {
               title: pendingBooking?.serviceTitle || 'Service',
               price: pendingBooking?.pricePerPerson || 0,
               image_url: '',
-              travel_price: pendingBooking?.travelFee || 0,
+              travel_price: pendingBooking?.serviceLocation === 'customer' ? (pendingBooking?.travelFee || 0) : 0,
               location: '',
             },
             providers: {
@@ -510,7 +517,7 @@ async function init() {
           title: pendingBooking?.serviceTitle || 'Service',
           price: pendingBooking?.pricePerPerson || 0,
           image_url: '',
-          travel_price: pendingBooking?.travelFee || 0,
+          travel_price: pendingBooking?.serviceLocation === 'customer' ? (pendingBooking?.travelFee || 0) : 0,
           location: '',
         },
         providers: {
