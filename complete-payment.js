@@ -6,6 +6,8 @@ const VERIFY_FUNCTION_NAME = 'verify-payment';
 
 let currentBooking = null;
 let currentUser = null;
+let paymentFlowInProgress = false;
+let paystackPopupTimer = null;
 
 function formatNaira(amount) {
   const value = Number(amount) || 0;
@@ -70,6 +72,40 @@ function disableConfirmButton(disabled, label) {
   btn.textContent = label || 'Confirm and pay';
   btn.classList.toggle('opacity-60', disabled);
   btn.classList.toggle('cursor-not-allowed', disabled);
+}
+
+function showError(message) {
+  let el = document.getElementById('payment-error');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'payment-error';
+    el.className = 'mt-4 hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+    const target = document.getElementById('confirm-booking-btn')?.parentElement || document.querySelector('main');
+    if (target) {
+      target.appendChild(el);
+    }
+  }
+
+  if (!el) return;
+  el.textContent = message;
+  el.classList.remove('hidden');
+}
+
+function hideError() {
+  const el = document.getElementById('payment-error');
+  if (el) {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+}
+
+function resetPaymentFlowState() {
+  if (paystackPopupTimer) {
+    clearTimeout(paystackPopupTimer);
+    paystackPopupTimer = null;
+  }
+  paymentFlowInProgress = false;
+  disableConfirmButton(false, 'Confirm and pay');
 }
 
 function ensurePaystackLoaded() {
@@ -382,6 +418,7 @@ async function markBookingPaid(bookingId, reference) {
 }
 
 async function handlePaymentSuccess(bookingId, reference) {
+  paymentFlowInProgress = true;
   try {
     disableConfirmButton(true, 'Verifying payment...');
     const verification = await verifyPaymentOnServer(reference, bookingId);
@@ -393,11 +430,14 @@ async function handlePaymentSuccess(bookingId, reference) {
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('currentBookingId');
     localStorage.removeItem('bookingId');
+    paymentFlowInProgress = false;
     window.location.href = 'my-bookings.html';
   } catch (err) {
     console.error('Payment success handling failed:', err);
     showError('Payment succeeded, but we could not complete the booking update. Please visit My Bookings or contact support.');
     disableConfirmButton(false, 'Confirm and pay');
+  } finally {
+    resetPaymentFlowState();
   }
 }
 
@@ -405,42 +445,75 @@ async function launchPaystack(amountNaira, bookingId) {
   if (window.location.protocol === 'file:') {
     showError('Preview mode: payment would open here.');
     disableConfirmButton(false, 'Confirm and pay');
+    paymentFlowInProgress = false;
     return;
   }
 
   try {
     await ensurePaystackLoaded();
+    if (typeof PaystackPop === 'undefined' || typeof PaystackPop.setup !== 'function') {
+      throw new Error('Paystack popup is unavailable on this page.');
+    }
   } catch (err) {
     console.error('Paystack initialization failed:', err);
     showError('Payment library failed to load. Please refresh and try again.');
     disableConfirmButton(false, 'Confirm and pay');
+    paymentFlowInProgress = false;
     return;
   }
 
   const reference = `VORA-${bookingId}-${Date.now()}`;
-  const handler = PaystackPop.setup({
-    key: PAYSTACK_PUBLIC_KEY,
-    email: currentUser?.email || 'customer@example.com',
-    amount: Math.round(amountNaira * 100),
-    currency: 'NGN',
-    ref: reference,
-    metadata: {
-      booking_id: bookingId,
-      user_id: currentUser?.id || null,
-    },
-    callback: function (response) {
-      handlePaymentSuccess(bookingId, response.reference).catch((err) => {
-        console.error('Payment verification failed after callback:', err);
-        showError('Payment succeeded, but we could not verify it immediately. Please check My Bookings or contact support.');
-        disableConfirmButton(false, 'Confirm and pay');
-      });
-    },
-    onClose: function () {
-      disableConfirmButton(false, 'Confirm and pay');
-    },
-  });
+  const safeRestoreButton = () => {
+    resetPaymentFlowState();
+  };
 
-  handler.openIframe();
+  paystackPopupTimer = setTimeout(() => {
+    console.warn('Paystack popup did not respond in time. Resetting the payment button.');
+    safeRestoreButton();
+    showError('The payment popup did not open. Please try again.');
+  }, 20000);
+
+  try {
+    const handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: currentUser?.email || 'customer@example.com',
+      amount: Math.round(amountNaira * 100),
+      currency: 'NGN',
+      ref: reference,
+      metadata: {
+        booking_id: bookingId,
+        user_id: currentUser?.id || null,
+      },
+      callback: function (response) {
+        if (paystackPopupTimer) {
+          clearTimeout(paystackPopupTimer);
+          paystackPopupTimer = null;
+        }
+        paymentFlowInProgress = true;
+        handlePaymentSuccess(bookingId, response.reference).catch((err) => {
+          console.error('Payment verification failed after callback:', err);
+          showError('Payment succeeded, but we could not verify it immediately. Please check My Bookings or contact support.');
+          safeRestoreButton();
+        });
+      },
+      onClose: function () {
+        if (paymentFlowInProgress) {
+          return;
+        }
+        safeRestoreButton();
+      },
+    });
+
+    if (!handler || typeof handler.openIframe !== 'function') {
+      throw new Error('Paystack popup could not be opened.');
+    }
+
+    handler.openIframe();
+  } catch (err) {
+    console.error('Failed to open Paystack iframe:', err);
+    showError('The payment popup could not be opened. Please try again.');
+    safeRestoreButton();
+  }
 }
 
 async function init() {
@@ -449,7 +522,7 @@ async function init() {
   if (!currentUser) return;
 
   const pendingBooking = getPendingBooking();
-  const bookingId = pendingBooking ? '' : getBookingId();
+  let bookingId = pendingBooking ? '' : getBookingId();
 
   if (!bookingId && !pendingBooking) {
     showError('No booking was specified. Please start your booking again.');
@@ -548,6 +621,11 @@ async function init() {
       return;
     }
 
+    if (paymentFlowInProgress) {
+      return;
+    }
+
+    paymentFlowInProgress = true;
     disableConfirmButton(true, 'Processing...');
     try {
       if (!bookingId) {
@@ -574,6 +652,7 @@ async function init() {
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');
+      paymentFlowInProgress = false;
       disableConfirmButton(false, 'Confirm and pay');
     }
   };
