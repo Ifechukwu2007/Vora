@@ -54,8 +54,10 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
     ? Math.round(basePrice * (1 - discountPercent / 100))
     : basePrice;
   const travelFee = getTravelFeeForLocation(service, location);
-  const total = (peopleCount * perPerson) + travelFee;
-  return { perPerson, total, meetsDeal, travelFee };
+  const subtotal = (peopleCount * perPerson);
+  const serviceFee = Math.round(subtotal * 0.05);
+  const total = subtotal + serviceFee + travelFee;
+  return { perPerson, subtotal, serviceFee, total, meetsDeal, travelFee };
 }
 
 function parseServiceSummary(description = '') {
@@ -846,7 +848,7 @@ function updateTotalPrice() {
   const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
   const location = document.querySelector('input[name="serviceLocation"]:checked').value;
   const service = window.currentService;
-  const { perPerson, total, meetsDeal, travelFee } = bookingPriceInfo(service, peopleCount, location);
+  const { perPerson, total, meetsDeal, travelFee, subtotal, serviceFee } = bookingPriceInfo(service, peopleCount, location);
 
   document.getElementById('totalDisplay').textContent = formatPrice(total);
   const totalLabel = document.getElementById('totalLabel');
@@ -856,7 +858,9 @@ function updateTotalPrice() {
   }
   if (discountSavings) {
     if (meetsDeal) {
-      const originalTotal = (Number(service.price || 0) * peopleCount) + travelFee;
+      const originalSubtotal = (Number(service.price || 0) * peopleCount);
+      const originalServiceFee = Math.round(originalSubtotal * 0.05);
+      const originalTotal = originalSubtotal + originalServiceFee + travelFee;
       const savings = Math.max(0, originalTotal - total);
       discountSavings.textContent = `You save ${formatPrice(savings)} with this group deal.`;
     } else {
@@ -882,6 +886,11 @@ function updateTotalPrice() {
   const travelFeeAmount = document.getElementById('travelFeeAmount');
   if (travelFeeAmount) {
     travelFeeAmount.textContent = formatPrice(travelFee);
+  }
+
+  const serviceFeeAmount = document.getElementById('serviceFeeAmount');
+  if (serviceFeeAmount) {
+    serviceFeeAmount.textContent = formatPrice(serviceFee);
   }
 }
 
