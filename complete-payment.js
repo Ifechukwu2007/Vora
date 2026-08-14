@@ -274,7 +274,8 @@ function renderBooking(booking) {
   const perPerson = Number(booking.price_per_person) || Number(service.price) || 0;
   const travelFee = getTravelFeeForBooking(booking, service);
   const serviceSubtotal = perPerson * Number(booking.number_of_people || 1);
-  const serviceFee = Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee);
+  const derivedServiceFee = Math.round(serviceSubtotal * 0.05);
+  const serviceFee = Math.max(derivedServiceFee, Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee));
   const total = Number(booking.total_price) || serviceSubtotal + serviceFee + travelFee;
 
   setText('per-person-price', formatNaira(perPerson));
