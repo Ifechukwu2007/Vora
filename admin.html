@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vora Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            vora: {
+              50: "#f0fdf4", 100: "#dcfce7", 500: "#22c55e",
+              600: "#16a34a", 700: "#15803d", 800: "#166534"
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .sidebar-link { transition: all .2s ease; }
+    .sidebar-link:hover { background:#f0fdf4; color:#16a34a; }
+    .sidebar-link.active { background:#dcfce7; color:#15803d; font-weight:600; }
+    .hidden-section { display:none !important; }
+    .loader { width:22px;height:22px;border:3px solid #d1fae5;border-top-color:#16a34a;border-radius:50%;animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+  <!-- LOGIN -->
+  <section id="loginScreen" class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+      <div class="text-center mb-8">
+        <div class="w-14 h-14 bg-green-600 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold">V</div>
+        <h1 class="text-2xl font-bold mt-4">Vora Admin</h1>
+        <p class="text-gray-500 mt-1">Manage Vora.com.ng</p>
+      </div>
+      <form id="loginForm" class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium mb-2" for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" required autocomplete="email"
+            placeholder="admin@vora.com.ng"
+            class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-green-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2" for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" required autocomplete="current-password"
+            placeholder="••••••••"
+            class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-green-500">
+        </div>
+        <button id="loginButton" type="submit"
+          class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold">
+          Sign In
+        </button>
+        <p id="loginError" class="text-red-500 text-sm text-center hidden"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ADMIN APP -->
+  <div id="adminApp" class="hidden min-h-screen">
+    <div id="mobileOverlay" class="fixed inset-0 bg-black/40 z-30 hidden lg:hidden"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="adminSidebar"
+      class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-200">
+      <div class="h-16 px-5 flex items-center border-b">
+        <a href="home.html" class="flex items-center gap-2">
+          <img src="/vora-logo.svg" alt="Vora Logo" class="h-9 w-auto" onerror="this.style.display='none'">
+          <span class="text-2xl font-extrabold text-green-600">Vora</span>
+        </a>
+      </div>
+      <div class="p-4">
+        <p class="px-4 mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Administration</p>
+        <nav class="space-y-1">
+          <button type="button" data-section="dashboard" onclick="showSection('dashboard')" class="sidebar-link active w-full text-left rounded-xl px-4 py-3">📊 Dashboard</button>
+          <button type="button" data-section="providers" onclick="showSection('providers')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">👨‍🔧 Providers</button>
+          <button type="button" data-section="customers" onclick="showSection('customers')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">👥 Customers</button>
+          <button type="button" data-section="services" onclick="showSection('services')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">🛠️ Services</button>
+          <button type="button" data-section="bookings" onclick="showSection('bookings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">📅 Bookings</button>
+          <button type="button" data-section="payments" onclick="showSection('payments')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">💳 Payments</button>
+          <button type="button" data-section="reviews" onclick="showSection('reviews')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⭐ Reviews</button>
+          <button type="button" data-section="settings" onclick="showSection('settings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⚙️ Settings</button>
+        </nav>
+      </div>
+      <div class="absolute bottom-0 left-0 right-0 p-4 border-t">
+        <button type="button" id="logoutButton"
+          class="w-full rounded-xl px-4 py-3 text-left text-red-600 hover:bg-red-50 font-medium">
+          🚪 Sign out
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="lg:ml-64 min-h-screen">
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div class="h-16 px-4 md:px-8 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <button id="mobileMenuButton" type="button"
+              class="lg:hidden p-2 rounded-lg hover:bg-gray-100" aria-label="Open menu">☰</button>
+            <div>
+              <h1 class="font-bold text-lg">Vora Admin</h1>
+              <p class="text-xs text-gray-500">Marketplace management</p>
+            </div>
+          </div>
+          <a href="home.html" class="text-sm font-medium text-gray-600 hover:text-green-600">View site ↗</a>
+        </div>
+      </header>
+
+      <div id="admin-access-warning" class="hidden mx-4 md:mx-8 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"></div>
+
+      <div class="p-4 md:p-8">
+        <!-- DASHBOARD -->
+        <section id="dashboardSection">
+          <div class="mb-8">
+            <h2 class="text-2xl font-bold">Dashboard</h2>
+            <p class="text-gray-500">Here's what's happening on Vora.</p>
+          </div>
+
+          <!-- STATS -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+              <div class="flex justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">Total Users</p>
+                  <h3 id="statUsers" class="text-3xl font-bold mt-2">0</h3>
+                </div>
+                <span class="text-2xl">👥</span>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+              <div class="flex justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">Providers</p>
+                  <h3 id="statProviders" class="text-3xl font-bold mt-2">0</h3>
+                </div>
+                <span class="text-2xl">👨‍🔧</span>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+              <div class="flex justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">Services</p>
+                  <h3 id="statServices" class="text-3xl font-bold mt-2">0</h3>
+                </div>
+                <span class="text-2xl">🛠️</span>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border shadow-sm">
+              <div class="flex justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">Bookings</p>
+                  <h3 id="statBookings" class="text-3xl font-bold mt-2">0</h3>
+                </div>
+                <span class="text-2xl">📅</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RECENT BOOKINGS -->
+          <div class="bg-white rounded-2xl border shadow-sm">
+            <div class="p-6 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-lg">Recent Bookings</h3>
+                <p class="text-sm text-gray-500">Latest marketplace activity</p>
+              </div>
+              <button onclick="showSection('bookings')" class="text-green-600 text-sm font-semibold">View all</button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Service</th>
+                    <th class="text-left px-6 py-4">Customer</th>
+                    <th class="text-left px-6 py-4">Amount</th>
+                    <th class="text-left px-6 py-4">Date</th>
+                    <th class="text-left px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentBookingsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROVIDERS -->
+        <section id="providersSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Providers</h2>
+            <p class="text-gray-500">Manage Vora service providers.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Name</th>
+                    <th class="text-left px-6 py-4">Email</th>
+                    <th class="text-left px-6 py-4">Status</th>
+                    <th class="text-left px-6 py-4">Verified</th>
+                  </tr>
+                </thead>
+                <tbody id="providersTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS -->
+        <section id="customersSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Customers</h2>
+            <p class="text-gray-500">Vora customers and accounts.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Name</th>
+                    <th class="text-left px-6 py-4">Email</th>
+                    <th class="text-left px-6 py-4">Role</th>
+                    <th class="text-left px-6 py-4">Joined</th>
+                  </tr>
+                </thead>
+                <tbody id="customersTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- SERVICES -->
+        <section id="servicesSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Services</h2>
+            <p class="text-gray-500">Manage marketplace listings.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Service</th>
+                    <th class="text-left px-6 py-4">Provider</th>
+                    <th class="text-left px-6 py-4">Category</th>
+                    <th class="text-left px-6 py-4">Price</th>
+                    <th class="text-left px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="servicesTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- BOOKINGS -->
+        <section id="bookingsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Bookings</h2>
+            <p class="text-gray-500">Manage customer bookings.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">ID</th>
+                    <th class="text-left px-6 py-4">Customer</th>
+                    <th class="text-left px-6 py-4">Service</th>
+                    <th class="text-left px-6 py-4">Amount</th>
+                    <th class="text-left px-6 py-4">Date</th>
+                    <th class="text-left px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="bookingsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- PAYMENTS -->
+        <section id="paymentsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Payments</h2>
+            <p class="text-gray-500">Monitor marketplace transactions.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Reference</th>
+                    <th class="text-left px-6 py-4">Amount</th>
+                    <th class="text-left px-6 py-4">Status</th>
+                    <th class="text-left px-6 py-4">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="paymentsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- REVIEWS -->
+        <section id="reviewsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Reviews</h2>
+            <p class="text-gray-500">Monitor customer reviews.</p>
+          </div>
+          <div class="bg-white border rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500">
+                  <tr>
+                    <th class="text-left px-6 py-4">Rating</th>
+                    <th class="text-left px-6 py-4">Review</th>
+                    <th class="text-left px-6 py-4">Customer</th>
+                    <th class="text-left px-6 py-4">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="reviewsTable">
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="settingsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Platform Settings</h2>
+            <p class="text-gray-500">Configure Vora marketplace settings.</p>
+          </div>
+          <div class="bg-white border rounded-2xl p-6">
+            <h3 class="font-bold text-lg mb-5">Platform Configuration</h3>
+            <form id="settingsForm" class="space-y-5">
+              <div>
+                <label class="block text-sm font-medium mb-2">Platform Commission (%)</label>
+                <input id="commission" type="number" min="0" max="100" step="0.01" value="10" class="w-full px-4 py-3 border rounded-xl" />
+              </div>
+              <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold">Save Settings</button>
+            </form>
+          </div>
+        </section>
+
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="admin.js"></script>
+<script src="./supabase.js?v=2" type="module"></script>
+<script type="module">
+  import { supabase } from './supabase.js'
+  
+    console.log(supabase)
+    </script>
+  <script>
+    // UI-only fallback. admin.js can replace this with its own implementation.
+    window.showSection = window.showSection || function(section) {
+      const sections = ["dashboard","providers","customers","services","bookings","payments","reviews","settings"];
+      sections.forEach(name => {
+        const el = document.getElementById(name + "Section");
+        if (el) el.classList.toggle("hidden-section", name !== section);
+      });
+      document.querySelectorAll("[data-section]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.section === section);
+      });
+      document.getElementById("adminSidebar")?.classList.add("-translate-x-full");
+      document.getElementById("mobileOverlay")?.classList.add("hidden");
+    };
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const menu = document.getElementById("mobileMenuButton");
+      const sidebar = document.getElementById("adminSidebar");
+      const overlay = document.getElementById("mobileOverlay");
+
+      menu?.addEventListener("click", () => {
+        sidebar?.classList.remove("-translate-x-full");
+        overlay?.classList.remove("hidden");
+      });
+      overlay?.addEventListener("click", () => {
+        sidebar?.classList.add("-translate-x-full");
+        overlay?.classList.add("hidden");
+      });
+
+      document.querySelectorAll("[data-section]").forEach(btn => {
+        btn.addEventListener("click", () => window.showSection(btn.dataset.section));
+      });
+    });
+  </script>
+</body>
+</html>

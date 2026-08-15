@@ -386,8 +386,58 @@ async function verifyPaymentOnServer(reference, bookingId) {
   }
 }
 
-async function markBookingPaid(bookingId, reference) {
-  const basicUpdate = { status: 'confirmed', updated_at: new Date().toISOString() };
+function calculatePlatformSplit(amount) {
+  const total = Number(amount || 0) || Number(currentBooking?.total_price || 0) || 0;
+  const platformFee = Math.round(total * 0.05);
+  const providerAmount = Math.max(0, total - platformFee);
+
+  return {
+    customerAmount: total,
+    platformFee,
+    providerAmount,
+  };
+}
+
+async function createPayoutRecord(bookingId, amount) {
+  const settlement = calculatePlatformSplit(amount);
+  const providerId = currentBooking?.provider_id || getPendingBooking()?.providerId || null;
+
+  const payoutPayload = {
+    booking_id: bookingId,
+    provider_id: providerId,
+    customer_amount: settlement.customerAmount,
+    platform_fee: settlement.platformFee,
+    provider_amount: settlement.providerAmount,
+    amount: settlement.providerAmount,
+    payout_status: 'pending',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    const { error } = await supabase.from('payouts').insert(payoutPayload);
+    if (error) {
+      console.warn('Could not create payout record:', error.message || error);
+      return null;
+    }
+    return payoutPayload;
+  } catch (err) {
+    console.warn('Could not create payout record:', err.message || err);
+    return null;
+  }
+}
+
+async function markBookingPaid(bookingId, reference, amount) {
+  const settlement = calculatePlatformSplit(amount);
+  const basicUpdate = {
+    status: 'confirmed',
+    updated_at: new Date().toISOString(),
+    customer_amount: settlement.customerAmount,
+    platform_fee: settlement.platformFee,
+    provider_amount: settlement.providerAmount,
+    payout_status: 'pending',
+  };
 
   try {
     const { error } = await supabase
@@ -404,7 +454,12 @@ async function markBookingPaid(bookingId, reference) {
       console.warn('Extended booking update failed; retrying with minimal fields:', error.message || error);
       const { error: fallbackError } = await supabase
         .from('bookings')
-        .update(basicUpdate)
+        .update({
+          ...basicUpdate,
+          payment_reference: reference,
+          paid_at: new Date().toISOString(),
+          payment_status: 'paid',
+        })
         .eq('id', bookingId);
 
       if (fallbackError) {
@@ -412,6 +467,8 @@ async function markBookingPaid(bookingId, reference) {
         showError('Payment succeeded, but we had trouble updating your booking status. Support has your reference: ' + reference);
       }
     }
+
+    await createPayoutRecord(bookingId, settlement.customerAmount);
   } catch (err) {
     console.error('Failed to update booking after payment:', err);
     showError('Payment succeeded, but we had trouble updating your booking status. Support has your reference: ' + reference);
@@ -427,7 +484,8 @@ async function handlePaymentSuccess(bookingId, reference) {
       throw new Error(verification?.message || 'Payment verification failed.');
     }
 
-    await markBookingPaid(bookingId, reference);
+    const amountToSettle = Number(currentBooking?.total_price || getPendingBooking()?.totalPrice || 0);
+    await markBookingPaid(bookingId, reference, amountToSettle);
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('currentBookingId');
     localStorage.removeItem('bookingId');
