@@ -64,7 +64,9 @@ const state = {
 
     reviews: [],
 
-    settings: null
+    settings: null,
+
+    editContext: null
 
 };
 
@@ -403,6 +405,24 @@ function statusBadge(status) {
     `;
 }
 
+function adminActionButtons(type, id) {
+    if (!id) return "";
+    return `<button type="button" data-admin-action="edit" data-admin-type="${escapeHTML(type)}" data-admin-id="${escapeHTML(id)}" class="rounded-lg border border-green-200 px-3 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-50">Edit</button>`;
+}
+
+function addTableActions(tbody, type, rows) {
+    if (!tbody) return;
+    tbody.querySelectorAll("tr").forEach((row, index) => {
+        if (row.querySelector("[data-admin-action]")) return;
+        const id = rows[index]?.id;
+        if (!id) return;
+        const cell = document.createElement("td");
+        cell.className = "px-6 py-4 text-right";
+        cell.innerHTML = adminActionButtons(type, id);
+        row.appendChild(cell);
+    });
+}
+
 
 /* ============================================================
    5. AUTHENTICATION
@@ -594,15 +614,11 @@ async function requireAdmin() {
    ============================================================ */
 
 function showLogin() {
-
-    $("loginScreen")
-        ?.classList
-        .remove("hidden");
-
-
-    $("adminApp")
-        ?.classList
-        .add("hidden");
+    /*
+       The admin page has no public login screen. Admins must first sign
+       in through the normal Vora site; everyone else is sent to 404.
+    */
+    window.location.replace("404.html");
 }
 
 
@@ -826,6 +842,18 @@ window.showSection =
 
             case "reviews":
                 await loadReviews();
+                break;
+
+            case "notifications":
+                try {
+                    await loadNotificationRecipients();
+                } catch (error) {
+                    const status = $("notificationStatus");
+                    if (status) {
+                        status.className = "text-sm text-red-700";
+                        status.textContent = `Could not load users: ${error.message}`;
+                    }
+                }
                 break;
 
             case "settings":
@@ -1159,7 +1187,7 @@ async function loadProviders() {
 
     renderLoading(
         tbody,
-        4
+        5
     );
 
 
@@ -1198,7 +1226,7 @@ async function loadProviders() {
 
             renderEmpty(
                 tbody,
-                4,
+                5,
                 "No providers found."
             );
 
@@ -1235,6 +1263,10 @@ async function loadProviders() {
                                 "—"
                             )}
 
+                        </td>
+
+                        <td class="px-6 py-4 text-right">
+                            ${adminActionButtons("user", provider.id || provider.user_id)}
                         </td>
 
                         <td class="px-6 py-4">
@@ -1289,7 +1321,7 @@ async function loadProviders() {
 
         renderEmpty(
             tbody,
-            4,
+            5,
             "Could not load providers."
         );
 
@@ -1317,7 +1349,7 @@ async function loadCustomers() {
 
     renderLoading(
         tbody,
-        4
+        5
     );
 
 
@@ -1364,7 +1396,7 @@ async function loadCustomers() {
 
             renderEmpty(
                 tbody,
-                4,
+                5,
                 "No customers found."
             );
 
@@ -1402,6 +1434,10 @@ async function loadCustomers() {
 
                         </td>
 
+                        <td class="px-6 py-4 text-right">
+                            ${adminActionButtons("user", customer.id || customer.user_id)}
+                        </td>
+
                         <td
                             class="px-6 py-4 capitalize"
                         >
@@ -1432,7 +1468,7 @@ async function loadCustomers() {
 
         renderEmpty(
             tbody,
-            4,
+            5,
             "Could not load customers."
         );
 
@@ -2060,6 +2096,7 @@ async function loadSettings() {
             await supabase
                 .from("settings")
                 .select("*")
+                .eq("id", "platform")
                 .limit(1)
                 .maybeSingle();
 
@@ -2105,6 +2142,10 @@ async function loadSettings() {
                 commission;
         }
 
+        if (data.paypal_ngn_per_usd !== undefined && $("paypalUsdRate")) {
+            $("paypalUsdRate").value = data.paypal_ngn_per_usd;
+        }
+
 
     } catch (error) {
 
@@ -2141,6 +2182,8 @@ async function saveSettings(
             input.value
         );
 
+    const paypalUsdRate = Number($("paypalUsdRate")?.value);
+
 
     if (
         !Number.isFinite(
@@ -2154,6 +2197,11 @@ async function saveSettings(
             "Commission must be between 0 and 100."
         );
 
+        return;
+    }
+
+    if (!Number.isFinite(paypalUsdRate) || paypalUsdRate <= 0) {
+        alert("PayPal USD rate must be greater than zero.");
         return;
     }
 
@@ -2181,6 +2229,7 @@ async function saveSettings(
             await supabase
                 .from("settings")
                 .select("*")
+                .eq("id", "platform")
                 .limit(1)
                 .maybeSingle();
 
@@ -2207,6 +2256,12 @@ async function saveSettings(
 
                         platform_commission:
                             commission,
+
+                        built_in_margin:
+                            commission,
+
+                        paypal_ngn_per_usd:
+                            paypalUsdRate,
 
                         updated_at:
                             new Date()
@@ -2235,11 +2290,19 @@ async function saveSettings(
                 await supabase
                     .from("settings")
                     .insert({
+                        id: "platform",
+
                         commission:
                             commission,
 
                         platform_commission:
-                            commission
+                            commission,
+
+                        built_in_margin:
+                            commission,
+
+                        paypal_ngn_per_usd:
+                            paypalUsdRate
                     });
 
 
@@ -2423,6 +2486,115 @@ function setupLogout() {
         "click",
         logout
     );
+}
+
+function getAdminRecord(type, id) {
+    const collections = { user: [...state.providers, ...state.customers], service: state.services, booking: state.bookings, payment: state.payments, review: state.reviews };
+    return (collections[type] || []).find(item => String(item.id || item.user_id) === String(id));
+}
+
+function closeAdminEditModal() {
+    $("adminEditModal")?.classList.add("hidden");
+    $("adminEditModal")?.classList.remove("flex");
+    state.editContext = null;
+}
+
+window.closeAdminEditModal = closeAdminEditModal;
+
+function openAdminEditModal(type, id) {
+    const record = getAdminRecord(type, id);
+    if (!record) return showError("This record is no longer available. Please refresh the list.");
+    const fieldsByType = {
+        user: ["full_name", "business_name", "email", "role", "status", "is_verified"],
+        service: ["title", "name", "category", "price", "base_price", "status", "is_active"],
+        booking: ["status", "booking_status", "scheduled_at", "booking_date"],
+        payment: ["status", "payment_status"],
+        review: ["rating", "comment", "review"]
+    };
+    const fields = fieldsByType[type].filter(field => Object.prototype.hasOwnProperty.call(record, field));
+    if (!fields.length) return showError("No editable fields were found for this record.");
+    state.editContext = { type, id: record.id || record.user_id, idColumn: record.id ? "id" : "user_id", fields };
+    $("adminEditTitle").textContent = `Edit ${type}`;
+    $("adminEditFields").innerHTML = fields.map(field => {
+        const value = record[field] ?? "";
+        const label = field.replace(/_/g, " ");
+        if (typeof value === "boolean") return `<label class="flex items-center gap-3 py-2 capitalize"><input name="${escapeHTML(field)}" type="checkbox" ${value ? "checked" : ""} /> ${escapeHTML(label)}</label>`;
+        if (field === "role" || field === "status" || field === "booking_status" || field === "payment_status") return `<label class="block capitalize text-sm font-medium mb-1">${escapeHTML(label)}<input name="${escapeHTML(field)}" value="${escapeHTML(value)}" class="mt-2 w-full rounded-xl border px-3 py-2" required /></label>`;
+        const inputType = field === "price" || field === "base_price" || field === "rating" ? "number" : field.includes("date") || field === "scheduled_at" ? "datetime-local" : "text";
+        const formatted = inputType === "datetime-local" && value ? new Date(value).toISOString().slice(0, 16) : value;
+        return `<label class="block capitalize text-sm font-medium mb-1">${escapeHTML(label)}<input name="${escapeHTML(field)}" type="${inputType}" value="${escapeHTML(formatted)}" class="mt-2 w-full rounded-xl border px-3 py-2" ${field === "rating" ? "min=0 max=5 step=1" : ""} /></label>`;
+    }).join("");
+    $("adminEditModal").classList.remove("hidden");
+    $("adminEditModal").classList.add("flex");
+}
+
+function setupAdminManagement() {
+    document.addEventListener("click", event => {
+        const button = event.target.closest("[data-admin-action='edit']");
+        if (button) openAdminEditModal(button.dataset.adminType, button.dataset.adminId);
+    });
+    $("adminEditForm")?.addEventListener("submit", async event => {
+        event.preventDefault();
+        const context = state.editContext;
+        if (!context) return;
+        const data = new FormData(event.currentTarget);
+        const changes = Object.fromEntries(context.fields.map(field => [field, data.has(field) ? data.get(field) : false]));
+        context.fields.forEach(field => { if (["price", "base_price", "rating"].includes(field) && changes[field] !== "") changes[field] = Number(changes[field]); });
+        const table = context.type === "user" ? "users" : `${context.type}s`;
+        const { error } = await supabase.from(table).update(changes).eq(context.idColumn || "id", context.id);
+        if (error) return showError(`Could not save changes: ${error.message}`);
+        closeAdminEditModal();
+        await window.showSection(state.currentSection);
+    });
+    const tables = { providersTable: ["user", () => state.providers], customersTable: ["user", () => state.customers], servicesTable: ["service", () => state.services], bookingsTable: ["booking", () => state.bookings], paymentsTable: ["payment", () => state.payments], reviewsTable: ["review", () => state.reviews] };
+    new MutationObserver(() => Object.entries(tables).forEach(([id, [type, rows]]) => addTableActions($(id), type, rows()))).observe(document.body, { childList: true, subtree: true });
+}
+
+async function loadNotificationRecipients() {
+    const select = $("notificationRecipient");
+    if (!select) return;
+    const users = await safeQuery(supabase.from("users").select("*").order("created_at", { ascending: false }), "Loading notification recipients");
+    state.users = users || [];
+    select.innerHTML = `<option value="all">All users</option>${state.users.filter(user => !isAdmin(user)).map(user => `<option value="${escapeHTML(user.id || user.user_id)}">${escapeHTML(user.full_name || user.business_name || user.email || "Unnamed user")} — ${escapeHTML(user.email || "no email")}</option>`).join("")}`;
+}
+
+function setupNotifications() {
+    $("sendNotificationButton")?.addEventListener("click", () => window.showSection("notifications"));
+
+    $("notificationForm")?.addEventListener("submit", async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const status = $("notificationStatus");
+        const button = form.querySelector("button[type='submit']");
+        const recipient = $("notificationRecipient").value;
+        const title = $("notificationTitle").value.trim();
+        const message = $("notificationMessage").value.trim();
+        const recipients = recipient === "all" ? state.users.filter(user => !isAdmin(user)).map(user => user.id || user.user_id) : [recipient];
+        if (!recipients.length) {
+            if (status) status.textContent = "There are no eligible recipients.";
+            return;
+        }
+
+        setLoading(button, true, "Sending...");
+        if (status) status.textContent = "";
+        try {
+            const { error } = await supabase.from("notifications").insert(recipients.map(user_id => ({ user_id, type: "update", title, message, sender_id: state.user?.id || null, read: false, created_at: new Date().toISOString() })));
+            if (error) throw error;
+            form.reset();
+            if (status) {
+                status.className = "text-sm text-green-700";
+                status.textContent = `Notification sent to ${recipients.length} user${recipients.length === 1 ? "" : "s"}.`;
+            }
+        } catch (error) {
+            console.error("Send notification:", error);
+            if (status) {
+                status.className = "text-sm text-red-700";
+                status.textContent = error.code === "42501" ? "Notifications are blocked by Supabase RLS. Apply the admin notifications migration." : `Could not send notification: ${error.message || "Unknown error"}`;
+            }
+        } finally {
+            setLoading(button, false);
+        }
+    });
 }
 
 
@@ -2754,6 +2926,10 @@ async function init() {
         setupSettings();
 
         setupLogout();
+
+        setupAdminManagement();
+
+        setupNotifications();
 
         setupMobileMenu();
 
