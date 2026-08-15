@@ -33,7 +33,7 @@
 <body class="bg-gray-50 text-gray-900">
 
   <!-- LOGIN -->
-  <section id="loginScreen" class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+  <section id="loginScreen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 px-4">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
       <div class="text-center mb-8">
         <div class="w-14 h-14 bg-green-600 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold">V</div>
@@ -85,6 +85,7 @@
           <button type="button" data-section="bookings" onclick="showSection('bookings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">📅 Bookings</button>
           <button type="button" data-section="payments" onclick="showSection('payments')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">💳 Payments</button>
           <button type="button" data-section="reviews" onclick="showSection('reviews')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⭐ Reviews</button>
+          <button type="button" data-section="notifications" onclick="showSection('notifications')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">🔔 Notifications</button>
           <button type="button" data-section="settings" onclick="showSection('settings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⚙️ Settings</button>
         </nav>
       </div>
@@ -108,7 +109,10 @@
               <p class="text-xs text-gray-500">Marketplace management</p>
             </div>
           </div>
-          <a href="home.html" class="text-sm font-medium text-gray-600 hover:text-green-600">View site ↗</a>
+          <div class="flex items-center gap-3">
+            <button id="sendNotificationButton" type="button" class="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700">Send notification</button>
+            <a href="home.html" class="text-sm font-medium text-gray-600 hover:text-green-600">View site ↗</a>
+          </div>
         </div>
       </header>
 
@@ -206,6 +210,7 @@
                   <tr>
                     <th class="text-left px-6 py-4">Name</th>
                     <th class="text-left px-6 py-4">Email</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                     <th class="text-left px-6 py-4">Status</th>
                     <th class="text-left px-6 py-4">Verified</th>
                   </tr>
@@ -230,6 +235,7 @@
                   <tr>
                     <th class="text-left px-6 py-4">Name</th>
                     <th class="text-left px-6 py-4">Email</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                     <th class="text-left px-6 py-4">Role</th>
                     <th class="text-left px-6 py-4">Joined</th>
                   </tr>
@@ -257,6 +263,7 @@
                     <th class="text-left px-6 py-4">Category</th>
                     <th class="text-left px-6 py-4">Price</th>
                     <th class="text-left px-6 py-4">Status</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="servicesTable">
@@ -283,6 +290,7 @@
                     <th class="text-left px-6 py-4">Amount</th>
                     <th class="text-left px-6 py-4">Date</th>
                     <th class="text-left px-6 py-4">Status</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="bookingsTable">
@@ -307,6 +315,7 @@
                     <th class="text-left px-6 py-4">Amount</th>
                     <th class="text-left px-6 py-4">Status</th>
                     <th class="text-left px-6 py-4">Date</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="paymentsTable">
@@ -331,12 +340,30 @@
                     <th class="text-left px-6 py-4">Review</th>
                     <th class="text-left px-6 py-4">Customer</th>
                     <th class="text-left px-6 py-4">Date</th>
+                    <th class="text-right px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="reviewsTable">
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+
+        <!-- NOTIFICATIONS -->
+        <section id="notificationsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Send notification</h2>
+            <p class="text-gray-500">Send an in-app message to one user or to everyone except administrators.</p>
+          </div>
+          <div class="max-w-2xl bg-white border rounded-2xl p-6">
+            <form id="notificationForm" class="space-y-5">
+              <div><label for="notificationRecipient" class="block text-sm font-medium mb-2">Recipient</label><select id="notificationRecipient" required class="w-full px-4 py-3 border rounded-xl bg-white"></select></div>
+              <div><label for="notificationTitle" class="block text-sm font-medium mb-2">Title</label><input id="notificationTitle" required maxlength="120" class="w-full px-4 py-3 border rounded-xl" placeholder="Important update" /></div>
+              <div><label for="notificationMessage" class="block text-sm font-medium mb-2">Message</label><textarea id="notificationMessage" required maxlength="1000" rows="5" class="w-full px-4 py-3 border rounded-xl" placeholder="Write your message to users..."></textarea></div>
+              <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold">Send notification</button>
+              <p id="notificationStatus" class="text-sm" role="status"></p>
+            </form>
           </div>
         </section>
 
@@ -353,6 +380,11 @@
                 <label class="block text-sm font-medium mb-2">Platform Commission (%)</label>
                 <input id="commission" type="number" min="0" max="100" step="0.01" value="10" class="w-full px-4 py-3 border rounded-xl" />
               </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">PayPal USD rate (NGN per USD)</label>
+                <input id="paypalUsdRate" type="number" min="1" step="0.01" value="1600" class="w-full px-4 py-3 border rounded-xl" />
+                <p class="mt-1 text-xs text-gray-500">Used only when a customer selects PayPal. Update this rate before accepting PayPal payments.</p>
+              </div>
               <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold">Save Settings</button>
             </form>
           </div>
@@ -361,6 +393,13 @@
 
       </div>
     </main>
+  </div>
+
+  <div id="adminEditModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+    <div class="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+      <div class="flex items-center justify-between border-b p-5"><h2 id="adminEditTitle" class="text-lg font-bold">Edit record</h2><button type="button" onclick="closeAdminEditModal()" class="text-2xl text-gray-500" aria-label="Close">×</button></div>
+      <form id="adminEditForm" class="space-y-4 p-5"><div id="adminEditFields"></div><div class="flex justify-end gap-3 pt-2"><button type="button" onclick="closeAdminEditModal()" class="px-4 py-2 text-gray-600">Cancel</button><button type="submit" class="rounded-xl bg-green-600 px-5 py-2.5 font-semibold text-white">Save changes</button></div></form>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -374,7 +413,7 @@
   <script>
     // UI-only fallback. admin.js can replace this with its own implementation.
     window.showSection = window.showSection || function(section) {
-      const sections = ["dashboard","providers","customers","services","bookings","payments","reviews","settings"];
+      const sections = ["dashboard","providers","customers","services","bookings","payments","reviews","notifications","settings"];
       sections.forEach(name => {
         const el = document.getElementById(name + "Section");
         if (el) el.classList.toggle("hidden-section", name !== section);
