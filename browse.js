@@ -5,6 +5,7 @@ import { formatPrice } from "./currency-utils.js";
 const CACHE_KEY = 'browse_services_cache';
 const CACHE_DURATION = 5 * 60 * 1000;
 const PAGE_SIZE = 9;
+const RECENT_KEY = 'vora_recent_services';
 
 let allServices = [];
 let filteredServices = [];
@@ -15,6 +16,7 @@ let userWishlist = [];
 let reviewStatsMap = {};
 let reviewsMap = {};
 let providerMap = {};
+let recentlyViewedMode = false;
 let currentFilters = {
     search: '',
     category: 'All',
@@ -36,6 +38,15 @@ function resetFiltersUI() {
 
 function normalizeCategory(value) {
     return (value || '').trim().toLowerCase();
+}
+
+function getRecentViewIds() {
+    try {
+        const raw = localStorage.getItem(`${RECENT_KEY}_${currentUser?.id || 'guest'}`);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
 }
 
 async function loadWishlist() {
@@ -139,12 +150,12 @@ function renderWishlist() {
 async function getPlatformSettings() {
     const { data } = await supabasePublic
         .from('settings')
-        .select('built_in_margin')
+        .select('*')
         .eq('id', 'platform')
         .maybeSingle();
 
     return {
-        builtInMargin: data?.built_in_margin ?? 0
+        builtInMargin: data?.commission ?? data?.platform_commission ?? data?.built_in_margin ?? 0
     };
 }
 
@@ -416,7 +427,10 @@ function setupFiltersPopover() {
 }
 
 function browseApplyFilters() {
-    filteredServices = [...allServices];
+    const recentIds = recentlyViewedMode ? getRecentViewIds() : [];
+    filteredServices = recentlyViewedMode
+        ? recentIds.map((id) => allServices.find((service) => String(service.id) === String(id))).filter(Boolean)
+        : [...allServices];
 
     if (currentFilters.category && currentFilters.category !== 'All') {
         filteredServices = filteredServices.filter((service) => normalizeCategory(service.category) === normalizeCategory(currentFilters.category));
@@ -443,7 +457,9 @@ function browseApplyFilters() {
         filteredServices = filteredServices.filter((service) => (service.location || '').toLowerCase().includes(term));
     }
 
-    filteredServices = getSortedServices(filteredServices);
+    if (!recentlyViewedMode || currentFilters.sort !== 'newest') {
+        filteredServices = getSortedServices(filteredServices);
+    }
     currentPage = 1;
     renderServicesGrid();
     updateServiceCountText();
@@ -633,6 +649,13 @@ async function initPage() {
 
     const { data: sessionData } = await supabase.auth.getSession();
     currentUser = sessionData?.session?.user || null;
+    recentlyViewedMode = urlParams.get('recent') === '1';
+
+    if (recentlyViewedMode) {
+        document.getElementById('browsePageTitle').textContent = 'Recently viewed services';
+        document.getElementById('browsePageSubtitle').textContent = 'Continue exploring services you viewed recently.';
+        document.getElementById('browseSectionTitle').textContent = 'Recently viewed';
+    }
 
     if (servicesContainer) {
         servicesContainer.innerHTML = buildSkeleton(6);
@@ -640,6 +663,20 @@ async function initPage() {
 
     await loadWishlist();
     await loadServices(servicesContainer);
+
+    if (recentlyViewedMode) {
+        const recentIds = getRecentViewIds();
+        const missingIds = recentIds.filter((id) => !allServices.some((service) => String(service.id) === String(id)));
+        if (missingIds.length) {
+            const { data: olderServices, error } = await supabasePublic.from('services').select('*').in('id', missingIds);
+            if (error) console.warn('Could not load older recently viewed services:', error);
+            else {
+                allServices = [...allServices, ...(olderServices || [])];
+                await fetchReviews();
+                await fetchProviders();
+            }
+        }
+    }
 
     if (searchInput) {
         searchInput.value = currentFilters.search;
