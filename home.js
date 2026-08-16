@@ -45,7 +45,7 @@ function getAverageRating(serviceId) {
 
 function getRecentViewIds() {
     try {
-        const raw = localStorage.getItem(RECENT_KEY);
+        const raw = localStorage.getItem(`${RECENT_KEY}_${currentUser?.id || 'guest'}`);
         return raw ? JSON.parse(raw) : [];
     } catch {
         return [];
@@ -56,7 +56,7 @@ function rememberService(serviceId) {
     try {
         const current = getRecentViewIds().filter((id) => id !== serviceId);
         const next = [serviceId, ...current].slice(0, 8);
-        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        localStorage.setItem(`${RECENT_KEY}_${currentUser?.id || 'guest'}`, JSON.stringify(next));
     } catch (error) {
         console.warn('Could not store recent service view:', error);
     }
@@ -249,6 +249,14 @@ function renderHomepageSections(searchTerm = '') {
 
     const categories = Object.keys(categoryMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
+    const recentIds = searchTerm ? [] : getRecentViewIds();
+    const recentlyViewed = recentIds
+        .map((id) => allServices.find((service) => String(service.id) === String(id)))
+        .filter(Boolean);
+    const recentSection = recentlyViewed.length
+        ? buildSection('Recently viewed', 'Pick up where you left off.', recentlyViewed, { limit: MAX_CARDS })
+        : '';
+
     const sections = categories.map((category) => {
         const services = categoryMap[category].slice(0, MAX_CARDS);
         return buildSection(category, `Explore ${category.toLowerCase()} services.`, services, { limit: MAX_CARDS });
@@ -261,7 +269,7 @@ function renderHomepageSections(searchTerm = '') {
         ? `<div class="rounded-[1.75rem] border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">No services matched <span class="font-semibold text-gray-700">${escapeHtml(searchTerm)}</span>. Try another keyword or browse all services.</div>`
         : '<div class="rounded-[1.75rem] border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">Services will appear here as soon as they are available.</div>';
 
-    container.innerHTML = `${searchSummary}${sections.length ? sections.join('') : emptyState}`;
+    container.innerHTML = `${searchSummary}${recentSection}${sections.length ? sections.join('') : emptyState}`;
 
     container.querySelectorAll('[data-service-card]').forEach((button) => {
         button.addEventListener('click', () => {
@@ -297,6 +305,20 @@ async function loadHomepageData() {
         if (error) throw error;
 
         allServices = servicesData || [];
+
+        const recentIds = getRecentViewIds();
+        const missingRecentIds = recentIds.filter((id) => !allServices.some((service) => String(service.id) === String(id)));
+        if (missingRecentIds.length) {
+            const { data: recentServices, error: recentError } = await supabasePublic
+                .from('services')
+                .select('*')
+                .in('id', missingRecentIds);
+            if (recentError) {
+                console.warn('Could not load older recently viewed services:', recentError);
+            } else {
+                allServices = [...allServices, ...(recentServices || [])];
+            }
+        }
 
         if (allServices.length) {
             const serviceIds = allServices.map((service) => service.id).filter(Boolean);
