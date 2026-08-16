@@ -169,7 +169,9 @@ function buildSection(title, subtitle, services, options = {}) {
         ? 'browse.html'
         : `browse.html?category=${encodeURIComponent(FEATURED_CATEGORY)}`;
 
-    const browseUrl = title === 'All'
+    const browseUrl = title === 'Recently viewed'
+        ? 'browse.html?recent=1'
+        : title === 'All'
         ? 'browse.html'
         : `browse.html?category=${encodeURIComponent(title)}`;
 
