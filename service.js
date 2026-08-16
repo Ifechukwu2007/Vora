@@ -33,6 +33,34 @@ const { data: sessionData } = await supabase.auth.getSession();
 const currentUser = sessionData?.session?.user || null;
 let currentServiceContext = null;
 let currentProviderContext = null;
+let platformCommissionPercent = 0;
+const RECENT_SERVICES_KEY = 'vora_recent_services';
+
+function rememberRecentlyViewedService(id) {
+  if (!id) return;
+  try {
+    const key = `${RECENT_SERVICES_KEY}_${currentUser?.id || 'guest'}`;
+    const previous = JSON.parse(localStorage.getItem(key) || '[]');
+    const recent = [id, ...previous.filter((serviceId) => String(serviceId) !== String(id))].slice(0, 8);
+    localStorage.setItem(key, JSON.stringify(recent));
+  } catch (error) {
+    console.warn('Could not save recently viewed service:', error);
+  }
+}
+
+async function loadPlatformCommission() {
+  const { data, error } = await supabasePublic
+    .from('settings')
+    .select('*')
+    .eq('id', 'platform')
+    .maybeSingle();
+  if (error) {
+    console.warn('Could not load platform commission:', error.message || error);
+    return;
+  }
+  const value = Number(data?.commission ?? data?.platform_commission ?? data?.built_in_margin ?? 0);
+  platformCommissionPercent = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+}
 
 function normalizeProfile(profile) {
   if (!profile) return null;
@@ -55,7 +83,7 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
     : basePrice;
   const travelFee = getTravelFeeForLocation(service, location);
   const subtotal = (peopleCount * perPerson);
-  const serviceFee = Math.round(subtotal * 0.05);
+  const serviceFee = Math.round(subtotal * (platformCommissionPercent / 100));
   const total = subtotal + serviceFee + travelFee;
   return { perPerson, subtotal, serviceFee, total, meetsDeal, travelFee };
 }
@@ -129,6 +157,8 @@ async function loadService() {
       return;
     }
 
+    rememberRecentlyViewedService(service.id);
+
     const providerId = service.provider_id;
 
     // FETCH SERVICE PROVIDER'S PROFILE
@@ -184,7 +214,7 @@ async function loadService() {
       wrapperClass: 'grid grid-cols-1 gap-2 md:grid-cols-3',
       imageClass: 'w-full h-72 object-cover rounded-xl',
       maxImages: 3
-    }) || `\n        <img src="https://placehold.co/800x500?text=Vora" class="w-full h-80 object-cover rounded-xl"/>\n    `;
+    }) || `\n        <img src="https://placehold.co/800x500?text=Vorabukeen" class="w-full h-80 object-cover rounded-xl"/>\n    `;
 
     currentServiceContext = { ...service, image_url: images[0] || '', image_urls: images, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};
@@ -859,7 +889,7 @@ function updateTotalPrice() {
   if (discountSavings) {
     if (meetsDeal) {
       const originalSubtotal = (Number(service.price || 0) * peopleCount);
-      const originalServiceFee = Math.round(originalSubtotal * 0.05);
+      const originalServiceFee = Math.round(originalSubtotal * (platformCommissionPercent / 100));
       const originalTotal = originalSubtotal + originalServiceFee + travelFee;
       const savings = Math.max(0, originalTotal - total);
       discountSavings.textContent = `You save ${formatPrice(savings)} with this group deal.`;
@@ -973,6 +1003,7 @@ function submitBooking(service, providerId) {
 // INIT
 // ============================
 
+await loadPlatformCommission();
 loadService();
 
 // ============================
