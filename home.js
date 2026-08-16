@@ -11,7 +11,7 @@ let reviewStatsMap = {};
 let providerMap = {};
 let currentUser = null;
 let userWishlist = [];
-let currentLocationLabel = 'Lagos';
+let currentLocationLabel = 'Onitsha';
 let currentSearchQuery = '';
 
 if (typeof window !== 'undefined' && typeof window.onAuthStateChanged === 'undefined') {
@@ -59,6 +59,16 @@ function rememberService(serviceId) {
         localStorage.setItem(`${RECENT_KEY}_${currentUser?.id || 'guest'}`, JSON.stringify(next));
     } catch (error) {
         console.warn('Could not store recent service view:', error);
+    }
+}
+
+function removeRecentlyViewedService(serviceId) {
+    try {
+        const remaining = getRecentViewIds().filter((id) => String(id) !== String(serviceId));
+        localStorage.setItem(`${RECENT_KEY}_${currentUser?.id || 'guest'}`, JSON.stringify(remaining));
+        renderHomepageSections(currentSearchQuery);
+    } catch (error) {
+        console.warn('Could not remove recently viewed service:', error);
     }
 }
 
@@ -145,7 +155,10 @@ function buildSection(title, subtitle, services, options = {}) {
                 <div class="relative h-40 overflow-hidden">
                     <img src="${getServiceImage(service)}" alt="${service.title}" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/600x400/FFF1F2/DB2777?text=Service';" />
                     <div class="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-gray-700">${service.category || 'Service'}</div>
-                    <button type="button" data-id="${service.id}" class="wishlistBtn absolute top-3 right-3 bg-white rounded-full p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
+                    <div class="absolute top-3 right-3 flex gap-2">
+                        ${title === 'Recently viewed' ? `<button type="button" data-remove-recent="${service.id}" class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow hover:bg-slate-100" aria-label="Remove from recently viewed">Remove</button>` : ''}
+                        <button type="button" data-id="${service.id}" class="wishlistBtn bg-white rounded-full p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
+                    </div>
                 </div>
                 <div class="p-4">
                     <div class="flex items-start justify-between gap-2">
@@ -286,6 +299,13 @@ function renderHomepageSections(searchTerm = '') {
             event.stopPropagation();
             const serviceId = button.getAttribute('data-id');
             if (serviceId) toggleWishlist(serviceId);
+        });
+    });
+
+    container.querySelectorAll('[data-remove-recent]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            removeRecentlyViewedService(button.getAttribute('data-remove-recent'));
         });
     });
 }
