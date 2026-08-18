@@ -348,7 +348,7 @@ if (registerForm) {
 // LOGOUT FUNCTIONALITY
 // ===============================
 
-const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service', 'notifications', 'add-service'];
+const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service', 'notifications', 'add-service', 'request.html'];
 
 function isFilePreview() {
   return window.location.protocol === 'file:';

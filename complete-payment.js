@@ -8,6 +8,12 @@ let currentBooking = null;
 let currentUser = null;
 let paymentFlowInProgress = false;
 let paystackPopupTimer = null;
+const PLATFORM_SERVICE_FEE_PERCENT = 5;
+let platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
+
+async function loadPlatformCommission() {
+  platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
+}
 
 function formatNaira(amount) {
   const value = Number(amount) || 0;
@@ -178,6 +184,7 @@ async function loadBooking(bookingId) {
     .select(`
       id,
       service_id,
+      request_id,
       provider_id,
       user_id,
       scheduled_date,
@@ -210,6 +217,21 @@ async function loadBooking(bookingId) {
   if (data.service_id) {
     const { data: serviceRow } = await supabase.from('services').select('id, title, price, image_url, travel_price, location').eq('id', data.service_id).maybeSingle();
     serviceData = serviceRow;
+  }
+
+  if (!serviceData && data.request_id) {
+    const { data: requestRow } = await supabase
+      .from('requests')
+      .select('title, location')
+      .eq('id', data.request_id)
+      .maybeSingle();
+
+    if (requestRow) {
+      serviceData = {
+        title: requestRow.title,
+        location: requestRow.location,
+      };
+    }
   }
 
   if (data.provider_id) {
@@ -274,7 +296,7 @@ function renderBooking(booking) {
   const perPerson = Number(booking.price_per_person) || Number(service.price) || 0;
   const travelFee = getTravelFeeForBooking(booking, service);
   const serviceSubtotal = perPerson * Number(booking.number_of_people || 1);
-  const derivedServiceFee = Math.round(serviceSubtotal * 0.05);
+  const derivedServiceFee = Math.round(serviceSubtotal * (platformCommissionPercent / 100));
   const serviceFee = Math.max(derivedServiceFee, Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee));
   const total = Number(booking.total_price) || serviceSubtotal + serviceFee + travelFee;
 
@@ -337,7 +359,7 @@ async function createBookingFromPending(pendingBooking) {
   }
 }
 
-async function createPendingPayment(bookingId, amount) {
+async function createPendingPayment(bookingId, amount, paymentMethod = 'paystack') {
   const payload = {
     booking_id: bookingId,
     user_id: currentUser.id,
@@ -345,7 +367,7 @@ async function createPendingPayment(bookingId, amount) {
     service_id: currentBooking?.service_id || null,
     amount,
     currency: 'NGN',
-    payment_method: 'paystack',
+    payment_method: paymentMethod,
     status: 'pending',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -388,7 +410,7 @@ async function verifyPaymentOnServer(reference, bookingId) {
 
 function calculatePlatformSplit(amount) {
   const total = Number(amount || 0) || Number(currentBooking?.total_price || 0) || 0;
-  const platformFee = Math.round(total * 0.05);
+  const platformFee = Math.round(total * (platformCommissionPercent / 100));
   const providerAmount = Math.max(0, total - platformFee);
 
   return {
@@ -580,6 +602,8 @@ async function init() {
   currentUser = await requireAuth();
   if (!currentUser) return;
 
+  await loadPlatformCommission();
+
   const pendingBooking = getPendingBooking();
   let bookingId = pendingBooking ? '' : getBookingId();
 
@@ -661,6 +685,7 @@ async function init() {
     }
 
     renderBooking(currentBooking);
+
     disableConfirmButton(false, 'Confirm and pay');
   } catch (err) {
     showError(err.message || 'We could not prepare this checkout.');
@@ -706,7 +731,7 @@ async function init() {
       }
 
       const total = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
-      await createPendingPayment(bookingId, total);
+      await createPendingPayment(bookingId, total, 'paystack');
       launchPaystack(total, bookingId);
     } catch (err) {
       console.error(err);

@@ -2142,11 +2142,14 @@ async function loadSettings() {
                 commission;
         }
 
+<<<<<<< HEAD
         if (data.paypal_ngn_per_usd !== undefined && $("paypalUsdRate")) {
             $("paypalUsdRate").value = data.paypal_ngn_per_usd;
         }
 
 
+=======
+>>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     } catch (error) {
 
         console.error(
@@ -2182,9 +2185,12 @@ async function saveSettings(
             input.value
         );
 
+<<<<<<< HEAD
     const paypalUsdRate = Number($("paypalUsdRate")?.value);
 
 
+=======
+>>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     if (
         !Number.isFinite(
             commission
@@ -2200,12 +2206,15 @@ async function saveSettings(
         return;
     }
 
+<<<<<<< HEAD
     if (!Number.isFinite(paypalUsdRate) || paypalUsdRate <= 0) {
         alert("PayPal USD rate must be greater than zero.");
         return;
     }
 
 
+=======
+>>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     const button =
         event.submitter ||
         event.target.querySelector(
@@ -2260,9 +2269,12 @@ async function saveSettings(
                         built_in_margin:
                             commission,
 
+<<<<<<< HEAD
                         paypal_ngn_per_usd:
                             paypalUsdRate,
 
+=======
+>>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
                         updated_at:
                             new Date()
                                 .toISOString()
@@ -2301,8 +2313,11 @@ async function saveSettings(
                         built_in_margin:
                             commission,
 
+<<<<<<< HEAD
                         paypal_ngn_per_usd:
                             paypalUsdRate
+=======
+>>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
                     });
 
 

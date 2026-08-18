@@ -1,6 +1,8 @@
 // Shared menu utilities for the site.
 const COMMON_LINKS = [
   { href: 'home.html', label: 'Home' },
+  { href: 'my-requests.html', label: 'My Requests' },
+  { href: 'provider-locator.html', label: 'Find Nearby' },
   { href: 'my-bookings.html', label: 'My Bookings' },
   { href: 'my-messages.html', label: 'My Messages' },
   { href: 'wishlist.html', label: 'Wishlist' },

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find Nearby Services | Vora</title>
+  <link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-4xl items-center justify-between px-4 sm:px-6">
+      <a href="home.html" class="flex items-center gap-2 text-xl font-extrabold text-blue-600"><img src="/vora-logo.svg" alt="Vora" class="h-9 w-9" onerror="this.style.display='none'">Vora</a>
+      <a href="home.html" class="text-sm font-semibold text-slate-600 hover:text-blue-600">Back to home</a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
+    <section class="rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-lg sm:p-9">
+      <p class="text-sm font-semibold tracking-wide text-blue-100">SERVICE LOCATOR</p>
+      <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Find services near a location</h1>
+      <p class="mt-3 max-w-2xl text-blue-100">Enter coordinates like <strong>6.151173, 6.780686</strong> or an address like <strong>44 New Market Road</strong> to find nearby providers.</p>
+      <form id="locatorForm" class="mt-6 flex flex-col gap-3 sm:flex-row">
+        <label class="sr-only" for="coordinates">Location or coordinates</label>
+        <input id="coordinates" required value="6.151173, 6.780686" placeholder="44 New Market Road or latitude, longitude" class="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-base text-slate-900 outline-none ring-4 ring-white/15 placeholder:text-slate-400 focus:ring-white/40">
+        <button type="submit" class="rounded-xl bg-white px-5 py-3 font-bold text-blue-700 transition hover:bg-blue-50">Find providers</button>
+      </form>
+      <button id="currentLocationBtn" type="button" class="mt-3 text-sm font-semibold text-white underline decoration-white/50 underline-offset-4 hover:decoration-white">Use my current location</button>
+      <p id="formError" class="mt-3 hidden rounded-lg bg-red-500/20 px-3 py-2 text-sm text-white" role="alert"></p>
+    </section>
+
+    <section class="mt-8">
+      <div class="flex items-end justify-between gap-4">
+        <div><h2 class="text-2xl font-bold">Nearby providers</h2><p id="resultSummary" class="mt-1 text-sm text-slate-600">Enter coordinates to search.</p></div>
+      </div>
+      <div id="providerResults" class="mt-5 grid gap-4 sm:grid-cols-2" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="./provider-locator.js" type="module"></script>
+</body>
+</html>

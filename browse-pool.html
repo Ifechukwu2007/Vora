@@ -1,141 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browse Request Pool | Vora</title>
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/favicon-192.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Request Pool | Vora</title>
+  <link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-
+<body class="min-h-screen bg-slate-50 text-slate-900">
 <!-- ================= HEADER ================= -->
 <header class="fixed top-0 left-0 w-full bg-white border-b border-gray-200 z-50">
-
   <div class="max-w-7xl mx-auto px-4">
-
     <div class="flex items-center justify-between h-16">
-
-      <!-- LEFT -->
       <div class="flex items-center gap-10">
-
-        <!-- LOGO -->
-        <a href="home.html" class="flex items-center">
-          <img src="/vora-logo.png" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
+        <a href="home.html" class="flex items-center gap-2">
+          <img src="/vora-logo.svg" alt="Vora Logo" class="h-10 w-auto" onerror="this.style.display='none'">
+          <span class="text-2xl font-extrabold text-blue-600">Vora</span>
         </a>
-
-        <!-- DESKTOP NAV -->
-        <nav class="hidden lg:flex items-center gap-6">
-
-          <a href="home.html"
-            class="font-semibold text-black-600">
-            Home
-          </a>
-
-          <a href="browse.html"
-            class="block font-semibold text-black-800">
-            Browse
-          </a>
-
-          <a href="browse-pool.html"
-            class="block font-semibold text-black-800">
-            Request Pool
-          </a>
-
-          <a href="add-service.html"
-            class="font-medium text-black-700 hover:text-black-600 transition">
-            Become a Provider
-          </a>
-
+        <nav class="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-700">
+          <a href="home.html" class="transition hover:text-slate-900">Home</a>
+          <a href="my-requests.html" class="transition hover:text-slate-900">Request a Service</a>
+          <a href="provider-locator.html" class="transition hover:text-slate-900">Find Nearby</a>
+          <a href="my-bookings.html" class="transition hover:text-slate-900">My Bookings</a>
+          <a href="my-messages.html" class="transition hover:text-slate-900">My Messages</a>
+          <a href="wishlist.html" class="transition hover:text-slate-900">Wishlist</a>
+          <a href="contact-us.html" class="transition hover:text-slate-900">Contact Us</a>
         </nav>
-
       </div>
-
-      <!-- RIGHT -->
       <div class="flex items-center gap-4">
-
-        <!-- PROFILE -->
         <a href="profile.html"
           data-profile-icon="true"
           class="w-10 h-10 rounded-full bg-gray-300
           flex items-center justify-center
           hover:bg-gray-400 transition">
-
           👤
-
         </a>
-
-        <!-- LOGOUT -->
-        <button id="logoutBtn"
+        <button id="logoutBtn-payout-settings" data-logout
           class="hidden lg:block text-red-600 font-semibold hover:text-red-800 transition">
           Logout
         </button>
-
-        <!-- MOBILE MENU -->
-        <button id="hamburger"
-          class="lg:hidden text-2xl">
-          ☰
-        </button>
-
+        <button id="hamburger" class="lg:hidden text-2xl">☰</button>
       </div>
-
     </div>
-
   </div>
-
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu"
-  class="fixed top-0 left-0 h-full w-72 bg-white shadow-lg z-50
+<div id="sideMenu" data-paystack="true"
+  class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
-  <!-- TOP -->
-  <div class="flex items-center justify-between p-4 border-b">
-
-    <h2 class="text-xl font-bold">
-      Menu
-    </h2>
-
-    <button id="closeMenu" class="text-2xl">
-      ✕
-    </button>
-
+  <div class="flex items-center justify-between p-4 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <img src="/vora-logo.svg" class="h-8 w-auto" alt="Vora" onerror="this.style.display='none'">
+      <span class="font-bold">Vora</span>
+    </div>
+    <button id="closeMenu" class="text-2xl">✕</button>
   </div>
 
-  <!-- LINKS -->
-  <div class="p-4 space-y-5">
-
-    <a href="home.html"
-      class="block font-semibold text-black-800">
-      Home
+  <nav class="p-4 space-y-1">
+    <a href="dashboard.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🏠</span>
+      <span>Dashboard</span>
+    </a>
+    <a href="browse.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🔎</span>
+      <span>Browse</span>
+    </a>
+    <a href="browse-pool.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📋</span>
+      <span>Browse Pool</span>
+    </a>
+    <a href="my-services.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">🧾</span>
+      <span>My Services</span>
+    </a>
+    <a href="provider-bookings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">📥</span>
+      <span>Provider Bookings</span>
+    </a>
+    <a href="my-messages.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💬</span>
+      <span>My Messages</span>
+    </a>
+    <a href="payout-settings.html" class="flex items-center gap-3 p-3 rounded-md hover:bg-slate-800">
+      <span class="text-lg">💳</span>
+      <span>Payout</span>
     </a>
 
-    <a href="browse.html"
-      class="block font-semibold text-black-800">
-      Browse
-    </a>
-
-    <a href="browse-pool.html"
-      class="block font-semibold text-black-800">
-      Request Pool
-    </a>
-
-    <a href="add-service.html"
-      class="block font-semibold text-black-800">
-      Become a Provider
-    </a>
-
-    <button id="logoutBtnSideMenu"
-      class="block text-red-600 font-semibold">
-      Logout
-    </button>
-
-  </div>
+    <div class="pt-4 border-t border-slate-800">
+    </div>
+  </nav>
 
 </div>
 
@@ -143,178 +98,85 @@
 <div id="menuOverlay"
   class="hidden fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden">
 </div>
-    <!-- Main -->
-    <main class="pt-24 max-w-6xl mx-auto py-12 px-4">
-        
-        <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">🏆 Request Pool</h1>
-            <p class="text-gray-600">Browse open service requests and submit your offers</p>
-            <div id="browsePoolReviewStats" class="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700">
-                <span class="text-blue-600">⏳</span>
-                Loading provider ratings...
-            </div>
-        </div>
 
-        <!-- Filters & Search -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                
-                <!-- Search -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                    <input type="text" id="searchInput" placeholder="Search requests..." class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
+<main class="pt-20 pb-12 px-4 md:px-6">
+  <div class="max-w-7xl mx-auto lg:grid lg:grid-cols-[280px_1fr] gap-6">
+    <aside class="hidden lg:block">
+      <div class="sticky top-20">
+        <nav class="w-20 h-[calc(100vh-5rem)] bg-slate-900 text-white rounded-3xl p-3 flex flex-col items-center gap-3">
+          <a href="dashboard.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">🏠</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Dash</span>
+          </a>
+          <a href="browse.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">🔎</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Browse</span>
+          </a>
+          <a href="browse-pool.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 bg-slate-800">
+            <span class="text-2xl">📋</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Requests</span>
+          </a>
+          <a href="my-services.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">🧾</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Services</span>
+          </a>
+          <a href="provider-bookings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">📥</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Bookings</span>
+          </a>
+          <a href="payout-settings.html" class="w-full p-3 rounded-2xl flex flex-col items-center gap-1 hover:bg-slate-800">
+            <span class="text-2xl">💳</span>
+            <span class="text-[10px] uppercase tracking-[0.2em]">Payout</span>
+          </a>
+        </nav>
+      </div>
+    </aside>
+  <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+    <section class="flex flex-col gap-5 rounded-3xl bg-slate-900 p-6 text-white shadow-lg sm:flex-row sm:items-end sm:justify-between sm:p-8">
+      <div><p class="text-sm font-semibold tracking-wide text-blue-300">PROVIDER REQUEST POOL</p><h1 class="mt-2 text-3xl font-bold sm:text-4xl">Find work that fits your skills.</h1><p class="mt-3 max-w-2xl text-slate-300">Review open customer requests, then send one clear offer with your price and availability.</p></div>
+      <a href="dashboard.html" class="shrink-0 rounded-xl border border-white/20 px-4 py-3 text-center text-sm font-semibold transition hover:bg-white/10">Back to dashboard</a>
+    </section>
 
-                <!-- Category Filter -->
-            <div>
-<label for="service-category" class="block text-sm font-medium text-gray-700">Category</label>
+    <section class="mt-7 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div class="grid gap-3 md:grid-cols-4">
+        <input id="searchInput" type="search" placeholder="Search requests" class="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+        <select id="categoryFilter" class="rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"><option value="">All categories</option></select>
+        <input id="locationFilter" placeholder="City or area" class="rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+        <select id="sortFilter" class="rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"><option value="newest">Newest first</option><option value="budget-high">Highest budget</option><option value="budget-low">Lowest budget</option></select>
+      </div>
+    </section>
 
-<select id="service-category" name="service-category" required
-    class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-    <option value="">All categories</option>
+    <section class="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div><h2 class="text-2xl font-bold">My offers</h2><p class="mt-1 text-sm text-slate-600">Track whether customers have accepted, declined, or are still reviewing your offers.</p></div>
+      <div id="myOffersList" class="mt-5 grid gap-3 md:grid-cols-2" aria-live="polite"><p class="text-sm text-slate-500">Loading your offers…</p></div>
+    </section>
 
-    <optgroup label="Fashion & Beauty">
-        <option value="Fashion Design">Fashion Design</option>
-        <option value="Barber Shop">Barber Shop</option>
-        <option value="Hair Salon">Hair Salon</option>
-        <option value="Hair Saloon">Hair Saloon</option>
-        <option value="Beauty Spa">Beauty Spa</option>
-        <option value="Nail Studio">Nail Studio</option>
-    </optgroup>
+    <div class="mt-7 flex items-center justify-between"><div><h2 class="text-2xl font-bold">Open requests</h2><p id="resultSummary" class="mt-1 text-sm text-slate-600">Loading requests…</p></div></div>
+    <div id="requestsList" class="mt-5 grid gap-5 lg:grid-cols-2" aria-live="polite"></div>
+  </main>
 
-    <optgroup label="Events & Entertainment">
-        <option value="Event Planning">Event Planning</option>
-        <option value="Event Decoration">Event Decoration</option>
-        <option value="Catering">Catering</option>
-        <option value="Entertainment">Entertainment</option>
-        <option value="Media">Media</option>
-    </optgroup>
-
-    <optgroup label="Repairs & Maintenance">
-        <option value="Plumbing">Plumbing</option>
-        <option value="Electrical Services">Electrical Services</option>
-        <option value="Generator Repair & Maintenance">Generator Repair & Maintenance</option>
-        <option value="AC & Refrigeration">AC & Refrigeration</option>
-        <option value="Phone & Computer Repair">Phone & Computer Repair</option>
-        <option value="Home Appliance Repair">Home Appliance Repair</option>
-        <option value="Vehicle Maintenance">Vehicle Maintenance</option>
-    </optgroup>
-</select>
-            </div>
-
-                <!-- Location Filter -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <input type="text" id="locationFilter" placeholder="City or area..." class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <!-- Sort -->
-                <div>
-                    <label for="sortFilter" class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                    <select id="sortFilter" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option value="newest">Newest First</option>
-                        <option value="budget-high">Highest Budget</option>
-                        <option value="budget-low">Lowest Budget</option>
-                        <option value="urgent">Urgent First</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Requests List -->
-        <div id="requestsList" class="space-y-4">
-            <div class="text-center py-12">
-                <p class="text-gray-500">Loading requests...</p>
-            </div>
-        </div>
-
-        <!-- No Results -->
-        <div id="noResults" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-            <p class="text-blue-800 font-semibold mb-2">No requests found</p>
-            <p class="text-blue-600 text-sm">Try adjusting your filters or check back later for new requests</p>
-        </div>
-
-    </main>
-
-    <!-- Request Modal -->
-    <div id="requestModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div class="p-6">
-                <button id="closeModal" class="float-right text-2xl text-gray-400 hover:text-gray-600">✕</button>
-                <div id="modalContent"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Submit Offer Modal -->
-    <div id="offerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div class="p-6">
-                <h2 class="text-2xl font-bold mb-4">Submit Your Offer</h2>
-                <button id="closeOfferModal" class="float-right text-2xl text-gray-400 hover:text-gray-600">✕</button>
-                
-                <form id="offerForm" class="space-y-4 mt-4">
-                    <input type="hidden" id="requestId" name="requestId">
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Your Price (₦)</label>
-                        <input type="number" id="offerPrice" name="offerPrice" required placeholder="Enter your price" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Message to Client</label>
-                        <textarea id="offerMessage" name="offerMessage" rows="3" placeholder="Why you're the best choice for this..." class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
-
-                    <div>
-                        <label for="offerAvailability" class="block text-sm font-medium text-gray-700 mb-1">Availability</label>
-                        <select id="offerAvailability" name="offerAvailability" required class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Select availability</option>
-                            <option value="today">Today</option>
-                            <option value="tomorrow">Tomorrow</option>
-                            <option value="this-week">This Week</option>
-                            <option value="next-week">Next Week</option>
-                            <option value="flexible">Flexible</option>
-                        </select>
-                    </div>
-
-                    <div class="flex gap-3 pt-4">
-                        <button type="button" id="closeOfferBtn" class="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                        <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700">Send Offer</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <script src="./browse-pool.js" type="module"></script>
-    <script src="./auth.js" type="module"></script>
-    <script src="./menu.js" type="module"></script>
-    <script src="./main.js" type="module"></script>
-    <script src="./notifications.js" type="module"></script>
-    <script src="./notification-service.js" type="module"></script>
-
-
-<!--Start of Tawk.to Script-->
-<script type="text/javascript">
-var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-(function(){
-var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-s1.async=true;
-s1.src='https://embed.tawk.to/69f751da14642f1c372af1df/1jnn1fg4h';
-s1.charset='UTF-8';
-s1.setAttribute('crossorigin','*');
-s0.parentNode.insertBefore(s1,s0);
-})();
-</script>
-<!--End of Tawk.to Script-->
-
-<script src="./loading-utils.js" type="module"></script>
+  <div id="offerModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4">
+    <div class="mx-auto flex min-h-full max-w-lg items-center"><div class="w-full rounded-3xl bg-white p-6 shadow-2xl"><div class="flex items-start justify-between gap-4"><div><p class="text-sm font-semibold text-blue-600">SEND OFFER</p><h2 id="offerTitle" class="mt-1 text-2xl font-bold">Make an offer</h2></div><button type="button" data-close-offer class="text-2xl leading-none text-slate-400 hover:text-slate-700" aria-label="Close">×</button></div>
+      <form id="offerForm" class="mt-6 space-y-4"><input id="requestId" type="hidden">
+        <label class="block text-sm font-semibold text-slate-700">Your price (₦)<input id="offerPrice" type="number" min="0" required inputmode="numeric" placeholder="15,000" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"></label>
+        <label class="block text-sm font-semibold text-slate-700">Availability<select id="offerAvailability" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"><option value="">Choose availability</option><option>Today</option><option>Tomorrow</option><option>This week</option><option>Next week</option><option>Flexible</option></select></label>
+        <label class="block text-sm font-semibold text-slate-700">Estimated completion time<input id="completionTime" required maxlength="80" placeholder="e.g. 2 hours" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"></label>
+        <label class="block text-sm font-semibold text-slate-700">Message to customer<textarea id="offerMessage" rows="4" maxlength="1000" placeholder="Briefly explain your offer and experience." class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"></textarea></label>
+        <button id="sendOfferBtn" type="submit" class="w-full rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Send offer</button>
+      </form>
+    </div></div>
+  </div>
+  <script src="./browse-pool.js" type="module"></script>
+  <script src="./auth.js?v=2" type="module"></script>
+<script src="./menu.js?v=2" type="module"></script>
+<script src="./notifications.js?v=2" type="module"></script>
+<script src="./notification-service.js?v=2" type="module"></script>
+<script src="./notification-badge.js?v=2" type="module"></script>
+<script src="./supabase.js?v=2" type="module"></script>
 <script type="module">
   import { supabase } from './supabase.js'
-
-  console.log(supabase)
-</script>
+  
+    console.log(supabase)
+    </script>
 </body>
 </html>

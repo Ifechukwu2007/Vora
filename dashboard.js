@@ -63,24 +63,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // =========================
     async function loadUserProfile() {
 
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, email')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
-        if (error) {
-            console.error(error);
-            if (providerName) providerName.textContent = 'Provider';
-            return;
+        if (profileError) console.warn('Profile lookup failed:', profileError);
+
+        let account = profile;
+        if (!account) {
+            const { data, error } = await supabase
+                .from('users')
+                .select('name, full_name, email')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (error) console.warn('User fallback lookup failed:', error);
+            account = data;
         }
 
-        if (providerName)
-            providerName.textContent =
-                data?.name ||
-                data?.email ||
-                user.email ||
-                'Provider';
+        if (providerName) {
+            providerName.textContent = account?.full_name || account?.name || account?.email || user.email || 'Provider';
+        }
     }
 
     // =========================
@@ -91,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: services, error } = await supabase
             .from('services')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('provider_id', user.id)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -119,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { data: bookings, error } = await supabase
             .from('bookings')
-            .select('*')
+            .select('*, services(title)')
             .eq('provider_id', user.id)
             .order('created_at', { ascending: false });
 
@@ -132,18 +137,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (totalBookings) totalBookings.textContent = bookings.length;
 
         // TOTAL REVENUE
-        let revenue = 0;
-
-        bookings.forEach(booking => {
-            revenue += Number(booking.amount || 0);
-        });
+        const revenue = bookings.reduce(
+            (total, booking) => total + Number(booking.total_price ?? booking.total_amount ?? booking.amount ?? 0),
+            0
+        );
 
         if (totalRevenue) totalRevenue.textContent = `₦${revenue.toLocaleString()}`;
 
         // COMPLETED
         const completedBookings = bookings.filter(
             booking =>
-                booking.status === 'completed'
+                ['completed', 'completed_by_provider'].includes(booking.status)
         );
 
         if (totalCompleted) totalCompleted.textContent = completedBookings.length;
@@ -165,10 +169,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const today = new Date().toISOString().split('T')[0];
         const todayBookings = bookings.filter(booking => {
 
-            if (!booking.booking_date) return false;
+            const dateValue = booking.scheduled_date || booking.booking_date;
+            if (!dateValue) return false;
 
             // Handle booking_date with or without time component
-            const bookingDate = booking.booking_date.split('T')[0];
+            const bookingDate = dateValue.split('T')[0];
             return bookingDate === today;
         });
 
@@ -209,11 +214,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.innerHTML = `
                 <div>
                     <h3 class="font-semibold text-gray-900">
-                        ${booking.service_title || 'Service Booking'}
+                        ${booking.services?.title || booking.service_title || 'Service Booking'}
                     </h3>
 
                     <p class="text-sm text-gray-500">
-                        ${booking.customer_email || 'Customer'}
+                        ${booking.customer_email || booking.customer_name || 'Customer'}
                     </p>
                 </div>
 
@@ -263,7 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <p class="text-sm text-gray-900">
                     New booking for
                     <span class="font-semibold">
-                        ${booking.service_title || 'service'}
+                        ${booking.services?.title || booking.service_title || 'service'}
                     </span>
                 </p>
 
@@ -285,4 +290,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadServices();
     await loadBookings();
 
-}); 
+    const refreshDashboard = () => {
+        loadServices();
+        loadBookings();
+    };
+
+    supabase
+        .channel(`dashboard-${user.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `provider_id=eq.${user.id}` }, refreshDashboard)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'services', filter: `provider_id=eq.${user.id}` }, refreshDashboard)
+        .subscribe();
+
+});
