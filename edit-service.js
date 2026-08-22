@@ -5,7 +5,7 @@ import { setupLocationPicker } from "./location-picker.js";
 
 let selectedImageFiles = [];
 let currentStep = 1;
-const MAX_PORTFOLIO_IMAGES = 3;
+const MAX_PORTFOLIO_IMAGES = 5;
 
 const els = {
   form: document.getElementById("add-service-form"),

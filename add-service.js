@@ -4,7 +4,7 @@ import { setupLocationPicker } from './location-picker.js';
 
 let selectedImageFiles = [];
 let currentStep = 1;
-const MAX_PORTFOLIO_IMAGES = 3;
+const MAX_PORTFOLIO_IMAGES = 5;
 
 function clearErrors() {
     document.querySelectorAll('[id^="error-"]').forEach((el) => {

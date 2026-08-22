@@ -1,4 +1,4 @@
-const MAX_SERVICE_IMAGES = 3;
+const MAX_SERVICE_IMAGES = 5;
 
 function escapeHtml(value) {
   return String(value ?? '')
