@@ -378,7 +378,7 @@ async function loadService() {
               📍 Exact spot shared after booking
             </div>
           </div>
-          <div id="serviceMap" class="mt-6 h-[420px] w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
+          <div id="serviceMap" class="vora-map mt-6 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
         </div>
 
         <div class="fixed bottom-0 left-0 w-full bg-white border-t p-4">

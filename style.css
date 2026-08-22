@@ -24,3 +24,62 @@
   box-shadow: 0 0 0 1px #3b82f6;
   border-color: #3b82f6;
 }
+
+/* Shared map surface sizing for service and booking views. */
+.vora-map {
+  min-height: clamp(28rem, 58vh, 42rem);
+  width: 100%;
+}
+
+.browse-results-layout {
+  display: grid;
+  gap: 2rem;
+}
+
+.browse-map-shell {
+  min-width: 0;
+}
+
+.browse-price-marker {
+  border: 0;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.45rem 0.65rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 25%);
+}
+
+.browse-price-marker:hover,
+.browse-price-marker:focus-visible {
+  background: #1d4ed8;
+  outline: 3px solid rgb(147 197 253 / 80%);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .browse-results-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    align-items: start;
+  }
+
+  .browse-map-shell {
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .browse-map-shell {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .vora-map {
+    min-height: 26rem;
+  }
+}

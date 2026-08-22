@@ -6,6 +6,12 @@
   <title>Find Nearby Services | Vora</title>
   <link rel="icon" type="image/svg+xml" href="/vora-logo.svg">
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <script>
+    window.MAPTILER_API_KEY = 'NnJmsX2UXw4eDP8irnhS';
+  </script>
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
   <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -32,6 +38,9 @@
     <section class="mt-8">
       <div class="flex items-end justify-between gap-4">
         <div><h2 class="text-2xl font-bold">Nearby providers</h2><p id="resultSummary" class="mt-1 text-sm text-slate-600">Enter coordinates to search.</p></div>
+      </div>
+      <div class="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div id="locatorMap" class="vora-map" aria-label="Map of nearby services"></div>
       </div>
       <div id="providerResults" class="mt-5 grid gap-4 sm:grid-cols-2" aria-live="polite"></div>
     </section>

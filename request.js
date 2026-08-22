@@ -9,8 +9,14 @@ const locationInput = document.getElementById('location');
 const locationButton = document.getElementById('locationBtn');
 const submitButton = document.getElementById('submitBtn');
 const categoryInput = document.getElementById('category');
+const guestRequestNotice = document.getElementById('guestRequestNotice');
 
 dateInput.min = new Date().toISOString().split('T')[0];
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session?.user) {
+  guestRequestNotice.classList.remove('hidden');
+}
 
 async function loadAvailableCategories() {
   const { data, error } = await supabasePublic

@@ -17,6 +17,12 @@ let reviewStatsMap = {};
 let reviewsMap = {};
 let providerMap = {};
 let recentlyViewedMode = false;
+let browseMap = null;
+let browseMapRenderId = 0;
+const MAPTILER_KEY = window.MAPTILER_API_KEY || '';
+const MAPTILER_STYLE_URL = MAPTILER_KEY
+    ? `https://api.maptiler.com/maps/streets/style.json?key=${MAPTILER_KEY}`
+    : '';
 let currentFilters = {
     search: '',
     category: 'All',
@@ -32,6 +38,9 @@ function resetFiltersUI() {
     const locationInput = document.getElementById('filterLocation');
     if (locationInput) locationInput.value = '';
 
+    const maxPriceInput = document.getElementById('filterMaxPrice');
+    if (maxPriceInput) maxPriceInput.value = '';
+
     const categorySelect = document.getElementById('filterCategory');
     if (categorySelect) categorySelect.value = 'All';
 }
@@ -39,6 +48,149 @@ function resetFiltersUI() {
 function normalizeCategory(value) {
     return (value || '').trim().toLowerCase();
 }
+
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getServiceCoordinates(service) {
+    const latitude = Number(service.latitude);
+    const longitude = Number(service.longitude);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+
+    const match = String(service.location || '').match(/(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/);
+    if (!match) return null;
+    const parsedLatitude = Number(match[1]);
+    const parsedLongitude = Number(match[2]);
+    return Number.isFinite(parsedLatitude) && Number.isFinite(parsedLongitude)
+        ? { latitude: parsedLatitude, longitude: parsedLongitude }
+        : null;
+}
+
+async function geocodeServiceLocation(location) {
+    if (!location) return null;
+    try {
+        if (MAPTILER_KEY) {
+            const response = await fetch(`https://api.maptiler.com/geocoding/${encodeURIComponent(location)}.json?key=${MAPTILER_KEY}&limit=1`);
+            const data = await response.json();
+            const coordinates = data?.features?.[0]?.geometry?.coordinates;
+            if (Array.isArray(coordinates) && coordinates.length >= 2) {
+                const longitude = Number(coordinates[0]);
+                const latitude = Number(coordinates[1]);
+                if (Number.isFinite(latitude) && Number.isFinite(longitude)) return { latitude, longitude };
+            }
+        }
+
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(location)}`, {
+            headers: { Accept: 'application/json' },
+        });
+        const matches = await response.json();
+        const latitude = Number(matches?.[0]?.lat);
+        const longitude = Number(matches?.[0]?.lon);
+        return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+    } catch (error) {
+        console.warn('Could not map service location:', location, error);
+        return null;
+    }
+}
+
+function getBuyerPrice(service) {
+    const price = Number(service.price) || 0;
+    const discountPercent = Number(service.group_discount_percent) || 0;
+    const hasDeal = Number(service.group_discount_threshold) > 0 && discountPercent > 0;
+    const discountedPrice = hasDeal ? Math.round(price * (1 - discountPercent / 100)) : price;
+    return discountedPrice + (discountedPrice * currentBuiltInMargin / 100);
+}
+
+function selectBrowseService(serviceId) {
+    let card = document.querySelector(`[data-browse-service-id="${CSS.escape(String(serviceId))}"]`);
+    if (!card) {
+        const serviceIndex = filteredServices.findIndex((service) => String(service.id) === String(serviceId));
+        if (serviceIndex >= 0) {
+            currentPage = Math.ceil((serviceIndex + 1) / PAGE_SIZE);
+            renderServicesGrid();
+            card = document.querySelector(`[data-browse-service-id="${CSS.escape(String(serviceId))}"]`);
+        }
+    }
+    if (!card) return;
+    document.querySelectorAll('[data-browse-service-id]').forEach((item) => {
+        item.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+    });
+    card.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function renderBrowseMap() {
+    const mapElement = document.getElementById('browseMap');
+    if (!mapElement) return;
+    const renderId = ++browseMapRenderId;
+    if (!window.maplibregl || !MAPTILER_KEY) {
+        mapElement.innerHTML = '<div class="flex h-full items-center justify-center p-6 text-sm text-slate-500">Map unavailable.</div>';
+        return;
+    }
+
+    if (browseMap) browseMap.remove();
+    mapElement.innerHTML = '<div class="flex h-full items-center justify-center p-6 text-sm text-slate-500">Locating services...</div>';
+
+    const mappedServices = (await Promise.all(filteredServices.map(async (service) => ({
+        ...service,
+        coordinates: getServiceCoordinates(service) || await geocodeServiceLocation(service.location),
+    })))).filter((service) => service.coordinates);
+
+    if (renderId !== browseMapRenderId) return;
+
+    if (!mappedServices.length) {
+        mapElement.innerHTML = '<div class="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">No service locations could be mapped. Add an address or coordinates to the service listing.</div>';
+        return;
+    }
+
+    mapElement.innerHTML = '';
+    const first = mappedServices[0].coordinates;
+    browseMap = new maplibregl.Map({
+        container: mapElement,
+        style: MAPTILER_STYLE_URL,
+        center: [first.longitude, first.latitude],
+        zoom: 11,
+        attributionControl: true,
+    });
+    const bounds = new maplibregl.LngLatBounds();
+
+    mappedServices.forEach((service) => {
+        const { latitude, longitude } = service.coordinates;
+        const popup = new maplibregl.Popup({ offset: 24 }).setHTML(`
+            <div class="min-w-[190px] p-1">
+              <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">${escapeHtml(service.category || 'Service')}</p>
+              <p class="mt-1 font-bold text-slate-900">${escapeHtml(service.title || 'Service')}</p>
+              <p class="mt-2 text-base font-bold text-slate-900">${escapeHtml(formatPrice(getBuyerPrice(service)))}</p>
+              <button type="button" class="browse-map-select mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white" data-service-id="${escapeHtml(service.id)}">Select service</button>
+            </div>
+        `);
+        const markerElement = document.createElement('button');
+        markerElement.type = 'button';
+        markerElement.className = 'browse-price-marker';
+        markerElement.textContent = formatPrice(getBuyerPrice(service));
+        markerElement.setAttribute('aria-label', `View ${service.title || 'service'} at ${formatPrice(getBuyerPrice(service))}`);
+        new maplibregl.Marker({ element: markerElement })
+            .setLngLat([longitude, latitude])
+            .setPopup(popup)
+            .addTo(browseMap);
+        bounds.extend([longitude, latitude]);
+    });
+
+    browseMap.on('load', () => browseMap.fitBounds(bounds, { padding: 55, maxZoom: 14 }));
+}
+
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('.browse-map-select');
+    if (button) {
+        window.location.href = `service.html?id=${encodeURIComponent(button.dataset.serviceId)}`;
+    }
+});
 
 function getRecentViewIds() {
     try {
@@ -173,6 +325,7 @@ function createServiceCard(service) {
 
     const card = document.createElement('div');
     card.className = 'bg-white rounded-3xl shadow-sm transition hover:shadow-lg cursor-pointer overflow-hidden';
+    card.dataset.browseServiceId = service.id;
     card.innerHTML = `
         <div class="relative">
             <img src="${service.image_url || 'https://placehold.co/600x400'}" alt="${service.title}" class="h-52 w-full object-cover" />
@@ -238,6 +391,8 @@ function renderServicesGrid() {
     currentSet.forEach((service) => {
         container.appendChild(createServiceCard(service));
     });
+
+    renderBrowseMap();
 
     const loadMoreBtn = document.getElementById('loadMoreBtn');
     if (loadMoreBtn) {
@@ -338,6 +493,7 @@ function setupFiltersPopover() {
     const popover = document.getElementById('filtersPopover');
     const filterSearch = document.getElementById('filterSearch');
     const filterLocation = document.getElementById('filterLocation');
+    const maxPriceInput = document.getElementById('filterMaxPrice');
     const filterCategory = document.getElementById('filterCategory');
     const useLocationBtn = document.getElementById('useLocationBtn');
     const applyFiltersBtn = document.getElementById('applyFiltersBtn');
@@ -368,6 +524,7 @@ function setupFiltersPopover() {
         currentFilters.search = filterSearch?.value.trim() || '';
         currentFilters.category = filterCategory?.value || 'All';
         currentFilters.location = filterLocation?.value.trim() || '';
+        currentFilters.maxPrice = maxPriceInput?.value || '';
         browseApplyFilters();
         closePopover();
     };
@@ -455,6 +612,13 @@ function browseApplyFilters() {
     if (currentFilters.location) {
         const term = currentFilters.location.toLowerCase();
         filteredServices = filteredServices.filter((service) => (service.location || '').toLowerCase().includes(term));
+    }
+
+    if (currentFilters.maxPrice) {
+        const maxPrice = Number(currentFilters.maxPrice);
+        if (Number.isFinite(maxPrice)) {
+            filteredServices = filteredServices.filter((service) => getBuyerPrice(service) <= maxPrice);
+        }
     }
 
     if (!recentlyViewedMode || currentFilters.sort !== 'newest') {
@@ -646,6 +810,7 @@ async function initPage() {
     const urlParams = new URLSearchParams(window.location.search);
     currentFilters.category = urlParams.get('category') || 'All';
     currentFilters.search = urlParams.get('search') || '';
+    currentFilters.maxPrice = urlParams.get('maxPrice') || '';
 
     const { data: sessionData } = await supabase.auth.getSession();
     currentUser = sessionData?.session?.user || null;
@@ -681,6 +846,8 @@ async function initPage() {
     if (searchInput) {
         searchInput.value = currentFilters.search;
     }
+    const maxPriceInput = document.getElementById('filterMaxPrice');
+    if (maxPriceInput) maxPriceInput.value = currentFilters.maxPrice;
 
     populateFilterCategoryOptions(allServices);
     applyFilters();

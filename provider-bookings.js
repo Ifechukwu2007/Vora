@@ -514,7 +514,7 @@ async function openCustomerLocationModal(location) {
   modal.id = 'customerLocationModal';
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50';
   modal.innerHTML = `
-    <div class="max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl">
+    <div class="max-w-6xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl">
       <div class="flex items-center justify-between p-5 border-b">
         <div>
           <h2 class="text-xl font-bold">Customer Location</h2>
@@ -522,7 +522,7 @@ async function openCustomerLocationModal(location) {
         </div>
         <button id="closeLocationModal" class="text-2xl text-gray-600">&times;</button>
       </div>
-      <div class="h-96" id="customerMapContainer"></div>
+      <div class="vora-map" id="customerMapContainer"></div>
       <div class="flex items-center justify-between gap-3 p-5 bg-slate-50">
         <a id="googleMapsNavBtn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">📍 Navigate with Google Maps</a>
         <button id="closeLocationModalAction" class="px-4 py-3 rounded-lg bg-slate-600 text-white hover:bg-slate-700">Close</button>

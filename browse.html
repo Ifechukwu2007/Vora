@@ -10,6 +10,12 @@
 <link rel="apple-touch-icon" href="/vora-logo.svg">
 <link rel="manifest" href="/manifest.json">
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script>
+  window.MAPTILER_API_KEY = 'NnJmsX2UXw4eDP8irnhS';
+</script>
 <style>
   .category-scroll {
     -ms-overflow-style: none;
@@ -170,6 +176,10 @@
                 <button id="useLocationBtn" type="button" class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Use my location</button>
               </div>
             </div>
+            <div>
+              <label for="filterMaxPrice" class="block text-sm font-semibold text-slate-700">Maximum price</label>
+              <input id="filterMaxPrice" type="number" min="0" step="500" placeholder="Any price" class="mt-2 w-full rounded-[1.25rem] border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+            </div>
             <div class="flex gap-2 pt-2">
               <button id="applyFiltersBtn" type="button" class="flex-1 rounded-[1.25rem] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">Apply</button>
               <button id="clearFiltersBtn" type="button" class="rounded-[1.25rem] border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Clear</button>
@@ -178,9 +188,23 @@
         </div>
       </div>
     </div>
-    <div id="servicesGrid" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3"></div>
-    <div class="mt-8 flex justify-center">
-      <button id="loadMoreBtn" class="hidden rounded-full bg-slate-900 px-8 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Load more services</button>
+    <div class="browse-results-layout">
+      <div>
+        <div id="servicesGrid" class="grid gap-6 sm:grid-cols-2"></div>
+        <div class="mt-8 flex justify-center">
+          <button id="loadMoreBtn" class="hidden rounded-full bg-slate-900 px-8 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Load more services</button>
+        </div>
+      </div>
+      <div class="browse-map-shell">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">Explore on the map</h3>
+            <p class="text-sm text-slate-500">Select a price marker to view that service.</p>
+          </div>
+          <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">Map view</span>
+        </div>
+        <div id="browseMap" class="browse-map vora-map overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" aria-label="Map of available services"></div>
+      </div>
     </div>
     <div id="loadMoreTrigger" class="h-1"></div>
   </section>

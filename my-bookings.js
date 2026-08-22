@@ -406,6 +406,7 @@ async function loadBookings() {
                 : (providerLocation || details?.location || 'Provider Location');
             const shouldRenderBookingDetails = booking.scheduled_date || booking.number_of_people || booking.service_location || booking.customer_location || booking.special_instructions || booking.travel_fee;
             const completionAwaitingCustomer = ["completed_by_provider", "awaiting_customer_confirmation"].includes(booking.status);
+            const customerCanCancel = ["pending_payment", "pending", "confirmed", "paid", "accepted"].includes(booking.status);
 
             const card = document.createElement("div");
             card.className = `bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition`;
@@ -494,7 +495,7 @@ async function loadBookings() {
                             <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                 <p class="text-sm font-semibold text-gray-900">Provider Location Map</p>
                             </div>
-                            <div class="h-48" id="booking-map-${booking.id}"></div>
+                            <div class="vora-map" id="booking-map-${booking.id}"></div>
                         </div>
                     </div>
                     <div class="flex flex-col gap-3 w-full lg:w-56">
@@ -503,6 +504,9 @@ async function loadBookings() {
                         <button class="review-btn bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-3 rounded-xl font-semibold transition" data-booking="${booking.id}" data-service="${booking.service_id || ''}" data-provider="${booking.provider_id || ''}">Leave Review</button>
                         ${booking.status === "pending_payment" ? `
                         <button class="complete-payment-btn bg-amber-500 hover:bg-amber-600 text-white px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}" data-amount="${bookingTotal}">💳 Complete Payment</button>
+                        ` : ''}
+                        ${customerCanCancel ? `
+                        <button class="cancel-booking-btn bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}">Cancel Booking</button>
                         ` : ''}
                         ${completionAwaitingCustomer ? `
                         <button class="confirm-completion-btn bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}">✅ Confirm Completion</button>
@@ -592,6 +596,40 @@ function setupBookingActions() {
             } else {
                 alert("Your dispute has been submitted. Vora will review and contact you.");
                 await loadBookings();
+            }
+        });
+    });
+
+    document.querySelectorAll(".cancel-booking-btn").forEach(button => {
+        button.addEventListener("click", async () => {
+            const bookingId = button.dataset.id;
+            if (!confirm("Are you sure you want to cancel this booking?")) return;
+
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = "Cancelling...";
+
+            try {
+                const { error } = await supabase
+                    .from("bookings")
+                    .update({
+                        status: "cancelled",
+                        booking_status: "cancelled",
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("id", bookingId)
+                    .eq("user_id", currentUser.id)
+                    .in("status", ["pending_payment", "pending", "confirmed", "paid", "accepted"]);
+
+                if (error) throw error;
+
+                alert("Your booking has been cancelled.");
+                await loadBookings();
+            } catch (error) {
+                console.error("Cancel booking error:", error);
+                alert("Failed to cancel booking: " + error.message);
+                button.disabled = false;
+                button.textContent = originalText;
             }
         });
     });
