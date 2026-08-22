@@ -2,7 +2,7 @@ import { supabase, supabasePublic } from "./supabase.js";
 import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from "./loading-utils.js";
 import { formatPrice } from "./currency-utils.js";
-import { getServiceImages, renderServiceImageGallery } from "./service-images.js";
+import { getServiceImages } from "./service-images.js";
 
 // ============================
 // GET URL PARAMS
@@ -35,6 +35,66 @@ let currentServiceContext = null;
 let currentProviderContext = null;
 let platformCommissionPercent = 0;
 const RECENT_SERVICES_KEY = 'vora_recent_services';
+
+function escapeServiceHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderServiceCarousel(images, title) {
+  if (!images.length) return '';
+
+  return `
+    <div class="service-carousel" data-service-carousel role="region" aria-label="Service photos">
+      <div class="service-carousel-track">
+        ${images.map((url, index) => `
+          <img src="${escapeServiceHtml(url)}" alt="${escapeServiceHtml(title)} - photo ${index + 1}" class="service-carousel-image${index === 0 ? ' is-active' : ''}" data-carousel-image="${index}" loading="${index === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'">
+        `).join('')}
+      </div>
+      ${images.length > 1 ? `
+        <button type="button" class="service-carousel-control service-carousel-prev" data-carousel-prev aria-label="Previous service photo" title="Previous photo">&#8249;</button>
+        <button type="button" class="service-carousel-control service-carousel-next" data-carousel-next aria-label="Next service photo" title="Next photo">&#8250;</button>
+        <div class="service-carousel-dots" role="tablist" aria-label="Choose service photo">
+          ${images.map((_, index) => `<button type="button" role="tab" class="service-carousel-dot${index === 0 ? ' is-active' : ''}" data-carousel-dot="${index}" aria-label="Show photo ${index + 1}" aria-selected="${index === 0}"></button>`).join('')}
+        </div>
+      ` : ''}
+      <span class="service-carousel-count">1 / ${images.length}</span>
+    </div>
+  `;
+}
+
+function setupServiceCarousel() {
+  const carousel = document.querySelector('[data-service-carousel]');
+  if (!carousel) return;
+  const images = [...carousel.querySelectorAll('[data-carousel-image]')];
+  const dots = [...carousel.querySelectorAll('[data-carousel-dot]')];
+  const count = carousel.querySelector('.service-carousel-count');
+  let currentIndex = 0;
+
+  const showImage = (index) => {
+    currentIndex = (index + images.length) % images.length;
+    images.forEach((image, imageIndex) => image.classList.toggle('is-active', imageIndex === currentIndex));
+    dots.forEach((dot, dotIndex) => {
+      const active = dotIndex === currentIndex;
+      dot.classList.toggle('is-active', active);
+      dot.setAttribute('aria-selected', String(active));
+    });
+    if (count) count.textContent = `${currentIndex + 1} / ${images.length}`;
+  };
+
+  carousel.querySelector('[data-carousel-prev]')?.addEventListener('click', () => showImage(currentIndex - 1));
+  carousel.querySelector('[data-carousel-next]')?.addEventListener('click', () => showImage(currentIndex + 1));
+  dots.forEach((dot) => dot.addEventListener('click', () => showImage(Number(dot.dataset.carouselDot))));
+  carousel.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') showImage(currentIndex - 1);
+    if (event.key === 'ArrowRight') showImage(currentIndex + 1);
+  });
+  carousel.tabIndex = 0;
+}
 
 function rememberRecentlyViewedService(id) {
   if (!id) return;
@@ -210,11 +270,7 @@ async function loadService() {
 
     // IMAGES (support multiple)
     const images = getServiceImages(service);
-    const serviceImageHtml = renderServiceImageGallery(images, service.title, {
-      wrapperClass: 'grid grid-cols-1 gap-2 md:grid-cols-3',
-      imageClass: 'w-full h-72 object-cover rounded-xl',
-      maxImages: 3
-    }) || `\n        <img src="https://placehold.co/800x500?text=Vorabukeen" class="w-full h-80 object-cover rounded-xl"/>\n    `;
+    const serviceImageHtml = renderServiceCarousel(images, service.title) || `\n        <img src="https://placehold.co/800x500?text=Vorabukeen" class="w-full h-80 object-cover rounded-xl"/>\n    `;
 
     currentServiceContext = { ...service, image_url: images[0] || '', image_urls: images, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};
@@ -397,6 +453,8 @@ async function loadService() {
         openBookingModal(service, providerId);
       };
     }
+
+    setupServiceCarousel();
 
     renderReviewSummary(reviews || []);
     renderReviews(reviews || [], Object.keys(resolvedUsersById).length ? resolvedUsersById : usersById);
