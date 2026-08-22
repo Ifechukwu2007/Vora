@@ -1,6 +1,7 @@
 ﻿// edit-service.js
 import { supabase } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
+import { setupLocationPicker } from "./location-picker.js";
 
 let selectedImageFiles = [];
 let currentStep = 1;
@@ -33,6 +34,9 @@ const els = {
   previewImg: document.getElementById("preview-img"),
   removeImageBtn: document.getElementById("remove-image-btn"),
   photoFileList: document.getElementById("photo-file-list"),
+  serviceLatitude: document.getElementById("service-latitude"),
+  serviceLongitude: document.getElementById("service-longitude"),
+  locationCoordinates: document.getElementById("service-location-coordinates"),
 };
 
 const STORAGE_BUCKET = "services";
@@ -604,6 +608,8 @@ function fillForm(service) {
   els.serviceCategory.value = category || service.category || "";
   els.serviceDelivery.value = delivery || "";
   els.serviceLocation.value = location || service.location || "";
+  if (els.serviceLatitude) els.serviceLatitude.value = service.latitude ?? "";
+  if (els.serviceLongitude) els.serviceLongitude.value = service.longitude ?? "";
   els.serviceArea.value = serviceArea || "";
   els.serviceCapacity.value = capacity || "";
   els.serviceInteraction.value = interaction || "";
@@ -730,11 +736,28 @@ async function main() {
     currentUser = user;
     const service = await loadService(serviceId, user.id);
     fillForm(service);
+    setupLocationPicker({
+      mapId: "service-location-map",
+      locationId: "service-location",
+      latitudeId: "service-latitude",
+      longitudeId: "service-longitude",
+      coordinatesId: "service-location-coordinates",
+      initialCoordinates: Number.isFinite(Number(service.latitude)) && Number.isFinite(Number(service.longitude))
+        ? { latitude: Number(service.latitude), longitude: Number(service.longitude) }
+        : null
+    });
 
     els.form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       if (!validateCurrentStep()) {
+        return;
+      }
+
+      const selectedLatitude = Number.parseFloat(els.serviceLatitude?.value);
+      const selectedLongitude = Number.parseFloat(els.serviceLongitude?.value);
+      if (!Number.isFinite(selectedLatitude) || !Number.isFinite(selectedLongitude)) {
+        alert("Please select the exact service location on the map before updating.");
         return;
       }
 
@@ -792,6 +815,8 @@ async function main() {
           category,
           price,
           location,
+          latitude: selectedLatitude,
+          longitude: selectedLongitude,
           travel_price: travelPrice && !Number.isNaN(parseFloat(travelPrice)) ? parseFloat(travelPrice) : null,
           deal_message: dealMessage || null,
           deal_headline: dealMessage || null,

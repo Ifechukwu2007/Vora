@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { LoadingSpinner } from './loading-utils.js';
+import { setupLocationPicker } from './location-picker.js';
 
 let selectedImageFiles = [];
 let currentStep = 1;
@@ -506,6 +507,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('prev-step-btn');
     const categorySelect = document.getElementById('service-category');
 
+    setupLocationPicker({
+        mapId: 'service-location-map',
+        locationId: 'service-location',
+        latitudeId: 'service-latitude',
+        longitudeId: 'service-longitude',
+        coordinatesId: 'service-location-coordinates'
+    });
+
     updateWizardUI();
     renderCategoryDetails();
 
@@ -580,6 +589,13 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
 
             if (!validateCurrentStep()) {
+                return;
+            }
+
+            const selectedLatitude = Number.parseFloat(document.getElementById('service-latitude').value);
+            const selectedLongitude = Number.parseFloat(document.getElementById('service-longitude').value);
+            if (!Number.isFinite(selectedLatitude) || !Number.isFinite(selectedLongitude)) {
+                alert('Please select the exact service location on the map before publishing.');
                 return;
             }
 
@@ -732,6 +748,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 category,
                 price: parseFloat(priceValue),
                 location,
+                latitude: selectedLatitude,
+                longitude: selectedLongitude,
                 image_url: imageUrls[0] || null,
                 image_urls: imageUrls
             };

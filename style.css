@@ -83,3 +83,8 @@
     min-height: 26rem;
   }
 }
+
+.location-picker-map {
+  height: 18rem;
+  width: 100%;
+}
