@@ -4,7 +4,7 @@ import { setupLocationPicker } from './location-picker.js';
 
 let selectedImageFiles = [];
 let currentStep = 1;
-const MAX_PORTFOLIO_IMAGES = 5;
+const MAX_PORTFOLIO_IMAGES = 10;
 
 function clearErrors() {
     document.querySelectorAll('[id^="error-"]').forEach((el) => {
@@ -542,35 +542,44 @@ document.addEventListener('DOMContentLoaded', () => {
         updateWizardUI();
     });
 
+    const renderSelectedImages = () => {
+        const uploadBox = imagePreview.querySelector('.service-photo-upload-box');
+        imagePreview.querySelectorAll('.service-photo-item').forEach((item) => item.remove());
+        selectedImageFiles.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const photo = document.createElement('div');
+                photo.className = 'service-photo-item';
+                photo.innerHTML = `<img src="${event.target.result}" alt="Selected service photo ${index + 1}"><button type="button" class="service-photo-remove" data-photo-index="${index}" aria-label="Remove photo ${index + 1}">×</button>`;
+                imagePreview.insertBefore(photo, uploadBox);
+            };
+            reader.readAsDataURL(file);
+        });
+        document.getElementById('service-image-count').textContent = `${selectedImageFiles.length} / ${MAX_PORTFOLIO_IMAGES} photos`;
+        removeImageBtn.classList.toggle('hidden', selectedImageFiles.length === 0);
+        uploadBox.classList.toggle('hidden', selectedImageFiles.length >= MAX_PORTFOLIO_IMAGES);
+        photoFileList.innerHTML = selectedImageFiles.map((file) => `<div class="rounded-md border border-slate-200 bg-white px-3 py-2">${file.name}</div>`).join('');
+    };
+
     if (imageInput) {
         imageInput.addEventListener('change', (e) => {
             const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith('image/'));
-            if (files.length === 0) {
-                selectedImageFiles = [];
-                imagePreview.classList.add('hidden');
-                photoFileList.innerHTML = '';
-                return;
-            }
-
-            if (files.length > MAX_PORTFOLIO_IMAGES) {
+            if (selectedImageFiles.length + files.length > MAX_PORTFOLIO_IMAGES) {
                 alert(`Please select up to ${MAX_PORTFOLIO_IMAGES} photos.`);
                 imageInput.value = '';
-                selectedImageFiles = [];
-                imagePreview.classList.add('hidden');
-                photoFileList.innerHTML = '';
                 return;
             }
 
-            selectedImageFiles = files;
-            const primaryFile = selectedImageFiles[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                previewImg.src = event.target.result;
-                imagePreview.classList.remove('hidden');
-            };
-            reader.readAsDataURL(primaryFile);
+            selectedImageFiles = [...selectedImageFiles, ...files];
+            renderSelectedImages();
+            imageInput.value = '';
+        });
 
-            photoFileList.innerHTML = selectedImageFiles.map((file) => `<div class="rounded-md border border-slate-200 bg-white px-3 py-2">${file.name}</div>`).join('');
+        imagePreview.addEventListener('click', (e) => {
+            const removeButton = e.target.closest('.service-photo-remove');
+            if (!removeButton) return;
+            selectedImageFiles.splice(Number(removeButton.dataset.photoIndex), 1);
+            renderSelectedImages();
         });
 
         if (removeImageBtn) {
@@ -578,8 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 selectedImageFiles = [];
                 imageInput.value = '';
-                imagePreview.classList.add('hidden');
-                photoFileList.innerHTML = '';
+                renderSelectedImages();
             });
         }
     }

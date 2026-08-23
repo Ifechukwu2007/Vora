@@ -213,11 +213,16 @@
                         <label for="service-image" class="block text-sm font-medium text-gray-700">Add portfolio photos <span class="text-red-500">*</span></label>
                         <div class="mt-1 flex flex-col">
                             <input type="file" id="service-image" name="service-image" accept="image/*" multiple class="block px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                            <p class="mt-2 text-xs text-gray-500">Choose up to 5 photos. JPG, PNG, or WebP. Max 10MB each.</p>
-                            <div id="image-preview" class="mt-4 hidden">
-                                <img id="preview-img" src="" alt="Preview" class="h-32 w-32 object-cover rounded-md border border-gray-300">
-                                <button type="button" id="remove-image-btn" class="mt-2 text-sm text-red-600 hover:text-red-800 font-medium">Remove photos</button>
+                            <p class="mt-2 text-xs text-gray-500">Choose up to 10 photos. JPG, PNG, or WebP. Max 10MB each.</p>
+                            <div id="image-preview" class="service-photo-grid mt-4">
+                                <label for="service-image" class="service-photo-upload-box">
+                                    <span class="service-photo-upload-icon">+</span>
+                                    <strong>Add photos</strong>
+                                    <span>Upload up to 10 photos</span>
+                                </label>
                             </div>
+                            <p id="service-image-count" class="mt-2 text-xs text-slate-500">0 / 10 photos</p>
+                            <button type="button" id="remove-image-btn" class="mt-2 hidden text-sm text-red-600 hover:text-red-800 font-medium">Remove photos</button>
                             <div id="photo-file-list" class="mt-3 text-sm text-slate-600"></div>
                         </div>
                     </div>

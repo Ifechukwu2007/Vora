@@ -5,7 +5,7 @@ import { setupLocationPicker } from "./location-picker.js";
 
 let selectedImageFiles = [];
 let currentStep = 1;
-const MAX_PORTFOLIO_IMAGES = 5;
+const MAX_PORTFOLIO_IMAGES = 10;
 
 const els = {
   form: document.getElementById("add-service-form"),
@@ -587,16 +587,48 @@ async function uploadSelectedImages(serviceId) {
   return uploadedUrls;
 }
 
-function showPreview(url) {
-  if (!els.imagePreview || !els.previewImg) return;
-  els.previewImg.src = url;
-  els.imagePreview.classList.remove("hidden");
+function showPreview(urls) {
+  if (!els.imagePreview) return;
+  const uploadBox = els.imagePreview.querySelector('.service-photo-upload-box');
+  els.imagePreview.querySelectorAll('.service-photo-item').forEach((item) => item.remove());
+  const imageList = Array.isArray(urls) ? urls : [urls];
+  imageList.filter(Boolean).forEach((url, index) => {
+    const photo = document.createElement('div');
+    photo.className = 'service-photo-item';
+    photo.innerHTML = `<img src="${url}" alt="Service photo ${index + 1}">`;
+    els.imagePreview.insertBefore(photo, uploadBox);
+  });
+  document.getElementById('service-image-count').textContent = `${imageList.filter(Boolean).length} / ${MAX_PORTFOLIO_IMAGES} photos`;
+  els.removeImageBtn?.classList.toggle('hidden', imageList.filter(Boolean).length === 0);
+  uploadBox?.classList.toggle('hidden', imageList.filter(Boolean).length >= MAX_PORTFOLIO_IMAGES);
 }
 
 function hidePreview() {
-  if (!els.imagePreview || !els.previewImg) return;
-  els.previewImg.src = "";
-  els.imagePreview.classList.add("hidden");
+  if (!els.imagePreview) return;
+  els.imagePreview.querySelectorAll('.service-photo-item').forEach((item) => item.remove());
+  document.getElementById('service-image-count').textContent = `0 / ${MAX_PORTFOLIO_IMAGES} photos`;
+  els.removeImageBtn?.classList.add('hidden');
+  els.imagePreview.querySelector('.service-photo-upload-box')?.classList.remove('hidden');
+}
+
+function renderSelectedFilePreviews() {
+  if (!els.imagePreview) return;
+  const uploadBox = els.imagePreview.querySelector('.service-photo-upload-box');
+  els.imagePreview.querySelectorAll('.service-photo-item').forEach((item) => item.remove());
+  selectedImageFiles.forEach((file, index) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const photo = document.createElement('div');
+      photo.className = 'service-photo-item';
+      photo.innerHTML = `<img src="${event.target.result}" alt="Selected service photo ${index + 1}"><button type="button" class="service-photo-remove" data-photo-index="${index}" aria-label="Remove photo ${index + 1}">×</button>`;
+      els.imagePreview.insertBefore(photo, uploadBox);
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('service-image-count').textContent = `${selectedImageFiles.length} / ${MAX_PORTFOLIO_IMAGES} photos`;
+  els.removeImageBtn?.classList.toggle('hidden', selectedImageFiles.length === 0);
+  uploadBox?.classList.toggle('hidden', selectedImageFiles.length >= MAX_PORTFOLIO_IMAGES);
+  els.photoFileList.innerHTML = selectedImageFiles.map((file) => `<div class="rounded-md border border-slate-200 bg-white px-3 py-2">${file.name}</div>`).join('');
 }
 
 function fillForm(service) {
@@ -622,8 +654,8 @@ function fillForm(service) {
   els.businessName.value = businessName || "";
   setAvailabilityDays(service.availability_days || (parseSummaryDetails(service.description || "").availability ? parseSummaryDetails(service.description || "").availability.split(",").map((day) => day.trim()).filter(Boolean) : []));
 
-  if (service.image_url) {
-    showPreview(service.image_url);
+  if (service.image_urls?.length || service.image_url) {
+    showPreview(service.image_urls?.length ? service.image_urls : service.image_url);
   } else {
     hidePreview();
   }
@@ -634,30 +666,30 @@ function bindImageHandlers() {
     els.serviceImage.addEventListener("change", (e) => {
       const files = Array.from(e.target.files || []).filter((file) => file.type.startsWith("image/"));
       if (files.length === 0) {
-        selectedImageFiles = [];
-        hidePreview();
-        els.photoFileList.innerHTML = "";
+        e.target.value = "";
         return;
       }
 
-      if (files.length > MAX_PORTFOLIO_IMAGES) {
+      if (selectedImageFiles.length + files.length > MAX_PORTFOLIO_IMAGES) {
         alert(`Please select up to ${MAX_PORTFOLIO_IMAGES} photos.`);
         els.serviceImage.value = "";
-        selectedImageFiles = [];
-        hidePreview();
-        els.photoFileList.innerHTML = "";
         return;
       }
 
-      selectedImageFiles = files;
-      const primaryFile = selectedImageFiles[0];
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        showPreview(event.target.result);
-      };
-      reader.readAsDataURL(primaryFile);
+      selectedImageFiles = [...selectedImageFiles, ...files];
+      renderSelectedFilePreviews();
+      e.target.value = "";
+    });
 
-      els.photoFileList.innerHTML = selectedImageFiles.map((file) => `<div class="rounded-md border border-slate-200 bg-white px-3 py-2">${file.name}</div>`).join("");
+    els.imagePreview.addEventListener('click', (e) => {
+      const removeButton = e.target.closest('.service-photo-remove');
+      if (!removeButton) return;
+      selectedImageFiles.splice(Number(removeButton.dataset.photoIndex), 1);
+      if (selectedImageFiles.length) {
+        renderSelectedFilePreviews();
+      } else {
+        hidePreview();
+      }
     });
   }
 
