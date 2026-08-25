@@ -407,6 +407,8 @@ async function loadBookings() {
             const shouldRenderBookingDetails = booking.scheduled_date || booking.number_of_people || booking.service_location || booking.customer_location || booking.special_instructions || booking.travel_fee;
             const completionAwaitingCustomer = ["completed_by_provider", "awaiting_customer_confirmation"].includes(booking.status);
             const customerCanCancel = ["pending_payment", "pending", "confirmed", "paid", "accepted"].includes(booking.status);
+            const isCashReservation = ["cash", "reserve_cash"].includes(booking.payment_method) && ["pending", "reserved"].includes(booking.status);
+            const isDepositReservation = booking.payment_method === "reserve_deposit" && ["pending", "reserved"].includes(booking.status);
 
             const card = document.createElement("div");
             card.className = `bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition`;
@@ -424,8 +426,10 @@ async function loadBookings() {
                                 ${(() => {
                                     let statusColor = "bg-gray-100 text-gray-700";
                                     let statusText = booking.status || "pending";
+                                    if (isCashReservation || isDepositReservation) statusText = "Reserved";
                                     
                                     if (booking.status === "pending_payment") statusColor = "bg-yellow-100 text-yellow-700";
+                                    if (isCashReservation || isDepositReservation) statusColor = "bg-emerald-100 text-emerald-700";
                                     if (booking.status === "paid") statusColor = "bg-blue-100 text-blue-700";
                                     if (booking.status === "accepted") statusColor = "bg-green-100 text-green-700";
                                     if (booking.status === "in_progress") statusColor = "bg-indigo-100 text-indigo-700";
@@ -489,6 +493,12 @@ async function loadBookings() {
                                 <p class="text-sm text-gray-500 mb-1">📅 Booking Date</p>
                                 <p class="font-semibold text-gray-900">${new Date(booking.created_at).toLocaleDateString()}</p>
                             </div>
+                            ${isCashReservation || isDepositReservation ? `
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                <p class="text-sm text-emerald-700 mb-1">Payment</p>
+                                <p class="font-semibold text-emerald-900">${isDepositReservation ? "Deposit paid online; balance due in cash" : "Cash on service"}</p>
+                            </div>
+                            ` : ''}
                         </div>
 
                         <div class="mt-5 rounded-2xl border border-gray-200 overflow-hidden">

@@ -9,6 +9,8 @@ let currentUser = null;
 let paymentFlowInProgress = false;
 let paystackPopupTimer = null;
 const PLATFORM_SERVICE_FEE_PERCENT = 5;
+const RESERVATION_DEPOSIT_THRESHOLD = 50000;
+const RESERVATION_DEPOSIT_PERCENT = 10;
 let platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
 
 async function loadPlatformCommission() {
@@ -35,6 +37,19 @@ function getPendingBooking() {
     console.warn('Could not read pending booking:', err);
     return null;
   }
+}
+
+function reservationPaymentDetails(total) {
+  const serviceTotal = Math.max(0, Math.round(Number(total) || 0));
+  const requiresDeposit = serviceTotal >= RESERVATION_DEPOSIT_THRESHOLD;
+  const reservationFee = requiresDeposit
+    ? Math.max(500, Math.round(serviceTotal * (RESERVATION_DEPOSIT_PERCENT / 100)))
+    : 0;
+  return {
+    requiresDeposit,
+    reservationFee,
+    remainingBalance: Math.max(0, serviceTotal - reservationFee),
+  };
 }
 
 async function requireAuth() {
@@ -198,6 +213,7 @@ async function loadBooking(bookingId) {
       customer_location,
       created_at,
       payment_status,
+      payment_method,
       paid_at
     `)
     .eq('id', bookingId)
@@ -299,11 +315,24 @@ function renderBooking(booking) {
   const derivedServiceFee = Math.round(serviceSubtotal * (platformCommissionPercent / 100));
   const serviceFee = Math.max(derivedServiceFee, Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee));
   const total = Number(booking.total_price) || serviceSubtotal + serviceFee + travelFee;
+  const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || booking.payment_method === 'reserve_deposit';
+  const reservationDetails = reservationPaymentDetails(total);
+  const amountDueNow = isReservationDeposit
+    ? Number(pendingBooking?.reservationFee || reservationDetails.reservationFee)
+    : total;
 
   setText('per-person-price', formatNaira(perPerson));
   setText('service-fee', formatNaira(serviceFee));
   setText('service-price-total', formatNaira(total));
-  setText('service-price-summary', formatNaira(total));
+  setText('service-price-summary', formatNaira(amountDueNow));
+  setText('payment-amount-label', isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
+  setText('payment-mode-title', isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
+  setText('payment-mode-description', isReservationDeposit
+    ? 'Pay the reservation fee through Paystack to secure your booking. Pay the remaining balance to the provider in cash after the service.'
+    : 'Submit your booking and pay securely through Paystack.');
+  setText('deposit-balance-note', isReservationDeposit
+    ? `Pay ${formatNaira(amountDueNow)} through Paystack now. The remaining ${formatNaira(Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
+    : 'Your full booking total will be paid securely through Paystack.');
 
   if (travelFee > 0) {
     setText('travel-fee-breakdown-value', formatNaira(travelFee));
@@ -342,6 +371,7 @@ async function createBookingFromPending(pendingBooking) {
     service_location: pendingBooking.serviceLocation || 'provider',
     customer_location: pendingBooking.customerLocation || '',
     payment_status: 'pending',
+    payment_method: pendingBooking.paymentMethod || 'paystack',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -450,15 +480,17 @@ async function createPayoutRecord(bookingId, amount) {
   }
 }
 
-async function markBookingPaid(bookingId, reference, amount) {
+async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'paystack') {
   const settlement = calculatePlatformSplit(amount);
   const basicUpdate = {
-    status: 'confirmed',
+    status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
+    booking_status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
     updated_at: new Date().toISOString(),
     customer_amount: settlement.customerAmount,
     platform_fee: settlement.platformFee,
     provider_amount: settlement.providerAmount,
     payout_status: 'pending',
+    payment_method: paymentMethod,
   };
 
   try {
@@ -468,7 +500,7 @@ async function markBookingPaid(bookingId, reference, amount) {
         ...basicUpdate,
         payment_reference: reference,
         paid_at: new Date().toISOString(),
-        payment_status: 'paid',
+        payment_status: paymentMethod === 'reserve_deposit' ? 'partially_paid' : 'paid',
       })
       .eq('id', bookingId);
 
@@ -480,7 +512,7 @@ async function markBookingPaid(bookingId, reference, amount) {
           ...basicUpdate,
           payment_reference: reference,
           paid_at: new Date().toISOString(),
-          payment_status: 'paid',
+          payment_status: paymentMethod === 'reserve_deposit' ? 'partially_paid' : 'paid',
         })
         .eq('id', bookingId);
 
@@ -490,7 +522,9 @@ async function markBookingPaid(bookingId, reference, amount) {
       }
     }
 
-    await createPayoutRecord(bookingId, settlement.customerAmount);
+    if (paymentMethod !== 'reserve_deposit') {
+      await createPayoutRecord(bookingId, settlement.customerAmount);
+    }
   } catch (err) {
     console.error('Failed to update booking after payment:', err);
     showError('Payment succeeded, but we had trouble updating your booking status. Support has your reference: ' + reference);
@@ -506,8 +540,13 @@ async function handlePaymentSuccess(bookingId, reference) {
       throw new Error(verification?.message || 'Payment verification failed.');
     }
 
-    const amountToSettle = Number(currentBooking?.total_price || getPendingBooking()?.totalPrice || 0);
-    await markBookingPaid(bookingId, reference, amountToSettle);
+    const pendingBooking = getPendingBooking();
+    const fullTotal = Number(currentBooking?.total_price || pendingBooking?.totalPrice || 0);
+    const paymentMethod = pendingBooking?.paymentMethod || currentBooking?.payment_method || 'paystack';
+    const amountToSettle = paymentMethod === 'reserve_deposit'
+      ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
+      : fullTotal;
+    await markBookingPaid(bookingId, reference, amountToSettle, paymentMethod);
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('currentBookingId');
     localStorage.removeItem('bookingId');
@@ -686,7 +725,8 @@ async function init() {
 
     renderBooking(currentBooking);
 
-    disableConfirmButton(false, 'Confirm and pay');
+    const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || currentBooking.payment_method === 'reserve_deposit';
+    disableConfirmButton(false, isReservationDeposit ? 'Pay reservation fee' : 'Confirm and pay');
   } catch (err) {
     showError(err.message || 'We could not prepare this checkout.');
     disableConfirmButton(true, 'Unavailable');
@@ -730,9 +770,14 @@ async function init() {
         setBookingIdInUrl(bookingId);
       }
 
-      const total = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
-      await createPendingPayment(bookingId, total, 'paystack');
-      launchPaystack(total, bookingId);
+      const fullTotal = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
+      const pendingBooking = getPendingBooking();
+      const paymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'paystack';
+      const amountDue = paymentMethod === 'reserve_deposit'
+        ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
+        : fullTotal;
+      await createPendingPayment(bookingId, amountDue, paymentMethod);
+      launchPaystack(amountDue, bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

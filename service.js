@@ -35,6 +35,8 @@ let currentServiceContext = null;
 let currentProviderContext = null;
 let platformCommissionPercent = 0;
 const RECENT_SERVICES_KEY = 'vora_recent_services';
+const RESERVATION_DEPOSIT_THRESHOLD = 50000;
+const RESERVATION_DEPOSIT_PERCENT = 10;
 
 function escapeServiceHtml(value) {
   return String(value ?? '')
@@ -146,6 +148,19 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
   const serviceFee = Math.round(subtotal * (platformCommissionPercent / 100));
   const total = subtotal + serviceFee + travelFee;
   return { perPerson, subtotal, serviceFee, total, meetsDeal, travelFee };
+}
+
+function reservationPaymentDetails(total) {
+  const serviceTotal = Math.max(0, Math.round(Number(total) || 0));
+  const requiresDeposit = serviceTotal >= RESERVATION_DEPOSIT_THRESHOLD;
+  const reservationFee = requiresDeposit
+    ? Math.max(500, Math.round(serviceTotal * (RESERVATION_DEPOSIT_PERCENT / 100)))
+    : 0;
+  return {
+    requiresDeposit,
+    reservationFee,
+    remainingBalance: Math.max(0, serviceTotal - reservationFee),
+  };
 }
 
 function parseServiceSummary(description = '') {
@@ -886,9 +901,15 @@ async function openBookingModal(service, providerId) {
           </div>
 
           <!-- SUBMIT BUTTON -->
-          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
-            Proceed to Payment
-          </button>
+          <div class="space-y-3">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
+              Book &amp; Pay
+            </button>
+            <button type="button" id="reserveBookingBtn" class="w-full border-2 border-slate-300 hover:bg-slate-50 text-slate-900 py-3 rounded-lg font-semibold transition">
+              Reserve
+            </button>
+            <p id="reserveInfo" class="text-xs leading-5 text-center text-slate-500"></p>
+          </div>
         </form>
       </div>
     </div>
@@ -904,6 +925,9 @@ async function openBookingModal(service, providerId) {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     submitBooking(service, providerId);
+  });
+  document.getElementById('reserveBookingBtn')?.addEventListener('click', () => {
+    reserveBooking(service, providerId);
   });
 
   updateTotalPrice();
@@ -979,6 +1003,18 @@ function updateTotalPrice() {
   const serviceFeeAmount = document.getElementById('serviceFeeAmount');
   if (serviceFeeAmount) {
     serviceFeeAmount.textContent = formatPrice(serviceFee);
+  }
+
+  const reservationDetails = reservationPaymentDetails(total);
+  const reserveButton = document.getElementById('reserveBookingBtn');
+  const reserveInfo = document.getElementById('reserveInfo');
+  if (reserveButton) {
+    reserveButton.textContent = reservationDetails.requiresDeposit ? 'Reserve with deposit' : 'Reserve';
+  }
+  if (reserveInfo) {
+    reserveInfo.textContent = reservationDetails.requiresDeposit
+      ? `Pay ${formatPrice(reservationDetails.reservationFee)} through Paystack. The remaining ${formatPrice(reservationDetails.remainingBalance)} is paid to the provider in cash.`
+      : 'Reserve without paying online. Payment will be made directly to the provider.';
   }
 }
 
@@ -1057,6 +1093,98 @@ function submitBooking(service, providerId) {
   LoadingSpinner.navigateTo(`complete-payment.html?${params.toString()}`);
 }
 
+async function reserveBooking(service, providerId) {
+  const peopleCount = parseInt(document.getElementById('peopleCount').textContent, 10);
+  const scheduleDate = document.getElementById('scheduleDate').value;
+  const scheduleTime = document.getElementById('scheduleTime').value;
+  const serviceLocation = document.querySelector('input[name="serviceLocation"]:checked').value;
+  const specialInstructions = document.getElementById('specialInstructions').value;
+  const customerLocation = document.getElementById('customerLocation').value;
+
+  if (!scheduleDate || !scheduleTime) {
+    alert('Please select both date and time');
+    return;
+  }
+
+  if (serviceLocation === 'customer' && !customerLocation.trim()) {
+    alert('Please enter your location');
+    return;
+  }
+
+  const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation);
+  const reservationDetails = reservationPaymentDetails(bookingInfo.total);
+  const reserveButton = document.getElementById('reserveBookingBtn');
+  if (reserveButton) {
+    reserveButton.disabled = true;
+    reserveButton.textContent = 'Reserving...';
+  }
+
+  try {
+    if (reservationDetails.requiresDeposit) {
+      const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
+      const pendingBooking = {
+        serviceId: service.id,
+        providerId,
+        serviceTitle: service.title,
+        serviceImage: service.image_url || '',
+        providerName: currentProviderContext?.full_name || service.provider_name || '',
+        providerPicture: currentProviderContext?.profile_picture || service.provider_picture || '',
+        providerLocation: currentProviderContext?.location || service.location || '',
+        numberOfPeople: peopleCount,
+        scheduledDate: scheduledDateTime,
+        serviceLocation,
+        customerLocation,
+        travelFee: bookingInfo.travelFee,
+        specialInstructions,
+        totalPrice: bookingInfo.total,
+        pricePerPerson: bookingInfo.perPerson,
+        paymentMethod: 'reserve_deposit',
+        reservationFee: reservationDetails.reservationFee,
+        remainingBalance: reservationDetails.remainingBalance,
+      };
+      localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
+      LoadingSpinner.navigateTo(`complete-payment.html?${new URLSearchParams({
+        serviceId: service.id,
+        providerId,
+        paymentMethod: 'reserve_deposit',
+      }).toString()}`);
+      return;
+    }
+
+    const { data: booking, error } = await supabase.from('bookings').insert({
+      user_id: currentUser.id,
+      provider_id: providerId,
+      service_id: service.id,
+      scheduled_date: `${scheduleDate}T${scheduleTime}`,
+      status: 'pending',
+      booking_status: 'reserved',
+      payment_method: 'reserve_cash',
+      payment_status: 'pending',
+      total_price: bookingInfo.total,
+      number_of_people: peopleCount,
+      price_per_person: bookingInfo.perPerson,
+      travel_fee: bookingInfo.travelFee,
+      special_instructions: specialInstructions,
+      service_location: serviceLocation,
+      customer_location: customerLocation,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).select('id').single();
+
+    if (error) throw error;
+
+    document.getElementById('bookingModal')?.remove();
+    window.location.href = `my-bookings.html?reserved=${encodeURIComponent(booking.id)}`;
+  } catch (error) {
+    console.error('Reserve booking failed:', error);
+    alert(`Could not reserve this service: ${error.message || error}`);
+    if (reserveButton) {
+      reserveButton.disabled = false;
+      reserveButton.textContent = 'Reserve';
+    }
+  }
+}
+
 // ============================
 // INIT
 // ============================
@@ -1071,4 +1199,5 @@ window.updatePeople = updatePeople;
 window.updateTravelFee = updateTravelFee;
 window.updateTotalPrice = updateTotalPrice;
 window.submitBooking = submitBooking;
+window.reserveBooking = reserveBooking;
 window.openBookingModal = openBookingModal;

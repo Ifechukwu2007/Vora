@@ -42,6 +42,7 @@ function statusBadgeClass(status) {
   // accept/decline decision, same as a plain "pending" booking.
   if (s === "pending" || s === "confirmed") return "bg-yellow-100 text-yellow-700";
   if (s === "pending_payment") return "bg-amber-100 text-amber-700";
+  if (s === "reserved") return "bg-emerald-100 text-emerald-700";
   if (s === "accepted") return "bg-blue-100 text-blue-700";
   if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
   if (s === "completed" || s === "completed_by_provider") return "bg-emerald-100 text-emerald-700";
@@ -124,8 +125,14 @@ function cardHtml(b) {
                 </div>
                 <div class="flex items-center justify-between gap-3">
                   <span class="font-semibold text-slate-900">Status</span>
-                  <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(b.status)}">${escapeHtml((b.status || 'Pending').replace(/_/g, ' '))}</span>
+                  <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClass(b.status)}">${escapeHtml(['cash', 'reserve_cash', 'reserve_deposit'].includes(b.paymentMethod) && ['pending', 'reserved'].includes(status) ? 'Reserved' : (b.status || 'Pending').replace(/_/g, ' '))}</span>
                 </div>
+                ${['cash', 'reserve_cash', 'reserve_deposit'].includes(b.paymentMethod) ? `
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="font-semibold text-slate-900">Payment</span>
+                    <span>${b.paymentMethod === 'reserve_deposit' ? 'Deposit paid; balance in cash' : 'Cash on service'}</span>
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -284,6 +291,7 @@ async function loadIncomingBookings(providerId) {
       ${CONFIG.COL_SCHEDULED_DATE},
       ${CONFIG.COL_CREATED_AT},
       ${CONFIG.COL_TOTAL_PRICE},
+        payment_method,
       customer_location,
       special_instructions,
       services:${CONFIG.SERVICES_TABLE}(id, title, image_url, location, price, description)
@@ -338,6 +346,7 @@ function normalize(row, customerProfile) {
     customerPicture,
     time: row.scheduled_date ? formatTime(row.scheduled_date) : formatTime(row.created_at),
     status: row.status,
+    paymentMethod: row.payment_method,
     price: row.total_price,
     location: row.customer_location || (Array.isArray(services) ? services[0]?.location : services?.location) || 'Customer Location',
     specialInstructions: row.special_instructions || '',

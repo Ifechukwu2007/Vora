@@ -132,6 +132,31 @@ function formatMoney(value) {
 }
 
 
+function paymentMethodLabel(value) {
+
+    const method =
+        String(value || "")
+            .trim()
+            .toLowerCase();
+
+    if (method === "cash" || method === "offline" || method === "reserve_cash") {
+        return "Cash on service";
+    }
+
+    if (method === "paystack") {
+        return "Paystack";
+    }
+
+    if (method === "reserve_deposit") {
+        return "Paystack deposit + cash balance";
+    }
+
+    return method
+        ? method.charAt(0).toUpperCase() + method.slice(1)
+        : "Not specified";
+}
+
+
 function shortId(value) {
 
     if (!value) {
@@ -614,11 +639,8 @@ async function requireAdmin() {
    ============================================================ */
 
 function showLogin() {
-    /*
-       The admin page has no public login screen. Admins must first sign
-       in through the normal Vora site; everyone else is sent to 404.
-    */
-    window.location.replace("404.html");
+    $("adminApp")?.classList.add("hidden");
+    $("loginScreen")?.classList.remove("hidden");
 }
 
 
@@ -1043,7 +1065,7 @@ async function loadRecentBookings() {
 
     renderLoading(
         tbody,
-        5
+        6
     );
 
 
@@ -1075,7 +1097,7 @@ async function loadRecentBookings() {
 
             renderEmpty(
                 tbody,
-                5,
+                6,
                 "No bookings yet."
             );
 
@@ -1125,6 +1147,16 @@ async function loadRecentBookings() {
                                 booking.amount ??
                                 booking.price ??
                                 0
+                            )}
+
+                        </td>
+
+                        <td class="px-6 py-4">
+
+                            ${escapeHTML(
+                                paymentMethodLabel(
+                                    booking.payment_method
+                                )
                             )}
 
                         </td>
@@ -1645,7 +1677,7 @@ async function loadBookings() {
 
     renderLoading(
         tbody,
-        6
+        7
     );
 
 
@@ -1677,7 +1709,7 @@ async function loadBookings() {
 
             renderEmpty(
                 tbody,
-                6,
+                7,
                 "No bookings found."
             );
 
@@ -1740,6 +1772,16 @@ async function loadBookings() {
                                 booking.amount ??
                                 booking.price ??
                                 0
+                            )}
+
+                        </td>
+
+                        <td class="px-6 py-4">
+
+                            ${escapeHTML(
+                                paymentMethodLabel(
+                                    booking.payment_method
+                                )
                             )}
 
                         </td>
@@ -2142,14 +2184,9 @@ async function loadSettings() {
                 commission;
         }
 
-<<<<<<< HEAD
         if (data.paypal_ngn_per_usd !== undefined && $("paypalUsdRate")) {
             $("paypalUsdRate").value = data.paypal_ngn_per_usd;
         }
-
-
-=======
->>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     } catch (error) {
 
         console.error(
@@ -2185,12 +2222,7 @@ async function saveSettings(
             input.value
         );
 
-<<<<<<< HEAD
     const paypalUsdRate = Number($("paypalUsdRate")?.value);
-
-
-=======
->>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     if (
         !Number.isFinite(
             commission
@@ -2206,15 +2238,10 @@ async function saveSettings(
         return;
     }
 
-<<<<<<< HEAD
     if (!Number.isFinite(paypalUsdRate) || paypalUsdRate <= 0) {
         alert("PayPal USD rate must be greater than zero.");
         return;
     }
-
-
-=======
->>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
     const button =
         event.submitter ||
         event.target.querySelector(
@@ -2269,12 +2296,8 @@ async function saveSettings(
                         built_in_margin:
                             commission,
 
-<<<<<<< HEAD
                         paypal_ngn_per_usd:
                             paypalUsdRate,
-
-=======
->>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
                         updated_at:
                             new Date()
                                 .toISOString()
@@ -2313,11 +2336,8 @@ async function saveSettings(
                         built_in_margin:
                             commission,
 
-<<<<<<< HEAD
                         paypal_ngn_per_usd:
                             paypalUsdRate
-=======
->>>>>>> b251aaf (deleted:    REQUEST_POOL_BACKEND.md)
                     });
 
 

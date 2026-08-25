@@ -167,6 +167,11 @@ async function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
 
+  if (containsRestrictedChatContent(text)) {
+    showChatPolicyNotice();
+    return;
+  }
+
   messageInput.value = '';
   sendBtn.disabled = true;
 
@@ -216,6 +221,29 @@ async function sendMessage() {
     sendBtn.disabled = false;
     messageInput.focus();
   }
+}
+
+function containsRestrictedChatContent(value) {
+  const text = String(value || '').trim();
+  return [
+    /\b[A-Z0-9._%+-]+\s*@\s*[A-Z0-9.-]+\s*\.\s*[A-Z]{2,}\b/i,
+    /(?:https?:\/\/|www\.)\S+/i,
+    /(?:^|[^\d])(?:\+?234|0)\s*\d(?:[\s().-]*\d){9,10}(?:$|[^\d])/i,
+    /\b(?:whatsapp|telegram|signal|instagram|facebook|snapchat|tiktok)\s*[:@]?\s*[a-z0-9._-]+/i,
+    /\b(?:account|acct|sort\s*code|routing|iban|swift)\s*(?:number|no\.?|details?)?\s*[:#-]?\s*\d[\d\s-]{5,}/i,
+  ].some((pattern) => pattern.test(text));
+}
+
+function showChatPolicyNotice() {
+  let notice = document.getElementById('chatPolicyNotice');
+  if (!notice) {
+    notice = document.createElement('p');
+    notice.id = 'chatPolicyNotice';
+    notice.className = 'mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800';
+    notice.textContent = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vora chat.';
+    messageInput.closest('.max-w-6xl')?.appendChild(notice);
+  }
+  messageInput.focus();
 }
 
 // =========================

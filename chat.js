@@ -3,6 +3,21 @@ import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
 import { sendEmailToUserId } from './email-service.js';
 
+const PERSONAL_INFORMATION_MESSAGE = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vora chat.';
+
+function findRestrictedChatContent(value) {
+  const text = String(value || '').trim();
+  const patterns = [
+    /\b[A-Z0-9._%+-]+\s*@\s*[A-Z0-9.-]+\s*\.\s*[A-Z]{2,}\b/i,
+    /(?:https?:\/\/|www\.)\S+/i,
+    /(?:^|[^\d])(?:\+?234|0)\s*\d(?:[\s().-]*\d){9,10}(?:$|[^\d])/i,
+    /\b(?:whatsapp|telegram|signal|instagram|facebook|snapchat|tiktok)\s*[:@]?\s*[a-z0-9._-]+/i,
+    /\b(?:account|acct|sort\s*code|routing|iban|swift)\s*(?:number|no\.?|details?)?\s*[:#-]?\s*\d[\d\s-]{5,}/i,
+  ];
+
+  return patterns.find((pattern) => pattern.test(text)) || null;
+}
+
 export class ChatService {
   static channels = {};
 
@@ -53,6 +68,12 @@ export class ChatService {
    * - Creates notification (non-blocking)
    */
   static async sendMessage({ chatId, currentUserId, otherUserId, message }) {
+    if (findRestrictedChatContent(message)) {
+      const error = new Error(PERSONAL_INFORMATION_MESSAGE);
+      error.code = 'CHAT_PERSONAL_INFORMATION_BLOCKED';
+      throw error;
+    }
+
     // 1) Insert message
     const { data: newMessage, error: insertError } = await supabase
       .from('messages')
