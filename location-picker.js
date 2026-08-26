@@ -18,6 +18,17 @@ async function geocodeLocation(location) {
   return null;
 }
 
+async function reverseGeocodeLocation(latitude, longitude) {
+  try {
+    const response = await fetch(`https://api.maptiler.com/geocoding/${longitude},${latitude}.json?key=${MAPTILER_KEY}&limit=1`);
+    const data = await response.json();
+    return data?.features?.[0]?.place_name || data?.features?.[0]?.text || null;
+  } catch (error) {
+    console.warn('MapTiler reverse geocoding failed:', error);
+    return null;
+  }
+}
+
 export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId, coordinatesId, initialCoordinates = null }) {
   const mapElement = document.getElementById(mapId);
   const locationInput = document.getElementById(locationId);
@@ -36,10 +47,16 @@ export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId
     attributionControl: true,
   });
 
-  const setCoordinates = (latitude, longitude) => {
+  const setCoordinates = (latitude, longitude, updateLocation = true) => {
     latitudeInput.value = latitude.toFixed(7);
     longitudeInput.value = longitude.toFixed(7);
     coordinatesText.textContent = `Exact pin: ${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
+    if (updateLocation) {
+      locationInput.value = `${latitude.toFixed(7)}, ${longitude.toFixed(7)}`;
+      reverseGeocodeLocation(latitude, longitude).then((location) => {
+        if (location) locationInput.value = location;
+      });
+    }
     if (marker) marker.remove();
     marker = new maplibregl.Marker({ color: '#2563eb', draggable: true })
       .setLngLat([longitude, latitude])
@@ -57,7 +74,7 @@ export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId
     const coordinates = await geocodeLocation(locationInput.value.trim());
     if (!coordinates) return;
     map.flyTo({ center: [coordinates.longitude, coordinates.latitude], zoom: 15 });
-    setCoordinates(coordinates.latitude, coordinates.longitude);
+    setCoordinates(coordinates.latitude, coordinates.longitude, false);
   });
 
   return { map, setCoordinates };
