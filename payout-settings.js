@@ -138,6 +138,7 @@ form?.addEventListener("submit", async (event) => {
     if (dbError) throw dbError;
 
     localStorage.setItem('payoutSettingsUpdated', new Date().toISOString());
+    window.dispatchEvent(new Event('payoutSettingsUpdated'));
     setStatus("✅ Your bank details have been saved. We'll review and verify them before enabling payouts.");
   } catch (error) {
     console.error(error);

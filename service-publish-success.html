@@ -13,7 +13,7 @@
       <div class="text-center">
         <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-3xl">🎉</div>
         <h1 class="text-3xl font-extrabold text-slate-900">Your service is now live!</h1>
-        <p class="mt-4 text-sm text-slate-600">Customers can now discover your service. Before you can receive bookings, you need to complete your payout setup.</p>
+        <p id="payoutPrompt" class="mt-4 text-sm text-slate-600">Customers can now discover your service. Before you can receive bookings, you need to complete your payout setup.</p>
       </div>
 
       <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -22,5 +22,39 @@
       </div>
     </div>
   </main>
+  <script type="module">
+    import { supabase } from './supabase.js';
+
+    const payoutPrompt = document.getElementById('payoutPrompt');
+    const setupPayoutBtn = document.getElementById('setupPayoutBtn');
+    const laterBtn = document.getElementById('laterBtn');
+
+    async function updatePayoutPrompt() {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) return;
+
+        const { data, error } = await supabase
+          .from('payout_settings')
+          .select('bank_code, account_number')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        const bankCode = String(data?.bank_code || '').trim();
+        const accountNumber = String(data?.account_number || '').replace(/\D/g, '');
+        if (bankCode && accountNumber.length === 10) {
+          payoutPrompt.textContent = 'Customers can now discover your service.';
+          setupPayoutBtn.classList.add('hidden');
+          laterBtn.textContent = 'Go to Dashboard';
+        }
+      } catch (error) {
+        console.error('Could not check payout setup:', error);
+      }
+    }
+
+    updatePayoutPrompt();
+  </script>
 </body>
 </html>

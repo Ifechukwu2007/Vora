@@ -14,7 +14,9 @@ async function shouldShowPayoutBanner(userId) {
     return false;
   }
 
-  return !(data?.bank_code && data?.account_number);
+  const bankCode = String(data?.bank_code || '').trim();
+  const accountNumber = String(data?.account_number || '').replace(/\D/g, '');
+  return !(bankCode && accountNumber.length === 10);
 }
 
 async function initPayoutBanner() {
@@ -39,3 +41,5 @@ window.addEventListener('storage', (event) => {
   if (event.key !== 'payoutSettingsUpdated') return;
   initPayoutBanner();
 });
+
+window.addEventListener('payoutSettingsUpdated', initPayoutBanner);
