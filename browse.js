@@ -158,6 +158,12 @@ async function renderBrowseMap() {
         zoom: 11,
         attributionControl: true,
     });
+    browseMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+    browseMap.addControl(new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: false,
+        showUserHeading: false,
+    }), 'top-right');
     const bounds = new maplibregl.LngLatBounds();
 
     mappedServices.forEach((service) => {

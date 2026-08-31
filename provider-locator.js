@@ -69,6 +69,12 @@ function renderLocatorMap(customerLocation, nearby) {
     zoom: 12,
     attributionControl: true,
   });
+  locatorMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+  locatorMap.addControl(new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: false,
+    showUserHeading: false,
+  }), 'top-right');
 
   const bounds = new maplibregl.LngLatBounds(
     [customerLocation.longitude, customerLocation.latitude],

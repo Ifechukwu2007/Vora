@@ -3,6 +3,62 @@ import { supabase } from './supabase.js';
 const badge = document.getElementById('notificationBadge');
 let currentUser = null;
 let badgeChannel = null;
+let notificationAudioContext = null;
+const SOUND_SETTING_KEY = 'vora_notification_sounds';
+const SOUND_NOTIFICATION_TYPES = new Set([
+  'message',
+  'new_message',
+  'booking_request',
+  'new_booking',
+  'booking_confirmed',
+  'booking_cancelled',
+  'offer_received',
+  'offer_accepted',
+  'offer_rejected',
+  'payment_received',
+  'review_received',
+  'update'
+]);
+
+function unlockNotificationSound() {
+  if (!notificationAudioContext) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    notificationAudioContext = new AudioContext();
+  }
+
+  if (notificationAudioContext.state === 'suspended') {
+    notificationAudioContext.resume().catch(() => {});
+  }
+}
+
+window.voraTestNotificationSound = () => {
+  unlockNotificationSound();
+  if (notificationAudioContext?.state === 'suspended') {
+    notificationAudioContext.resume().then(playNotificationSound).catch(() => {});
+    return;
+  }
+  playNotificationSound();
+};
+
+function playNotificationSound() {
+  if (localStorage.getItem(SOUND_SETTING_KEY) === 'false') return;
+  if (!notificationAudioContext || notificationAudioContext.state !== 'running') return;
+
+  const now = notificationAudioContext.currentTime;
+  const oscillator = notificationAudioContext.createOscillator();
+  const gain = notificationAudioContext.createGain();
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(660, now);
+  oscillator.frequency.setValueAtTime(880, now + 0.09);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.7, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+  oscillator.connect(gain);
+  gain.connect(notificationAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.25);
+}
 
 function clearBadgeState() {
   currentUser = null;
@@ -79,7 +135,10 @@ function setupBadgeRealtime() {
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` },
-      () => loadUnreadCount()
+      (payload) => {
+        if (SOUND_NOTIFICATION_TYPES.has(payload?.new?.type)) playNotificationSound();
+        loadUnreadCount();
+      }
     )
     .on(
       'postgres_changes',
@@ -141,3 +200,6 @@ window.addEventListener('notifications:updated', async (event) => {
 });
 
 initializeBadge();
+
+window.addEventListener('pointerdown', unlockNotificationSound, { passive: true });
+window.addEventListener('keydown', unlockNotificationSound, { passive: true });

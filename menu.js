@@ -9,6 +9,183 @@ const COMMON_LINKS = [
   { href: 'contact-us.html', label: 'Contact Us' },
 ];
 
+const SCREEN_CAPTURE_WARNING = 'Screen capture and screenshots are not allowed on this platform.';
+
+function ensureCaptureProtectionStyles() {
+  if (document.getElementById('vora-capture-protection-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'vora-capture-protection-styles';
+  style.textContent = `
+    body.vora-capture-blocked {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      -webkit-touch-callout: none !important;
+      pointer-events: none !important;
+      filter: blur(2px) saturate(0.8) !important;
+      overflow: hidden !important;
+    }
+
+    .vora-capture-warning {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.88);
+      color: #fff;
+      text-align: center;
+      padding: 2rem;
+      backdrop-filter: blur(10px);
+      font-family: Arial, sans-serif;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+    }
+
+    .vora-capture-warning.visible {
+      display: flex;
+    }
+
+    .vora-capture-warning__box {
+      max-width: 680px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 2rem 2.4rem;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    .vora-capture-warning__title {
+      margin: 0 0 0.6rem;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .vora-capture-warning__text {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function showCaptureWarning() {
+  ensureCaptureProtectionStyles();
+
+  let warning = document.getElementById('vora-capture-warning');
+  if (!warning) {
+    warning = document.createElement('div');
+    warning.id = 'vora-capture-warning';
+    warning.className = 'vora-capture-warning';
+    warning.innerHTML = `
+      <div class="vora-capture-warning__box">
+        <h2 class="vora-capture-warning__title">Capture blocked</h2>
+        <p class="vora-capture-warning__text">${SCREEN_CAPTURE_WARNING}</p>
+      </div>
+    `;
+    document.body.appendChild(warning);
+  }
+
+  warning.classList.add('visible');
+  document.body.classList.add('vora-capture-blocked');
+}
+
+function hideCaptureWarning() {
+  const warning = document.getElementById('vora-capture-warning');
+  if (warning) warning.classList.remove('visible');
+  document.body.classList.remove('vora-capture-blocked');
+}
+
+function installCaptureProtection() {
+  if (window.__voraCaptureProtectionInstalled) return;
+  window.__voraCaptureProtectionInstalled = true;
+
+  ensureCaptureProtectionStyles();
+
+  const blockCapture = () => {
+    showCaptureWarning();
+    setTimeout(() => {
+      hideCaptureWarning();
+    }, 1800);
+  };
+
+  document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    blockCapture();
+  }, { passive: false });
+
+  document.addEventListener('copy', (event) => {
+    event.preventDefault();
+    blockCapture();
+  }, { passive: false });
+
+  document.addEventListener('cut', (event) => {
+    event.preventDefault();
+    blockCapture();
+  }, { passive: false });
+
+  document.addEventListener('dragstart', (event) => {
+    event.preventDefault();
+    blockCapture();
+  }, { passive: false });
+
+  document.addEventListener('selectstart', (event) => {
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('keydown', (event) => {
+    const key = event.key;
+    const modifiers = [event.ctrlKey, event.metaKey, event.altKey, event.shiftKey];
+    const isRequestedCaptureKey = key === 'PrintScreen' ||
+      (event.key === 's' && (event.ctrlKey || event.metaKey) && event.shiftKey) ||
+      (event.key === 'c' && (event.ctrlKey || event.metaKey) && event.shiftKey) ||
+      (event.key === 'i' && (event.ctrlKey || event.metaKey) && event.shiftKey) ||
+      (event.key === 'g' && (event.ctrlKey || event.metaKey) && event.altKey) ||
+      (event.key === 'F12');
+
+    if (isRequestedCaptureKey || (modifiers.filter(Boolean).length >= 2 && key === 'PrintScreen')) {
+      event.preventDefault();
+      blockCapture();
+      return;
+    }
+
+    if (event.key === 'Escape' && document.getElementById('vora-capture-warning')?.classList.contains('visible')) {
+      hideCaptureWarning();
+    }
+  }, { passive: false });
+
+  window.addEventListener('beforeprint', (event) => {
+    event.preventDefault();
+    blockCapture();
+  });
+
+  window.addEventListener('blur', () => {
+    const warning = document.getElementById('vora-capture-warning');
+    if (warning) {
+      warning.classList.add('visible');
+      document.body.classList.add('vora-capture-blocked');
+    }
+  });
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    const originalGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = async (...args) => {
+      blockCapture();
+      throw new Error('Screen sharing is disabled on this platform.');
+    };
+
+    navigator.mediaDevices.getDisplayMedia = function (...args) {
+      const original = originalGetDisplayMedia;
+      return new Promise((_, reject) => {
+        reject(new Error('Screen sharing is disabled on this platform.'));
+        blockCapture();
+      });
+    };
+  }
+}
+
 function createNavLink(linkInfo) {
   const link = document.createElement('a');
   link.href = linkInfo.href;
@@ -176,7 +353,11 @@ export function toggleMenu() {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', toggleMenu);
+  document.addEventListener('DOMContentLoaded', () => {
+    installCaptureProtection();
+    toggleMenu();
+  });
 } else {
+  installCaptureProtection();
   toggleMenu();
 }

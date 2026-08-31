@@ -4,6 +4,7 @@ import { sendEmailToUserId } from "./email-service.js";
 
 const STORAGE_KEYS = {
   currency: "vora_currency",
+  notificationSounds: "vora_notification_sounds",
   bookingNotifications: "vora_booking_notifications",
   messageNotifications: "vora_message_notifications",
   reviewNotifications: "vora_review_notifications",
@@ -19,6 +20,7 @@ function byId(id) {
 function getDefaultSettings() {
   return {
     currency: "NGN",
+    notificationSounds: true,
     bookingNotifications: true,
     messageNotifications: true,
     reviewNotifications: true,
@@ -38,6 +40,7 @@ function readSettingsFromStorage() {
 
   return {
     currency: localStorage.getItem(STORAGE_KEYS.currency) || defaults.currency,
+    notificationSounds: getBool(STORAGE_KEYS.notificationSounds),
     bookingNotifications: getBool(STORAGE_KEYS.bookingNotifications),
     messageNotifications: getBool(STORAGE_KEYS.messageNotifications),
     reviewNotifications: getBool(STORAGE_KEYS.reviewNotifications),
@@ -49,6 +52,10 @@ function readSettingsFromStorage() {
 
 function writeSettingsToStorage(settings) {
   localStorage.setItem(STORAGE_KEYS.currency, settings.currency);
+  localStorage.setItem(
+    STORAGE_KEYS.notificationSounds,
+    String(!!settings.notificationSounds)
+  );
 
   localStorage.setItem(
     STORAGE_KEYS.bookingNotifications,
@@ -85,6 +92,7 @@ function applySettingsToUI(settings) {
   // Currency UI: you only have one option (NGN) right now, but this still supports future options.
   // Future: add other radio buttons and set checked based on settings.currency.
   // Notifications:
+  byId("notificationSounds").checked = !!settings.notificationSounds;
   byId("bookingNotifications").checked = !!settings.bookingNotifications;
   byId("messageNotifications").checked = !!settings.messageNotifications;
   byId("reviewNotifications").checked = !!settings.reviewNotifications;
@@ -98,6 +106,7 @@ function applySettingsToUI(settings) {
 function readSettingsFromUI() {
   return {
     currency: "NGN", // currently only NGN exists in your HTML (radio is checked by default)
+    notificationSounds: byId("notificationSounds").checked,
     bookingNotifications: byId("bookingNotifications").checked,
     messageNotifications: byId("messageNotifications").checked,
     reviewNotifications: byId("reviewNotifications").checked,
@@ -205,6 +214,14 @@ async function deleteAccountFlow() {
 }
 
 function setupButtons() {
+  byId("testNotificationSound")?.addEventListener("click", () => {
+    if (typeof window.voraTestNotificationSound === "function") {
+      window.voraTestNotificationSound();
+    } else {
+      alert("Refresh the page, then try the test sound again.");
+    }
+  });
+
   byId("saveSettingsBtn")?.addEventListener("click", async () => {
     const settings = readSettingsFromUI();
     writeSettingsToStorage(settings);

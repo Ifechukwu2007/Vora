@@ -1,5 +1,6 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
+import { NotificationService } from './notification-service.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -524,6 +525,32 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'pa
 
     if (paymentMethod !== 'reserve_deposit') {
       await createPayoutRecord(bookingId, settlement.customerAmount);
+    }
+
+    const providerId = currentBooking?.provider_id || getPendingBooking()?.providerId || null;
+    const serviceTitle = currentBooking?.service?.title || currentBooking?.title || getPendingBooking()?.serviceTitle || 'your service';
+    const bookingState = paymentMethod === 'reserve_deposit' ? 'reserved with a deposit' : 'confirmed';
+
+    if (providerId) {
+      await NotificationService.createNotification(
+        providerId,
+        'booking_confirmed',
+        'New booking received',
+        `A customer has ${bookingState} for ${serviceTitle}.`,
+        {},
+        currentUser?.id || null
+      );
+    }
+
+    if (currentUser?.id) {
+      await NotificationService.createNotification(
+        currentUser.id,
+        'booking_confirmed',
+        'Booking confirmed',
+        `Your booking for ${serviceTitle} is ${bookingState}.`,
+        {},
+        providerId
+      );
     }
   } catch (err) {
     console.error('Failed to update booking after payment:', err);

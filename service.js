@@ -722,6 +722,12 @@ async function renderServiceMap(service, providerProfile) {
       center: destination,
       zoom: 13,
     });
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+      showUserHeading: false,
+    }), 'top-right');
 
     map.on('load', () => {
       if (route?.geometry?.coordinates) {

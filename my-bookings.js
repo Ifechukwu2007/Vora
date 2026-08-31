@@ -138,6 +138,12 @@ async function renderBookingMap(container, location) {
             zoom: 13,
             attributionControl: false
         });
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+        map.addControl(new maplibregl.GeolocateControl({
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: false,
+            showUserHeading: false,
+        }), 'top-right');
 
         map.on('load', () => {
             if (route?.geometry?.coordinates) {

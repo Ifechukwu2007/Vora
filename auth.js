@@ -350,6 +350,108 @@ if (registerForm) {
 
 const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service', 'notifications', 'add-service', 'request.html'];
 
+function installCaptureProtection() {
+  if (window.__voraCaptureProtectionInstalled) return;
+  window.__voraCaptureProtectionInstalled = true;
+
+  const style = document.createElement('style');
+  style.id = 'vora-capture-protection-styles';
+  style.textContent = `
+    body.vora-capture-blocked {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      -webkit-touch-callout: none !important;
+      pointer-events: none !important;
+      filter: blur(2px) saturate(0.8) !important;
+      overflow: hidden !important;
+    }
+
+    .vora-capture-warning {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.88);
+      color: #fff;
+      text-align: center;
+      padding: 2rem;
+      backdrop-filter: blur(10px);
+      font-family: Arial, sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    .vora-capture-warning.visible {
+      display: flex;
+    }
+
+    .vora-capture-warning__box {
+      max-width: 680px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 2rem 2.4rem;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+    }
+  `;
+  if (!document.getElementById('vora-capture-protection-styles')) {
+    document.head.appendChild(style);
+  }
+
+  const warning = document.createElement('div');
+  warning.id = 'vora-capture-warning';
+  warning.className = 'vora-capture-warning';
+  warning.innerHTML = `
+    <div class="vora-capture-warning__box">
+      <h2 style="margin:0 0 0.6rem;font-size:1.6rem;font-weight:700;">Capture blocked</h2>
+      <p style="margin:0;color:rgba(255,255,255,0.9);">Screen capture and screenshots are not allowed on this platform.</p>
+    </div>
+  `;
+  if (!document.getElementById('vora-capture-warning')) {
+    document.body.appendChild(warning);
+  }
+
+  const blockCapture = () => {
+    const popup = document.getElementById('vora-capture-warning');
+    if (popup) {
+      popup.classList.add('visible');
+    }
+    document.body.classList.add('vora-capture-blocked');
+    setTimeout(() => {
+      const popup2 = document.getElementById('vora-capture-warning');
+      if (popup2) popup2.classList.remove('visible');
+      document.body.classList.remove('vora-capture-blocked');
+    }, 1800);
+  };
+
+  document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    blockCapture();
+  }, { passive: false });
+
+  document.addEventListener('keydown', (event) => {
+    const captureKeys = ['PrintScreen', 'F12'];
+    if (captureKeys.includes(event.key) || (event.key === 's' && (event.ctrlKey || event.metaKey) && event.shiftKey) || (event.key === 'c' && (event.ctrlKey || event.metaKey) && event.shiftKey) || (event.key === 'i' && (event.ctrlKey || event.metaKey) && event.shiftKey)) {
+      event.preventDefault();
+      blockCapture();
+    }
+  }, { passive: false });
+
+  if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      blockCapture();
+      throw new Error('Screen sharing is disabled on this platform.');
+    };
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', installCaptureProtection);
+} else {
+  installCaptureProtection();
+}
+
 function isFilePreview() {
   return window.location.protocol === 'file:';
 }
