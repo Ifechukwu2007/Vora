@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { formatPrice } from './currency-utils.js';
 
 /*
 |--------------------------------------------------------------------------
@@ -92,14 +93,9 @@ let isProcessingPayment = false;
 */
 
 function money(amount) {
-  const value = Number(amount || 0);
-
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
+  // Use formatPrice for multi-currency support
+  // This ensures the user's preferred currency is used
+  return formatPrice(Number(amount || 0));
 }
 
 function number(value) {

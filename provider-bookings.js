@@ -1,5 +1,6 @@
 // provider-bookings.js
 import { supabase } from "./supabase.js";
+import { formatPrice } from "./currency-utils.js";
 
 const CONFIG = {
   BOOKINGS_TABLE: "bookings",
@@ -93,7 +94,7 @@ function cardHtml(b) {
             </div>
             <div class="inline-flex items-center gap-3 rounded-full bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
               <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600">💰</span>
-              ₦${escapeHtml(b.price != null ? Number(b.price).toLocaleString('en-NG') : '0')}
+              ${escapeHtml(b.priceFormatted || 'N/A')}
             </div>
           </div>
 
@@ -286,17 +287,21 @@ async function loadIncomingBookings(providerId) {
     .select(`
       id,
       ${CONFIG.COL_STATUS},
+      booking_status,
       ${CONFIG.COL_CUSTOMER_ID},
+      userId,
+      ${CONFIG.COL_PROVIDER_ID},
+      providerId,
       ${CONFIG.COL_SERVICE_ID},
       ${CONFIG.COL_SCHEDULED_DATE},
       ${CONFIG.COL_CREATED_AT},
       ${CONFIG.COL_TOTAL_PRICE},
-        payment_method,
+      payment_method,
       customer_location,
       special_instructions,
       services:${CONFIG.SERVICES_TABLE}(id, title, image_url, location, price, description)
     `)
-    .eq(CONFIG.COL_PROVIDER_ID, providerId)
+    .or(`provider_id.eq.${providerId},providerId.eq.${providerId}`)
     .order(CONFIG.COL_CREATED_AT, { ascending: false });
 
   if (error) throw error;
@@ -307,7 +312,7 @@ async function loadCustomerProfiles(userIds) {
   if (!userIds.length) return {};
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('id, email, full_name, profile_picture, phone')
     .in('id', userIds);
 
@@ -321,6 +326,7 @@ async function loadCustomerProfiles(userIds) {
 
 function normalize(row, customerProfile) {
   const services = row?.services;
+  const customerId = row?.user_id ?? row?.userId ?? row?.customer_id ?? null;
   const title =
     (Array.isArray(services) ? services[0]?.title : services?.title) ??
     (Array.isArray(services) ? services[0]?.[CONFIG.COL_SERVICE_TITLE] : services?.[CONFIG.COL_SERVICE_TITLE]) ??
@@ -328,26 +334,28 @@ function normalize(row, customerProfile) {
   const imageUrl =
     (Array.isArray(services) ? services[0]?.image_url : services?.image_url) ||
     '';
-  // Prefer multiple images if available
   const serviceImage = (Array.isArray(services) ? (services[0]?.image_urls || services[0]?.image_url) : (services?.image_urls || services?.image_url)) || '';
 
   const customerName = customerProfile?.full_name || row.customer_name || 'Customer';
   const customerEmail = customerProfile?.email || row.customer_email || 'No email';
-  const customerPicture = `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=eceff4&color=1f2937`;
+  const customerPicture = customerProfile?.profile_picture
+    ? customerProfile.profile_picture
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=eceff4&color=1f2937`;
 
   return {
     bookingId: row.id,
     serviceTitle: title,
     serviceImage: serviceImage,
-    customerId: row.user_id,
+    customerId,
     customerName,
     customerEmail,
-    customerPhone: customerProfile?.phone || 'No phone',
+    customerPhone: customerProfile?.phone || row.phone || 'No phone',
     customerPicture,
     time: row.scheduled_date ? formatTime(row.scheduled_date) : formatTime(row.created_at),
-    status: row.status,
+    status: row.status || row.booking_status || 'pending',
     paymentMethod: row.payment_method,
     price: row.total_price,
+    priceFormatted: formatPrice(row.total_price),
     location: row.customer_location || (Array.isArray(services) ? services[0]?.location : services?.location) || 'Customer Location',
     specialInstructions: row.special_instructions || '',
   };
@@ -360,11 +368,11 @@ async function refreshBookings(providerId) {
     return;
   }
 
-  const customerIds = [...new Set(rows.map(row => row.user_id).filter(Boolean))];
+  const customerIds = [...new Set(rows.map(row => row.user_id ?? row.userId ?? row.customer_id ?? row.customerId).filter(Boolean))];
   const profilesById = await loadCustomerProfiles(customerIds);
 
   container.innerHTML = rows
-    .map(row => normalize(row, profilesById[String(row.user_id)]))
+    .map(row => normalize(row, profilesById[String(row.user_id ?? row.userId ?? row.customer_id ?? row.customerId)]))
     .map(cardHtml)
     .join("");
   bindActionButtons(false);

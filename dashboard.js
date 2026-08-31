@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-
+import { formatPrice } from './currency-utils.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             0
         );
 
-        if (totalRevenue) totalRevenue.textContent = `₦${revenue.toLocaleString()}`;
+        if (totalRevenue) totalRevenue.textContent = formatPrice(revenue);
 
         // COMPLETED
         const completedBookings = bookings.filter(
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (successRate) successRate.textContent = `${rate}%`;
 
-        if (winRatePercent) winRatePercent.textContent = rate;
+        if (winRatePercent) winRatePercent.textContent = formatPrice(rate);
         if (winRateBar) winRateBar.style.width = `${rate}%`;
 
         // TODAY'S BOOKINGS
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 <div class="text-right">
                     <p class="font-semibold text-green-600">
-                        ₦${Number(booking.amount || 0).toLocaleString()}
+                        ${formatPrice(booking.amount || 0)}
                     </p>
 
                     <p class="text-xs text-gray-500 capitalize">

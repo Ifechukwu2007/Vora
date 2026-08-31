@@ -1,6 +1,7 @@
 import { LoadingSpinner } from './loading-utils.js';
 import { supabase, supabasePublic } from './supabase.js';
 import { formatPrice } from './currency-utils.js';
+import { initializeUserCountry } from './user-country-loader.js';
 
 const FEATURED_CATEGORY = 'All';
 const RECENT_KEY = 'vora_recent_services';
@@ -510,6 +511,11 @@ async function initializeHomepage() {
 
     const { data: sessionData } = await supabase.auth.getSession();
     currentUser = sessionData.session?.user || null;
+
+    // Load user's country and apply all country-specific settings
+    if (currentUser) {
+        await initializeUserCountry();
+    }
 
     if (currentUser) {
         try {

@@ -132,31 +132,6 @@ function formatMoney(value) {
 }
 
 
-function paymentMethodLabel(value) {
-
-    const method =
-        String(value || "")
-            .trim()
-            .toLowerCase();
-
-    if (method === "cash" || method === "offline" || method === "reserve_cash") {
-        return "Cash on service";
-    }
-
-    if (method === "paystack") {
-        return "Paystack";
-    }
-
-    if (method === "reserve_deposit") {
-        return "Paystack deposit + cash balance";
-    }
-
-    return method
-        ? method.charAt(0).toUpperCase() + method.slice(1)
-        : "Not specified";
-}
-
-
 function shortId(value) {
 
     if (!value) {
@@ -1065,7 +1040,7 @@ async function loadRecentBookings() {
 
     renderLoading(
         tbody,
-        6
+        5
     );
 
 
@@ -1097,7 +1072,7 @@ async function loadRecentBookings() {
 
             renderEmpty(
                 tbody,
-                6,
+                5,
                 "No bookings yet."
             );
 
@@ -1147,16 +1122,6 @@ async function loadRecentBookings() {
                                 booking.amount ??
                                 booking.price ??
                                 0
-                            )}
-
-                        </td>
-
-                        <td class="px-6 py-4">
-
-                            ${escapeHTML(
-                                paymentMethodLabel(
-                                    booking.payment_method
-                                )
                             )}
 
                         </td>
@@ -1677,7 +1642,7 @@ async function loadBookings() {
 
     renderLoading(
         tbody,
-        7
+        6
     );
 
 
@@ -1709,7 +1674,7 @@ async function loadBookings() {
 
             renderEmpty(
                 tbody,
-                7,
+                6,
                 "No bookings found."
             );
 
@@ -1772,16 +1737,6 @@ async function loadBookings() {
                                 booking.amount ??
                                 booking.price ??
                                 0
-                            )}
-
-                        </td>
-
-                        <td class="px-6 py-4">
-
-                            ${escapeHTML(
-                                paymentMethodLabel(
-                                    booking.payment_method
-                                )
                             )}
 
                         </td>

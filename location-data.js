@@ -97,6 +97,17 @@ export const COUNTRY_STATE_MAP = {
     "Zamfara",
     "Federal Capital Territory"
   ],
+  "South Africa": [
+    "Eastern Cape",
+    "Free State",
+    "Gauteng",
+    "KwaZulu-Natal",
+    "Limpopo",
+    "Mpumalanga",
+    "Northern Cape",
+    "North West",
+    "Western Cape"
+  ],
   "United Kingdom": [
     "England",
     "Northern Ireland",
@@ -159,10 +170,25 @@ export const COUNTRY_STATE_MAP = {
 
 export const DEFAULT_COUNTRY = "Nigeria";
 
+// Mapping of country names to MapTiler country codes for geocoding
+export const COUNTRY_GEOCODE_CODES = {
+  "Nigeria": "ng",
+  "United States": "us",
+  "United Kingdom": "gb",
+  "Canada": "ca",
+  "Australia": "au",
+  "India": "in",
+  "South Africa": "za"
+};
+
 export function getSortedCountryOptions() {
   return Object.keys(COUNTRY_STATE_MAP).sort();
 }
 
 export function getStatesForCountry(country) {
   return COUNTRY_STATE_MAP[country] || [];
+}
+
+export function getGeocodeCountryCode(country) {
+  return COUNTRY_GEOCODE_CODES[country] || "ng"; // Default to Nigeria for backward compatibility
 }

@@ -21,6 +21,28 @@ function findRestrictedChatContent(value) {
 export class ChatService {
   static channels = {};
 
+  static normalizeUserId(value) {
+    return value == null ? null : String(value).trim();
+  }
+
+  static async getUserRecord(userId) {
+    const normalizedId = this.normalizeUserId(userId);
+    if (!normalizedId) return null;
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, uid, full_name, profile_picture')
+      .or(`id.eq.${normalizedId},uid.eq.${normalizedId}`)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Could not resolve user record:', error.message || error);
+      return null;
+    }
+
+    return data;
+  }
+
   /**
    * Get or create a chat row for two users.
    * - We store one chat row with:
@@ -30,12 +52,18 @@ export class ChatService {
    * If you already have chats created differently, adjust this matcher.
    */
   static async getOrCreateChat({ currentUserId, otherUserId }) {
-    // Try to find an existing chat
+    const current = this.normalizeUserId(currentUserId);
+    const other = this.normalizeUserId(otherUserId);
+
+    if (!current || !other) {
+      throw new Error('Both users are required to create a chat.');
+    }
+
     const { data: existing, error: findError } = await supabase
       .from('chats')
       .select('*')
       .or(
-        `and(sender_id.eq.${currentUserId},participants.eq.${otherUserId}),and(sender_id.eq.${otherUserId},participants.eq.${currentUserId})`
+        `and(sender_id.eq.${current},participants.eq.${other}),and(sender_id.eq.${other},participants.eq.${current})`
       )
       .limit(1)
       .maybeSingle();
@@ -43,16 +71,13 @@ export class ChatService {
     if (findError) throw findError;
     if (existing) return existing;
 
-    // Create a new chat
     const { data: created, error: createError } = await supabase
       .from('chats')
       .insert({
-        sender_id: currentUserId,
-        participants: otherUserId,
+        sender_id: current,
+        participants: other,
         last_message: null,
         last_timestamp: new Date().toISOString(),
-        // chat_id column exists in schema, but it’s not needed for this relationship.
-        // We leave it unset.
       })
       .select()
       .single();
@@ -103,26 +128,30 @@ export class ChatService {
 
     // 3) Create notification (non-blocking)
     try {
-      await NotificationService.createNotification(
-        otherUserId,
-        'message',
-        'New Message',
-        message,
-        {}, // if your NotificationService expects metadata column, adapt there
-        currentUserId
-      );
+      if (otherUserId) {
+        await NotificationService.createNotification(
+          otherUserId,
+          'message',
+          'New Message',
+          message,
+          {},
+          currentUserId
+        );
+      }
     } catch (e) {
       console.warn('⚠️ Notification failed (message still sent):', e?.message || e);
     }
 
     // 4) Send email notification without blocking the chat send flow
     try {
-      await sendEmailToUserId(
-        otherUserId,
-        'New Vora message received',
-        `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Open the chat to reply.</small></p>`,
-        `You have a new message: ${message}`
-      );
+      if (otherUserId) {
+        await sendEmailToUserId(
+          otherUserId,
+          'New Vora message received',
+          `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Open the chat to reply.</small></p>`,
+          `You have a new message: ${message}`
+        );
+      }
     } catch (emailErr) {
       console.warn('⚠️ Email notification failed (message still sent):', emailErr?.message || emailErr);
     }

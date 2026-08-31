@@ -1075,6 +1075,7 @@ function submitBooking(service, providerId) {
     pricePerPerson: bookingInfo.perPerson,
     discountedTotal: bookingInfo.total,
     discountedPerPerson: bookingInfo.perPerson,
+    paymentMethod: 'paystack',
   };
   try {
     localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));

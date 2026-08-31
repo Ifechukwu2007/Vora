@@ -14,7 +14,16 @@ let offersChannel = null;
 
 function escapeHtml(value = '') { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function formatDate(value) { return value ? new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(new Date(value)) : 'Recently'; }
-function formatBudget(value) { return value === null || value === undefined || value === '' ? 'Budget not set' : `₦${Number(value).toLocaleString('en-NG')}`; }
+// formatBudget will use formatPrice after import
+let formatPriceFunc = null;
+import('./currency-utils.js').then(module => {
+  formatPriceFunc = module.formatPrice;
+}).catch(() => {});
+
+function formatBudget(value) { 
+  if (value === null || value === undefined || value === '') return 'Budget not set';
+  return formatPriceFunc ? formatPriceFunc(Number(value)) : `₦${Number(value).toLocaleString('en-NG')}`;
+}
 
 function getRequestedSchedule(description = '') {
   // Requests save the required preferred date in their description. Keep it as

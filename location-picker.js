@@ -3,12 +3,23 @@ const MAPTILER_STYLE_URL = MAPTILER_KEY
   ? `https://api.maptiler.com/maps/streets/style.json?key=${MAPTILER_KEY}`
   : '';
 
-async function geocodeLocation(location) {
+// Country-specific coordinates for default map center
+const COUNTRY_DEFAULT_COORDS = {
+  'ng': { latitude: 6.151173, longitude: 6.780686 }, // Nigeria (Lagos area)
+  'za': { latitude: -33.918861, longitude: 18.423300 }, // South Africa (Cape Town area)
+  'us': { latitude: 37.7749, longitude: -122.4194 }, // USA (San Francisco)
+  'ca': { latitude: 43.6532, longitude: -79.3832 }, // Canada (Toronto)
+  'gb': { latitude: 51.5074, longitude: -0.1278 }, // UK (London)
+  'au': { latitude: -33.8688, longitude: 151.2093 }, // Australia (Sydney)
+  'in': { latitude: 19.0760, longitude: 72.8777 }, // India (Mumbai)
+};
+
+async function geocodeLocation(location, countryCode = 'ng') {
   if (!location) return null;
   try {
     const params = new URLSearchParams({
       key: MAPTILER_KEY,
-      country: 'ng',
+      country: countryCode,
       language: 'en',
       types: 'address,street',
       limit: '1'
@@ -36,7 +47,7 @@ async function reverseGeocodeLocation(latitude, longitude) {
   }
 }
 
-export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId, coordinatesId, initialCoordinates = null }) {
+export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId, coordinatesId, initialCoordinates = null, countryCode = 'ng' }) {
   const mapElement = document.getElementById(mapId);
   const locationInput = document.getElementById(locationId);
   const latitudeInput = document.getElementById(latitudeId);
@@ -44,7 +55,7 @@ export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId
   const coordinatesText = document.getElementById(coordinatesId);
   if (!mapElement || !locationInput || !latitudeInput || !longitudeInput || !window.maplibregl || !MAPTILER_KEY) return;
 
-  const fallbackCoordinates = { latitude: 6.151173, longitude: 6.780686 };
+  const fallbackCoordinates = COUNTRY_DEFAULT_COORDS[countryCode] || COUNTRY_DEFAULT_COORDS['ng'];
   const startingCoordinates = initialCoordinates || fallbackCoordinates;
   let marker = null;
   let hasSelectedLocation = Boolean(initialCoordinates);
@@ -102,7 +113,7 @@ export function setupLocationPicker({ mapId, locationId, latitudeId, longitudeId
   }
 
   locationInput.addEventListener('change', async () => {
-    const coordinates = await geocodeLocation(locationInput.value.trim());
+    const coordinates = await geocodeLocation(locationInput.value.trim(), countryCode);
     if (!coordinates) return;
     map.flyTo({ center: [coordinates.longitude, coordinates.latitude], zoom: 15 });
     setCoordinates(coordinates.latitude, coordinates.longitude, false);

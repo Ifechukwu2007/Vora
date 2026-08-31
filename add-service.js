@@ -1,6 +1,9 @@
 import { supabase } from './supabase.js';
 import { LoadingSpinner } from './loading-utils.js';
 import { setupLocationPicker } from './location-picker.js';
+import { getCountryConfig, getUserCountry } from './country-config.js';
+import { getGeocodeCountryCode } from './location-data.js';
+
 
 let selectedImageFiles = [];
 let currentStep = 1;
@@ -296,7 +299,7 @@ function validateCurrentStep() {
     let hasError = false;
 
     if (!priceValue || Number.isNaN(priceNumber) || priceNumber < 1000) {
-        showFieldError('error-service-price', 'Please enter a realistic price of at least NGN 1,000.');
+        showFieldError('error-service-price', 'Please enter a realistic price of at least 1,000 in your currency.');
         setFieldState(priceInput, false);
         hasError = true;
     } else {
@@ -507,12 +510,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('prev-step-btn');
     const categorySelect = document.getElementById('service-category');
 
+    // Get user's country and pass it to location picker
+    const userCountry = getUserCountry();
+    const countryCode = getGeocodeCountryCode(userCountry);
+
     setupLocationPicker({
         mapId: 'service-location-map',
         locationId: 'service-location',
         latitudeId: 'service-latitude',
         longitudeId: 'service-longitude',
-        coordinatesId: 'service-location-coordinates'
+        coordinatesId: 'service-location-coordinates',
+        countryCode: countryCode
     });
 
     updateWizardUI();

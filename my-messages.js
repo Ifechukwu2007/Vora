@@ -116,8 +116,8 @@ async function renderConversation(chat) {
 
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("full_name, profile_picture, verified")
-      .eq("id", otherUserId)
+      .select("id, full_name, profile_picture, verified")
+      .or(`id.eq.${otherUserId},uid.eq.${otherUserId}`)
       .maybeSingle();
 
     if (profileError) {

@@ -2,12 +2,15 @@
 import { supabase } from "./supabase.js";
 import { updateProfilePictureInHeader } from "./auth.js";
 import { sendEmailToUserId } from "./email-service.js";
+import { getCountryConfig } from "./country-config.js";
 
 const BUCKET_NAME = "profile-pictures"; // <-- change if your bucket name differs
 
 const els = {
   name: document.getElementById("name"),
   email: document.getElementById("email"),
+  country: document.getElementById("country"),
+  countryCode: document.getElementById("countryCode"),
   phoneLocal: document.getElementById("phoneLocal"),
   location: document.getElementById("location"),
   profileVerified: document.getElementById("profileVerified"),
@@ -39,6 +42,22 @@ function getSafeFilename(name) {
   return clean.length > 180 ? clean.slice(-180) : clean;
 }
 
+// Sets the displayed phone code from a country name, WITHOUT ever falling
+// back to a hardcoded country's code. If we can't resolve a code for the
+// given country, we clear the field instead of showing a wrong/default one
+// (e.g. showing Nigeria's +234 for a South African user).
+function applyCountryCode(countryName) {
+  if (!els.countryCode) return;
+
+  if (!countryName) {
+    els.countryCode.value = "";
+    return;
+  }
+
+  const countryConfig = getCountryConfig(countryName) || {};
+  els.countryCode.value = countryConfig.phoneCode || "";
+}
+
 async function ensureBucketExists() {
   // Storage bucket create requires service role; we won't do it automatically.
   // Instead we test existence and provide a helpful error.
@@ -52,26 +71,21 @@ async function ensureBucketExists() {
 }
 
 async function loadProfile(userId) {
+  console.log("Loading profile for user:", userId);
+  
   const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, phone, location, profile_picture, verified")
-    .eq("id", userId)
+    .from("users")
+    .select("uid, full_name, email, phone, location, profile_picture, verified, country")
+    .eq("uid", userId)
     .maybeSingle();
 
-  if (error) throw error;
-
-  let profileData = data;
-
-  if (!profileData) {
-    const { data: userFallback, error: userError } = await supabase
-      .from("users")
-      .select("id, full_name, email, location, phone, profile_picture, verified")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (userError) throw userError;
-    profileData = userFallback || {};
+  if (error) {
+    console.error("Error loading from users table:", error);
+    throw error;
   }
+
+  let profileData = data || {};
+  console.log("Profile data:", profileData);
 
   els.name.value = profileData.full_name || "";
   els.email.value = profileData.email || "";
@@ -80,6 +94,16 @@ async function loadProfile(userId) {
   if (els.profileVerified) {
     els.profileVerified.textContent = profileData.verified ? 'Verified' : 'Not verified';
   }
+
+  // Load and display the user's own country and country code.
+  // This now runs regardless of whether profileData.country is set, so
+  // the code field is always in sync with the actual stored country
+  // instead of quietly keeping whatever static value was in the HTML.
+  if (els.country) {
+    els.country.value = profileData.country || "";
+  }
+  applyCountryCode(profileData.country);
+
   const picturePath = profileData.profile_picture;
   const pictureUrl = picturePath ? await getProfilePicturePublicUrl(picturePath) : "";
 
@@ -145,8 +169,9 @@ async function uploadProfilePicture(userId, file) {
 
 async function syncProfileData(userId, updates) {
   const { error: profileError } = await supabase
-    .from("profiles")
-    .upsert({ id: userId, ...updates }, { onConflict: "id" });
+    .from("users")
+    .update(updates)
+    .eq("uid", userId);
 
   if (profileError) throw profileError;
 }
@@ -181,9 +206,9 @@ async function deleteProfilePicture(userId, currentProfilePicture) {
 
   // Clear DB field
   const { error: dbError } = await supabase
-    .from("profiles")
+    .from("users")
     .update({ profile_picture: null })
-    .eq("id", userId);
+    .eq("uid", userId);
 
   if (dbError) throw dbError;
 }
@@ -242,6 +267,19 @@ async function loadSummaryCounts(userId) {
 }
 
 async function initAuthAndProfile() {
+  // First check if we have a session
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    // If no session, try to get user (in case it's cached)
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData?.user) {
+      console.log("No session or user found. Redirecting to home...");
+      window.location.replace("home.html");
+      return;
+    }
+  }
+
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData?.user) {
     window.location.replace("home.html");
@@ -267,7 +305,9 @@ async function initAuthAndProfile() {
       const location = (els.location.value || "").trim();
 
       // Email field is disabled; we do not update it here.
-      // Your table includes `email` - but usually it should come from auth.
+      // Country/countryCode are readonly display fields (set at signup) —
+      // this form never edits them, so they're intentionally left out
+      // of the update payload.
       const payload = {
         full_name,
         phone,
@@ -275,8 +315,9 @@ async function initAuthAndProfile() {
       };
 
       const { error: updateError } = await supabase
-        .from("profiles")
-        .upsert({ id: user.id, ...payload }, { onConflict: "id" });
+        .from("users")
+        .update(payload)
+        .eq("uid", user.id);
 
       showLoading(false);
 
@@ -320,9 +361,9 @@ async function initAuthAndProfile() {
 
       // Refresh UI
       const { data: refreshed, error: refErr } = await supabase
-        .from("profiles")
+        .from("users")
         .select("profile_picture")
-        .eq("id", user.id)
+        .eq("uid", user.id)
         .single();
 
       if (refErr) throw refErr;
@@ -354,9 +395,9 @@ async function initAuthAndProfile() {
       showLoading(true);
 
       const { data: current, error: curErr } = await supabase
-        .from("profiles")
+        .from("users")
         .select("profile_picture")
-        .eq("id", user.id)
+        .eq("uid", user.id)
         .maybeSingle();
 
       if (curErr) throw curErr;
@@ -391,5 +432,14 @@ async function initAuthAndProfile() {
 // But this script will try signed first and fallback to public URL.
 initAuthAndProfile().catch((err) => {
   console.error(err);
-  alert("Profile page error: " + err.message);
+  // Clear all form fields on auth error
+  Object.values(els).forEach(el => {
+    if (el && el.id) {
+      if (el.tagName === 'INPUT') {
+        el.value = '';
+      }
+    }
+  });
+  alert("You must be logged in to view your profile. Redirecting...");
+  window.location.replace("home.html");
 });

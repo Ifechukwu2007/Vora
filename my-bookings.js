@@ -1,6 +1,7 @@
 import { supabase } from "./supabase.js";
 import { resolveProfilePictureUrl } from './auth.js';
 import { getServiceImages } from './service-images.js';
+import { formatPrice } from './currency-utils.js';
 
 const MAPTILER_KEY = window.MAPTILER_API_KEY || '';
 const MAPTILER_STYLE_URL = MAPTILER_KEY
@@ -473,7 +474,7 @@ async function loadBookings() {
                                                         </div>` : ''}
                             ${booking.travel_fee ? `<div>
                               <p class="text-xs text-gray-600">Travel Fee</p>
-                              <p class="font-semibold text-gray-900">₦${booking.travel_fee.toLocaleString()}</p>
+                              <p class="font-semibold text-gray-900">${formatPrice(booking.travel_fee)}</p>
                             </div>` : ''}
                           </div>
                           ${booking.special_instructions ? `<p class="text-xs text-gray-600 mt-3">Special Instructions: ${booking.special_instructions}</p>` : ''}
@@ -487,8 +488,8 @@ async function loadBookings() {
                             </div>
                             <div class="bg-gray-50 rounded-xl p-4">
                                 <p class="text-sm text-gray-500 mb-1">💰 Agreed Price</p>
-                                <p class="font-bold text-green-600 text-xl">₦${bookingTotal.toLocaleString()}</p>
-                                <p class="text-sm text-gray-600 mt-1">Per person: ₦${discountedPerPerson.toLocaleString()}</p>
+                                <p class="font-bold text-green-600 text-xl" id="booking-total-${booking.id}">Loading...</p>
+                                <p class="text-sm text-gray-600 mt-1">Per person: ${formatPrice(discountedPerPerson)}</p>
                                 ${hasGroupDeal ? `<p class="text-sm text-indigo-700 mt-2">${dealText}</p>` : ''}
                             </div>
                             <div class="bg-gray-50 rounded-xl p-4">
@@ -532,6 +533,13 @@ async function loadBookings() {
                 </div>
             `;
             container.appendChild(card);
+            
+            // Populate the booking total with formatted price
+            const bookingTotalElement = document.getElementById(`booking-total-${booking.id}`);
+            if (bookingTotalElement) {
+                const bookingTotal = Number(booking.total_price || booking.amount || booking.price || 0);
+                bookingTotalElement.textContent = formatPrice(bookingTotal);
+            }
         });
 
         setupBookingActions();
@@ -655,7 +663,8 @@ function setupBookingActions() {
         button.addEventListener("click", async () => {
             const bookingId = button.dataset.id;
             const amount = Number(button.dataset.amount || 0);
-            if (!confirm(`Proceed to complete payment of ₦${amount.toLocaleString()} for this booking?`)) return;
+            const { formatPrice } = await import('./currency-utils.js');
+            if (!confirm(`Proceed to complete payment of ${formatPrice(amount)} for this booking?`)) return;
 
             try {
                 const bookingCard = button.closest("div.bg-white.rounded-2xl.shadow-md.p-6");

@@ -1,5 +1,6 @@
 // my-services.js
 import { supabase } from "./supabase.js";
+import { formatPrice } from "./currency-utils.js";
 
 const container = document.getElementById("myServicesContainer");
 if (!container) {
@@ -13,7 +14,7 @@ const els = {
 function moneyNGN(n) {
   const num = Number(n);
   if (!Number.isFinite(num)) return "—";
-  return `₦${Math.round(num).toLocaleString("en-NG")}`;
+  return formatPrice(num);
 }
 
 function escapeHtml(str) {

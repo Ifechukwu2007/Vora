@@ -14,7 +14,16 @@ let currentProvider = null;
 let myOffersChannel = null;
 
 function escapeHtml(value = '') { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
-function formatBudget(value) { return value === null || value === undefined || value === '' ? 'Budget not set' : `₦${Number(value).toLocaleString('en-NG')}`; }
+// formatBudget will use formatPrice after import
+let formatPriceFunc = null;
+import('./currency-utils.js').then(module => {
+  formatPriceFunc = module.formatPrice;
+}).catch(() => {});
+
+function formatBudget(value) { 
+  if (value === null || value === undefined || value === '') return 'Budget not set';
+  return formatPriceFunc ? formatPriceFunc(Number(value)) : `₦${Number(value).toLocaleString('en-NG')}`;
+}
 
 function formatDate(value) { return value ? new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium' }).format(new Date(value)) : 'Recently'; }
 function statusClass(status) { return status === 'accepted' ? 'bg-green-100 text-green-700' : status === 'declined' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'; }

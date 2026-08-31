@@ -1,18 +1,37 @@
 /**
  * Currency Utilities
- * Handles currency preferences and conversions
+ * Handles currency preferences and conversions by country
  */
 
-// Exchange rate (NGN to USD) - Update this periodically or fetch from API
-// As of 2026: 1 USD = ~1550 NGN (This is approximate and should be updated)
+// Base currency is NGN - all prices stored in NGN in database
+// Exchange rates relative to NGN (as of 2026)
 const EXCHANGE_RATES = {
-  NGN_TO_USD: 1 / 1550,  // Divide NGN by this to get USD
-  USD_TO_NGN: 1550,      // Multiply USD by this to get NGN
+  NGN: 1,                      // Nigerian Naira (base)
+  USD: 1 / 1550,              // US Dollar (1 USD = ~1550 NGN)
+  ZAR: 1 / 90,                // South African Rand (1 ZAR = ~90 NGN)
+};
+
+// Currency metadata
+const CURRENCY_CONFIG = {
+  NGN: { symbol: "₦", decimals: 0, name: "Nigerian Naira" },
+  USD: { symbol: "$", decimals: 2, name: "US Dollar" },
+  ZAR: { symbol: "R", decimals: 2, name: "South African Rand" },
+};
+
+// Map countries to their currencies
+const COUNTRY_CURRENCY_MAP = {
+  "Nigeria": "NGN",
+  "United States": "USD",
+  "United Kingdom": "GBP",  // Will use USD for display
+  "Canada": "CAD",           // Will use USD for display
+  "Australia": "AUD",        // Will use USD for display
+  "India": "INR",            // Will use USD for display
+  "South Africa": "ZAR",
 };
 
 /**
  * Get the user's preferred currency
- * @returns {string} "NGN" or "USD" (defaults to "NGN")
+ * @returns {string} Currency code like "NGN", "USD", "ZAR"
  */
 export function getPreferredCurrency() {
   return localStorage.getItem("preferredCurrency") || "NGN";
@@ -20,34 +39,54 @@ export function getPreferredCurrency() {
 
 /**
  * Set the user's preferred currency
- * @param {string} currency - "NGN" or "USD"
+ * @param {string} currency - Currency code like "NGN", "USD", "ZAR"
  */
 export function setPreferredCurrency(currency) {
-  if (["NGN", "USD"].includes(currency)) {
+  if (Object.keys(CURRENCY_CONFIG).includes(currency)) {
     localStorage.setItem("preferredCurrency", currency);
     window.dispatchEvent(new CustomEvent("currencyChanged", { detail: { currency } }));
   }
 }
 
 /**
+ * Get currency based on country
+ * @param {string} country - Country name
+ * @returns {string} Currency code
+ */
+export function getCurrencyForCountry(country) {
+  return COUNTRY_CURRENCY_MAP[country] || "NGN";
+}
+
+/**
+ * Set currency based on user's country
+ * @param {string} country - Country name
+ */
+export function setCurrencyByCountry(country) {
+  const currency = getCurrencyForCountry(country);
+  setPreferredCurrency(currency);
+}
+
+/**
  * Convert price from one currency to another
+ * All prices in DB are stored in NGN, so conversion is always through NGN
  * @param {number} amount - The amount to convert
- * @param {string} fromCurrency - Source currency ("NGN" or "USD")
- * @param {string} toCurrency - Target currency ("NGN" or "USD")
+ * @param {string} fromCurrency - Source currency ("NGN", "USD", "ZAR", etc.)
+ * @param {string} toCurrency - Target currency ("NGN", "USD", "ZAR", etc.)
  * @returns {number} Converted amount
  */
 export function convertCurrency(amount, fromCurrency, toCurrency) {
   if (fromCurrency === toCurrency) return amount;
   
-  if (fromCurrency === "NGN" && toCurrency === "USD") {
-    return amount * EXCHANGE_RATES.NGN_TO_USD;
+  if (!EXCHANGE_RATES[fromCurrency] || !EXCHANGE_RATES[toCurrency]) {
+    console.warn(`Unknown currency: ${fromCurrency} or ${toCurrency}, defaulting to NGN`);
+    return amount;
   }
   
-  if (fromCurrency === "USD" && toCurrency === "NGN") {
-    return amount * EXCHANGE_RATES.USD_TO_NGN;
-  }
+  // Convert to base (NGN) first, then to target
+  const amountInNGN = amount / EXCHANGE_RATES[fromCurrency];
+  const amountInTarget = amountInNGN * EXCHANGE_RATES[toCurrency];
   
-  return amount;
+  return amountInTarget;
 }
 
 /**
@@ -59,26 +98,16 @@ export function convertCurrency(amount, fromCurrency, toCurrency) {
  */
 export function formatPrice(priceInNGN, includeSymbol = true) {
   const preferredCurrency = getPreferredCurrency();
-  let displayPrice;
-  let symbol;
-  let decimals;
-
-  if (preferredCurrency === "USD") {
-    displayPrice = convertCurrency(priceInNGN, "NGN", "USD");
-    symbol = "$";
-    decimals = 2;
-  } else {
-    displayPrice = priceInNGN;
-    symbol = "₦";
-    decimals = 0;
-  }
-
+  const config = CURRENCY_CONFIG[preferredCurrency] || CURRENCY_CONFIG.NGN;
+  
+  let displayPrice = convertCurrency(priceInNGN, "NGN", preferredCurrency);
+  
   const formatted = displayPrice.toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
   });
 
-  return includeSymbol ? `${symbol}${formatted}` : formatted;
+  return includeSymbol ? `${config.symbol}${formatted}` : formatted;
 }
 
 /**
@@ -91,12 +120,21 @@ export function formatPriceNumber(priceInNGN) {
 }
 
 /**
- * Get currency symbol
- * @returns {string} "₦" or "$"
+ * Get currency symbol for preferred currency
+ * @returns {string} Currency symbol like "₦", "$", "R"
  */
 export function getCurrencySymbol() {
   const currency = getPreferredCurrency();
-  return currency === "USD" ? "$" : "₦";
+  return CURRENCY_CONFIG[currency]?.symbol || "₦";
+}
+
+/**
+ * Get currency name
+ * @returns {string} Currency name like "Nigerian Naira"
+ */
+export function getCurrencyName() {
+  const currency = getPreferredCurrency();
+  return CURRENCY_CONFIG[currency]?.name || "Nigerian Naira";
 }
 
 /**

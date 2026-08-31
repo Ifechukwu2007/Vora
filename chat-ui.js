@@ -80,12 +80,13 @@ async function loadChatInfo() {
     // Determine the other user
     otherUserId = chat.sender_id === currentUser.id ? chat.participants : chat.sender_id;
 
-    // Fetch other user's profile
+    // Fetch the other user from the canonical users table and allow both
+    // id- and uid-based identifiers in the schema.
     const { data: profile } = await supabase
       .from('users')
-      .select('full_name, profile_picture')
-      .eq('id', otherUserId)
-      .single();
+      .select('id, full_name, profile_picture')
+      .or(`id.eq.${otherUserId},uid.eq.${otherUserId}`)
+      .maybeSingle();
 
     otherUserName = profile?.full_name || 'User';
     otherUserNameEl.textContent = otherUserName;

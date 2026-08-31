@@ -1,6 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
+import { formatPrice } from './currency-utils.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -16,11 +17,6 @@ let platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
 
 async function loadPlatformCommission() {
   platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
-}
-
-function formatNaira(amount) {
-  const value = Number(amount) || 0;
-  return `NGN ${value.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 function getParam(name) {
@@ -252,7 +248,7 @@ async function loadBooking(bookingId) {
   }
 
   if (data.provider_id) {
-    const { data: providerRow } = await supabase.from('profiles').select('id, full_name, profile_picture, location').eq('id', data.provider_id).maybeSingle();
+    const { data: providerRow } = await supabase.from('users').select('id, full_name, profile_picture, location').eq('uid', data.provider_id).maybeSingle();
     providerData = providerRow;
   }
 
@@ -322,22 +318,22 @@ function renderBooking(booking) {
     ? Number(pendingBooking?.reservationFee || reservationDetails.reservationFee)
     : total;
 
-  setText('per-person-price', formatNaira(perPerson));
-  setText('service-fee', formatNaira(serviceFee));
-  setText('service-price-total', formatNaira(total));
-  setText('service-price-summary', formatNaira(amountDueNow));
+  setText('per-person-price', formatPrice(perPerson));
+  setText('service-fee', formatPrice(serviceFee));
+  setText('service-price-total', formatPrice(total));
+  setText('service-price-summary', formatPrice(amountDueNow));
   setText('payment-amount-label', isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
   setText('payment-mode-title', isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
   setText('payment-mode-description', isReservationDeposit
     ? 'Pay the reservation fee through Paystack to secure your booking. Pay the remaining balance to the provider in cash after the service.'
     : 'Submit your booking and pay securely through Paystack.');
   setText('deposit-balance-note', isReservationDeposit
-    ? `Pay ${formatNaira(amountDueNow)} through Paystack now. The remaining ${formatNaira(Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
+    ? `Pay ${formatPrice(amountDueNow)} through Paystack now. The remaining ${formatPrice(Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
     : 'Your full booking total will be paid securely through Paystack.');
 
   if (travelFee > 0) {
-    setText('travel-fee-breakdown-value', formatNaira(travelFee));
-    setText('travel-fee-card-value', formatNaira(travelFee));
+    setText('travel-fee-breakdown-value', formatPrice(travelFee));
+    setText('travel-fee-card-value', formatPrice(travelFee));
     show('travel-fee-breakdown');
     show('travel-fee-card');
   } else {
@@ -356,7 +352,26 @@ function setBookingIdInUrl(bookingId) {
 }
 
 async function createBookingFromPending(pendingBooking) {
-  if (!pendingBooking) return null;
+  if (!pendingBooking) {
+    console.error('No pending booking data available');
+    throw new Error('Missing booking data');
+  }
+
+  if (!currentUser || !currentUser.id) {
+    console.error('User not authenticated - currentUser:', currentUser);
+    throw new Error('User not authenticated');
+  }
+
+  // Ensure all numeric fields are actual numbers
+  const totalPrice = Number(pendingBooking.totalPrice) || 0;
+  const numberOfPeople = Number(pendingBooking.numberOfPeople) || 1;
+  const pricePerPerson = Number(pendingBooking.pricePerPerson) || 0;
+  const travelFee = Number(pendingBooking.travelFee) || 0;
+
+  if (totalPrice <= 0) {
+    console.error('Invalid total price:', pendingBooking.totalPrice);
+    throw new Error('Booking total must be greater than zero');
+  }
 
   const payload = {
     user_id: currentUser.id,
@@ -364,30 +379,32 @@ async function createBookingFromPending(pendingBooking) {
     service_id: pendingBooking.serviceId || null,
     scheduled_date: pendingBooking.scheduledDate || null,
     status: 'pending_payment',
-    total_price: pendingBooking.totalPrice || 0,
-    number_of_people: pendingBooking.numberOfPeople || 1,
-    price_per_person: pendingBooking.pricePerPerson || 0,
-    travel_fee: pendingBooking.travelFee || 0,
+    total_price: totalPrice,
+    number_of_people: numberOfPeople,
+    price_per_person: pricePerPerson,
+    travel_fee: travelFee,
     special_instructions: pendingBooking.specialInstructions || '',
     service_location: pendingBooking.serviceLocation || 'provider',
     customer_location: pendingBooking.customerLocation || '',
     payment_status: 'pending',
-    payment_method: pendingBooking.paymentMethod || 'paystack',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await supabase.from('bookings').insert(payload).select('id').single();
-    if (error) {
-      console.error('Failed to create booking before payment:', error);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error('Failed to create booking before payment:', err);
-    return null;
+  console.log('Creating booking with payload:', payload);
+
+  const { data, error } = await supabase.from('bookings').insert(payload).select('id').single();
+  if (error) {
+    console.error('Failed to create booking - Database error:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error details:', error.details);
+    throw new Error(`Failed to create booking: ${error.message}`);
   }
+  if (!data) {
+    console.error('Insert succeeded but no data returned');
+    throw new Error('Booking created but no ID returned');
+  }
+  console.log('Booking created successfully:', data);
+  return data;
 }
 
 async function createPendingPayment(bookingId, amount, paymentMethod = 'paystack') {

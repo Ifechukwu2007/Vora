@@ -4,6 +4,7 @@
 
 import { supabase } from "./supabase.js";
 import { getStatesForCountry } from "./location-data.js";
+import { setUserCountry } from "./country-config.js";
 
 // ===============================
 // CHECK SESSION - REDIRECT IF LOGGED IN
@@ -102,7 +103,8 @@ const COUNTRY_PHONE_CODE = {
   "United Kingdom": "+44",
   "Canada": "+1",
   "Australia": "+61",
-  "India": "+91"
+  "India": "+91",
+  "South Africa": "+27"
 };
 
 function validateLocation(location) {
@@ -478,6 +480,8 @@ if (registerForm) {
           email: email,
           phone: fullPhone,
           location: combinedLocation,
+          country: country,
+          state: state,
           role: 'user',
           verified: false
         }]);
@@ -493,10 +497,15 @@ if (registerForm) {
           full_name: fullname,
           phone: fullPhone,
           location: combinedLocation,
+          country: country,
+          state: state,
           profile_picture: null
         }]);
 
       if (profileError) throw profileError;
+
+      // Set user's country and apply all country-specific settings
+      setUserCountry(country);
 
       showSuccess("Account created successfully! Redirecting...");
 
