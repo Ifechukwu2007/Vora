@@ -132,7 +132,7 @@ async function main() {
   // Load auth user
   const { data: authData, error: authErr } = await supabase.auth.getUser();
   if (authErr || !authData?.user) {
-    window.location.href = "auth.html";
+    window.location.href = "login.html";
     return;
   }
 
