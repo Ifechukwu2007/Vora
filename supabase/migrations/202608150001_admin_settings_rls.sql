@@ -1,7 +1,7 @@
--- Permit only authenticated Vora administrators to change platform settings.
+-- Permit only authenticated Vorabukeen administrators to change platform settings.
 -- The function is SECURITY DEFINER so it can safely check the users table
 -- without depending on that table's own RLS policies.
-create or replace function public.is_vora_admin()
+create or replace function public.is_vorabukeen_admin()
 returns boolean
 language sql
 stable
@@ -16,8 +16,8 @@ as $$
   );
 $$;
 
-revoke all on function public.is_vora_admin() from public;
-grant execute on function public.is_vora_admin() to authenticated;
+revoke all on function public.is_vorabukeen_admin() from public;
+grant execute on function public.is_vorabukeen_admin() to authenticated;
 
 alter table public.settings enable row level security;
 
@@ -26,12 +26,12 @@ create policy "Admins can insert platform settings"
 on public.settings
 for insert
 to authenticated
-with check (public.is_vora_admin());
+with check (public.is_vorabukeen_admin());
 
 drop policy if exists "Admins can update platform settings" on public.settings;
 create policy "Admins can update platform settings"
 on public.settings
 for update
 to authenticated
-using (public.is_vora_admin())
-with check (public.is_vora_admin());
+using (public.is_vorabukeen_admin())
+with check (public.is_vorabukeen_admin());

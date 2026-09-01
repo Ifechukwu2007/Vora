@@ -589,7 +589,7 @@ function wireDeletionRequest() {
   els.requestDeletionBtn?.addEventListener("click", async () => {
     if (
       !confirm(
-        "This will submit a request to permanently delete your Vora account. This can't be undone once processed. Continue?"
+        "This will submit a request to permanently delete your Vorabukeen account. This can't be undone once processed. Continue?"
       )
     ) {
       return;
@@ -614,9 +614,9 @@ function wireDeletionRequest() {
     try {
       await sendEmailToUserId(
         currentUser.id,
-        "Vora account deletion request received",
-        `<p>We've received a request to delete your Vora account. Our team will process this and follow up if we need anything else from you.</p>`,
-        "We've received a request to delete your Vora account."
+        "Vorabukeen account deletion request received",
+        `<p>We've received a request to delete your Vorabukeen account. Our team will process this and follow up if we need anything else from you.</p>`,
+        "We've received a request to delete your Vorabukeen account."
       );
     } catch (err) {
       console.warn("Deletion confirmation email failed:", err?.message || err);
@@ -652,12 +652,12 @@ function wireSupportButtons() {
   });
 
   reportProblemBtn?.addEventListener("click", () => {
-    const subject = encodeURIComponent("Vora app problem report");
+    const subject = encodeURIComponent("Vorabukeen app problem report");
     const body = encodeURIComponent(
-      `Hi Vora support,\n\nI need help with an issue on the app.\n\nUser email: ${currentUser?.email || "Not available"}\nIssue summary: \nSteps to reproduce: \nExpected result: \nActual result: \n\nPlease help.`
+      `Hi Vorabukeen support,\n\nI need help with an issue on the app.\n\nUser email: ${currentUser?.email || "Not available"}\nIssue summary: \nSteps to reproduce: \nExpected result: \nActual result: \n\nPlease help.`
     );
 
-    window.location.href = `mailto:vora.support.group@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:vorabukeen.support.group@gmail.com?subject=${subject}&body=${body}`;
   });
 }
 

@@ -41,7 +41,7 @@ async function sendBookingRequestEmails(booking) {
     promises.push(
       sendEmailToUserId(
         booking.provider_id,
-        'New Vora booking request received',
+        'New Vorabukeen booking request received',
         `<p>A new booking request has been made and is pending payment.</p><p><strong>Booking ID:</strong> ${booking.id}</p><p><strong>Total:</strong> ${formatPrice(booking.total_price)}</p><p><strong>Scheduled:</strong> ${scheduledDate}</p><p><a href="${bookingUrl}">View booking</a></p>`,
         `New booking request: ${booking.id} — ${formatPrice(booking.total_price)}`
       )
@@ -52,7 +52,7 @@ async function sendBookingRequestEmails(booking) {
     promises.push(
       sendEmailToUserId(
         booking.user_id,
-        'Your Vora booking request is pending payment',
+        'Your Vorabukeen booking request is pending payment',
         `<p>Your booking request has been saved and is pending payment.</p><p><strong>Booking ID:</strong> ${booking.id}</p><p><strong>Total:</strong> ${formatPrice(booking.total_price)}</p><p><strong>Scheduled:</strong> ${scheduledDate}</p><p><a href="${bookingUrl}">View your booking</a></p>`,
         `Booking request received: ${booking.id}`
       )
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (!currentUser) {
     currentUser = previewMode
-      ? { id: 'preview-user', email: 'preview@vora.com' }
+      ? { id: 'preview-user', email: 'preview@vorabukeen.com' }
       : null;
   }
 

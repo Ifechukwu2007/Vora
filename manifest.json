@@ -1,7 +1,7 @@
 {
-  "name": "Vora",
-  "short_name": "Vora",
-  "description": "Book trusted local services with Vora",
+  "name": "Vorabukeen",
+  "short_name": "Vorabukeen",
+  "description": "Book trusted local services with Vorabukeen",
   "start_url": "/home.html",
   "scope": "/",
   "display": "standalone",

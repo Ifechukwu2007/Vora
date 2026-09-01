@@ -254,7 +254,7 @@ async function upsertConversationCard(chatId) {
 }
 
 function canPlayMessageRing() {
-  return localStorage.getItem('vora_message_notifications') !== 'false';
+  return localStorage.getItem('vorabukeen_message_notifications') !== 'false';
 }
 
 function playMessageRing() {

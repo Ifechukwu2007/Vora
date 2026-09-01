@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!user && isFileProtocol) {
         // allow preview when opened from file system
-        user = { id: 'preview-user', email: 'preview@vora.com' };
+        user = { id: 'preview-user', email: 'preview@vorabukeen.com' };
     }
 
     if (!user) {

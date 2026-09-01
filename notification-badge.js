@@ -4,7 +4,7 @@ const badge = document.getElementById('notificationBadge');
 let currentUser = null;
 let badgeChannel = null;
 let notificationAudioContext = null;
-const SOUND_SETTING_KEY = 'vora_notification_sounds';
+const SOUND_SETTING_KEY = 'vorabukeen_notification_sounds';
 const SOUND_NOTIFICATION_TYPES = new Set([
   'message',
   'new_message',

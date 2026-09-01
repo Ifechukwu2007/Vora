@@ -1,5 +1,5 @@
 /* ============================================================
-   VORA ADMIN DASHBOARD
+   VORABUKEEN ADMIN DASHBOARD
    admin.js
 
    ADMIN ACCESS:
@@ -175,7 +175,7 @@ function isAdmin(user) {
 function showError(message) {
 
     console.error(
-        "Vora Admin:",
+        "Vorabukeen Admin:",
         message
     );
 
@@ -2946,7 +2946,7 @@ async function init() {
     } catch (error) {
 
         console.error(
-            "Vora Admin initialization failed:",
+            "Vorabukeen Admin initialization failed:",
             error
         );
 

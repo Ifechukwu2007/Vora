@@ -228,7 +228,7 @@ async function isProviderPayoutReady(providerId) {
 
 // simple toast helper
 function toast(msg, kind = 'info'){
-  const root = document.getElementById('vora-toasts') || (()=>{ const d=document.createElement('div'); d.id='vora-toasts'; d.className='fixed bottom-6 right-6 flex flex-col gap-2 z-50'; document.body.appendChild(d); return d; })();
+  const root = document.getElementById('vorabukeen-toasts') || (()=>{ const d=document.createElement('div'); d.id='vorabukeen-toasts'; d.className='fixed bottom-6 right-6 flex flex-col gap-2 z-50'; document.body.appendChild(d); return d; })();
   const n=document.createElement('div'); n.className = `px-4 py-2 rounded shadow ${kind==='error'?'bg-red-600 text-white':'bg-gray-800 text-white'}`; n.textContent=msg; root.appendChild(n); setTimeout(()=>n.remove(),4000);
 }
 
@@ -545,7 +545,7 @@ async function openCustomerLocationModal(location) {
         </div>
         <button id="closeLocationModal" class="text-2xl text-gray-600">&times;</button>
       </div>
-      <div class="vora-map" id="customerMapContainer"></div>
+      <div class="vorabukeen-map" id="customerMapContainer"></div>
       <div class="flex items-center justify-between gap-3 p-5 bg-slate-50">
         <a id="googleMapsNavBtn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">📍 Navigate with Google Maps</a>
         <button id="closeLocationModalAction" class="px-4 py-3 rounded-lg bg-slate-600 text-white hover:bg-slate-700">Close</button>

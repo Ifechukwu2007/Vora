@@ -8,7 +8,7 @@ These rules are already prepared in `firestore.rules`. You need to deploy them m
 
 **Steps:**
 1. Open [Firebase Console](https://console.firebase.google.com)
-2. Select project: **vora-d8987**
+2. Select project: **vorabukeen-d8987**
 3. Go to **Firestore Database** → **Rules** tab
 4. Click **Edit Rules**
 5. Replace the rules with the content from `firestore.rules` file

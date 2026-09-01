@@ -652,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let providerEmail = user.email || 'provider@vora.com';
+            let providerEmail = user.email || 'provider@vorabukeen.com';
             try {
                 const { data: userData, error: userError } = await supabase
                     .from('users')
@@ -661,11 +661,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     .single();
 
                 if (!userError && userData) {
-                    providerEmail = userData.email || user.email || 'provider@vora.com';
+                    providerEmail = userData.email || user.email || 'provider@vorabukeen.com';
                 }
             } catch (error) {
                 console.warn('Could not fetch user data:', error);
-                providerEmail = user.email || 'provider@vora.com';
+                providerEmail = user.email || 'provider@vorabukeen.com';
             }
 
             if (selectedImageFiles.length === 0) {

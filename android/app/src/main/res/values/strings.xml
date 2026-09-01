@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Vora</string>
-    <string name="title_activity_main">Vora</string>
-    <string name="package_name">com.vora.app</string>
-    <string name="custom_url_scheme">com.vora.app</string>
+    <string name="app_name">Vorabukeen</string>
+    <string name="title_activity_main">Vorabukeen</string>
+    <string name="package_name">com.vorabukeen.app</string>
+    <string name="custom_url_scheme">com.vorabukeen.app</string>
 </resources>

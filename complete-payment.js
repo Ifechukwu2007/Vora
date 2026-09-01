@@ -29,7 +29,7 @@ function getBookingId() {
 
 function getPendingBooking() {
   try {
-    return JSON.parse(localStorage.getItem('voraPendingBooking') || 'null');
+    return JSON.parse(localStorage.getItem('vorabukeenPendingBooking') || 'null');
   } catch (err) {
     console.warn('Could not read pending booking:', err);
     return null;
@@ -55,7 +55,7 @@ async function requireAuth() {
     if (error || !data?.session?.user) {
       const isFileProtocol = window.location.protocol === 'file:';
       if (isFileProtocol) {
-        return { id: 'preview-user', email: 'preview@vora.com' };
+        return { id: 'preview-user', email: 'preview@vorabukeen.com' };
       }
       const returnUrl = encodeURIComponent(window.location.href);
       window.location.href = `login.html?returnUrl=${returnUrl}`;
@@ -64,7 +64,7 @@ async function requireAuth() {
     return data.session.user;
   } catch (err) {
     console.warn('Auth check skipped for preview:', err);
-    return { id: 'preview-user', email: 'preview@vora.com' };
+    return { id: 'preview-user', email: 'preview@vorabukeen.com' };
   }
 }
 
@@ -626,7 +626,7 @@ async function launchPaystack(amountNaira, bookingId) {
     return;
   }
 
-  const reference = `VORA-${bookingId}-${Date.now()}`;
+  const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
   const safeRestoreButton = () => {
     resetPaymentFlowState();
   };

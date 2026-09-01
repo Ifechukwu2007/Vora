@@ -5,7 +5,7 @@ import { formatPrice } from "./currency-utils.js";
 const CACHE_KEY = 'browse_services_cache';
 const CACHE_DURATION = 5 * 60 * 1000;
 const PAGE_SIZE = 9;
-const RECENT_KEY = 'vora_recent_services';
+const RECENT_KEY = 'vorabukeen_recent_services';
 
 let allServices = [];
 let filteredServices = [];

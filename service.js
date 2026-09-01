@@ -34,7 +34,7 @@ const currentUser = sessionData?.session?.user || null;
 let currentServiceContext = null;
 let currentProviderContext = null;
 let platformCommissionPercent = 0;
-const RECENT_SERVICES_KEY = 'vora_recent_services';
+const RECENT_SERVICES_KEY = 'vorabukeen_recent_services';
 const RESERVATION_DEPOSIT_THRESHOLD = 50000;
 const RESERVATION_DEPOSIT_PERCENT = 10;
 
@@ -449,7 +449,7 @@ async function loadService() {
               📍 Exact spot shared after booking
             </div>
           </div>
-          <div id="serviceMap" class="vora-map mt-6 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
+          <div id="serviceMap" class="vorabukeen-map mt-6 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
         </div>
 
         <div class="fixed bottom-0 left-0 w-full bg-white border-t p-4">

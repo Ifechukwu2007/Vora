@@ -4,7 +4,7 @@ import { formatPrice } from './currency-utils.js';
 import { initializeUserCountry } from './user-country-loader.js';
 
 const FEATURED_CATEGORY = 'All';
-const RECENT_KEY = 'vora_recent_services';
+const RECENT_KEY = 'vorabukeen_recent_services';
 const MAX_CARDS = 8;
 
 let allServices = [];

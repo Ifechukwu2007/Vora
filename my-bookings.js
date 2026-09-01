@@ -512,7 +512,7 @@ async function loadBookings() {
                             <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                 <p class="text-sm font-semibold text-gray-900">Provider Location Map</p>
                             </div>
-                            <div class="vora-map" id="booking-map-${booking.id}"></div>
+                            <div class="vorabukeen-map" id="booking-map-${booking.id}"></div>
                         </div>
                     </div>
                     <div class="flex flex-col gap-3 w-full lg:w-56">
@@ -618,7 +618,7 @@ function setupBookingActions() {
             if (error) {
                 alert("Failed to report problem: " + error.message);
             } else {
-                alert("Your dispute has been submitted. Vora will review and contact you.");
+                alert("Your dispute has been submitted. Vorabukeen will review and contact you.");
                 await loadBookings();
             }
         });

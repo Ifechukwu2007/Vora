@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://vora.com.ng/</loc>
+    <loc>https://vorabukeen.com.ng/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/how-it-works</loc>
+    <loc>https://vorabukeen.com.ng/how-it-works</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/login</loc>
+    <loc>https://vorabukeen.com.ng/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/register</loc>
+    <loc>https://vorabukeen.com.ng/register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/privacy-policy</loc>
+    <loc>https://vorabukeen.com.ng/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://vora.com.ng/terms-of-service</loc>
+    <loc>https://vorabukeen.com.ng/terms-of-service</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

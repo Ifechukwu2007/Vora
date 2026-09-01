@@ -1,6 +1,6 @@
 /**
  * Country Configuration
- * Stores all country-specific settings for the Vora platform
+ * Stores all country-specific settings for the Vorabukeen platform
  */
 
 import { setCurrencyByCountry } from './currency-utils.js';

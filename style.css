@@ -26,7 +26,7 @@
 }
 
 /* Shared map surface sizing for service and booking views. */
-.vora-map {
+.vorabukeen-map {
   min-height: clamp(28rem, 58vh, 42rem);
   width: 100%;
 }
@@ -79,7 +79,7 @@
 }
 
 @media (max-width: 640px) {
-  .vora-map {
+  .vorabukeen-map {
     min-height: 26rem;
   }
 }

@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const image =
           service.image_url ||
-          'https://placehold.co/600x400?text=Vora';
+          'https://placehold.co/600x400?text=Vorabukeen';
 
         const isWishlisted = userWishlist.includes(service.id);
 

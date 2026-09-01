@@ -50,8 +50,8 @@ export class MessageRealtimeService {
       try {
         await sendEmailToUserId(
           otherUserId,
-          'New Vora message received',
-          `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Visit your messages to reply.</small></p>`,
+          'New Vorabukeen message received',
+          `<p>You have a new message on Vorabukeen:</p><p>${message}</p><p><small>Visit your messages to reply.</small></p>`,
           `You have a new message: ${message}`
         );
         console.log('✉️ Email notification sent for new message to user:', otherUserId);

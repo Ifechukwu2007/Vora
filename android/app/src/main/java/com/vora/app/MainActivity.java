@@ -1,4 +1,4 @@
-package com.vora.app;
+package com.vorabukeen.app;
 
 import com.getcapacitor.BridgeActivity;
 

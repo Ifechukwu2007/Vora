@@ -3,7 +3,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from PIL import Image, ImageDraw
 
-SVG_PATH = Path('vora-logo.svg')
+SVG_PATH = Path('vorabukeen-logo.svg')
 
 
 def parse_svg_points(value):

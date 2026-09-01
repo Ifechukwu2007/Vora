@@ -1,5 +1,5 @@
 // ===============================
-// SUPABASE AUTH FOR VORA
+// SUPABASE AUTH FOR VORABUKEEN
 // ===============================
 
 import { supabase } from "./supabase.js";

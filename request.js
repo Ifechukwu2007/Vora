@@ -103,7 +103,7 @@ form.addEventListener('submit', async (event) => {
   submitButton.disabled = true;
   submitButton.textContent = 'Sending request…';
   const urgency = document.querySelector('input[name="urgency"]:checked')?.value || 'Flexible';
-  const contact = document.querySelector('input[name="contact"]:checked')?.value || 'Vora chat';
+  const contact = document.querySelector('input[name="contact"]:checked')?.value || 'Vorabukeen chat';
   const preferredTime = document.getElementById('time').value;
   const details = document.getElementById('description').value.trim();
   const requestDetails = [

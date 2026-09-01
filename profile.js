@@ -329,7 +329,7 @@ async function initAuthAndProfile() {
       try {
         await sendEmailToUserId(
           user.id,
-          'Your Vora profile was updated',
+          'Your Vorabukeen profile was updated',
           `<p>Your profile information was updated successfully.</p><p>If you did not make this change, please contact support immediately.</p>`,
           'Your profile information was updated successfully.'
         );

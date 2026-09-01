@@ -3,7 +3,7 @@ import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
 import { sendEmailToUserId } from './email-service.js';
 
-const PERSONAL_INFORMATION_MESSAGE = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vora chat.';
+const PERSONAL_INFORMATION_MESSAGE = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vorabukeen chat.';
 
 function findRestrictedChatContent(value) {
   const text = String(value || '').trim();
@@ -147,8 +147,8 @@ export class ChatService {
       if (otherUserId) {
         await sendEmailToUserId(
           otherUserId,
-          'New Vora message received',
-          `<p>You have a new message on Vora:</p><p>${message}</p><p><small>Open the chat to reply.</small></p>`,
+          'New Vorabukeen message received',
+          `<p>You have a new message on Vorabukeen:</p><p>${message}</p><p><small>Open the chat to reply.</small></p>`,
           `You have a new message: ${message}`
         );
       }

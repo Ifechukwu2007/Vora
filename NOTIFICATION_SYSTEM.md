@@ -118,7 +118,7 @@ match /notifications/{notificationId} {
 
 ### Step 1: Deploy Firestore Rules
 1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Select your project "vora-d8987"
+2. Select your project "vorabukeen-d8987"
 3. Go to Firestore Database → Rules
 4. Copy the rules from `firestore.rules` file
 5. Ensure the notifications section looks like:

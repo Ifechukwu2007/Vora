@@ -241,7 +241,7 @@ function showChatPolicyNotice() {
     notice = document.createElement('p');
     notice.id = 'chatPolicyNotice';
     notice.className = 'mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800';
-    notice.textContent = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vora chat.';
+    notice.textContent = 'For your safety, do not share phone numbers, email addresses, social handles, links, bank details, or other personal information in Vorabukeen chat.';
     messageInput.closest('.max-w-6xl')?.appendChild(notice);
   }
   messageInput.focus();

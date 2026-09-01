@@ -98,7 +98,7 @@ async function loadService() {
     // IMAGE
     const serviceImage =
       service.image_url ||
-      'https://placehold.co/800x500?text=Vora';
+      'https://placehold.co/800x500?text=Vorabukeen';
 
     // ============================
     // RENDER SERVICE

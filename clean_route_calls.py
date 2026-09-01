@@ -11,7 +11,7 @@ def strip_html_ext(value: str) -> str:
 
 def normalize_target(value: str) -> str:
     value = strip_html_ext(value)
-    return value if value.startswith('/Vora/') else '/Vora/' + value
+    return value if value.startswith('/Vorabukeen/') else '/Vorabukeen/' + value
 
 
 pattern1 = re.compile(r"LoadingSpinner\.navigateTo\((['\"])([^'\"]+)\1\)")

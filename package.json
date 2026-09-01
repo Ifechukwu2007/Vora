@@ -1,5 +1,5 @@
 {
-  "name": "vora",
+  "name": "vorabukeen",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -8,16 +8,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ifechukwu-2007/Vora.git"
+    "url": "git+https://github.com/ifechukwu-2007/Vorabukeen.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/ifechukwu-2007/Vora/issues"
+    "url": "https://github.com/ifechukwu-2007/Vorabukeen/issues"
   },
-  "homepage": "https://github.com/ifechukwu-2007/Vora#readme",
+  "homepage": "https://github.com/ifechukwu-2007/Vorabukeen#readme",
   "dependencies": {
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",

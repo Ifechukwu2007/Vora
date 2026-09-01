@@ -3,7 +3,7 @@ import { formatPrice } from './currency-utils.js';
 
 /*
 |--------------------------------------------------------------------------
-| VORA PAYMENT CONFIGURATION
+| VORABUKEEN PAYMENT CONFIGURATION
 |--------------------------------------------------------------------------
 |
 | Replace these with your actual Supabase project values.
@@ -326,7 +326,7 @@ async function loadOffer() {
       provider = data;
     } else {
       /*
-       * Some Vora installations may store providers
+       * Some Vorabukeen installations may store providers
        * in the users table.
        */
 
@@ -967,7 +967,7 @@ async function payWithPaystack() {
      */
 
     const reference =
-      `VORA-${booking.id}-${Date.now()}`;
+      `VORABUKEEN-${booking.id}-${Date.now()}`;
 
     /*
      * Create pending payment record.
@@ -1043,7 +1043,7 @@ async function payWithPaystack() {
             service?.title ||
             service?.name ||
             booking?.service_title ||
-            "Vora service",
+            "Vorabukeen service",
 
           people:
             paymentCalculation.people,
