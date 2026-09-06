@@ -4,7 +4,8 @@
 
 import { supabase } from "./supabase.js";
 import { getStatesForCountry } from "./location-data.js";
-import { setUserCountry } from "./country-config.js";
+import { getCountryConfig, setUserCountry } from "./country-config.js";
+import { getCurrencyCodeForCountry } from "./currency-utils.js";
 
 // ===============================
 // CHECK SESSION - REDIRECT IF LOGGED IN
@@ -404,8 +405,9 @@ if (registerForm) {
       return;
     }
 
-    if (!countryCode || !validatePhone(phone)) {
-      showError("Please enter a valid 10-digit Nigerian phone number.");
+    const countryConfig = getCountryConfig(country);
+    if (countryCode !== countryConfig.phoneCode || !countryConfig.phonePattern.test(phone.replace(/\D/g, ""))) {
+      showError(`Please enter a valid phone number for ${country}.`);
       return;
     }
 
@@ -472,6 +474,8 @@ if (registerForm) {
       if (authError) throw authError;
 
       // Create user profile in users table
+      const countryCodeValue = countryConfig.code;
+      const currencyCode = getCurrencyCodeForCountry(country);
       const { error: userError } = await supabase
         .from('users')
         .insert([{
@@ -479,8 +483,11 @@ if (registerForm) {
           full_name: fullname,
           email: email,
           phone: fullPhone,
+          landmark: landmark,
           location: combinedLocation,
           country: country,
+          country_code: countryCodeValue,
+          currency_code: currencyCode,
           state: state,
           role: 'user',
           verified: false
@@ -496,8 +503,11 @@ if (registerForm) {
           email: email,
           full_name: fullname,
           phone: fullPhone,
+          landmark: landmark,
           location: combinedLocation,
           country: country,
+          country_code: countryCodeValue,
+          currency_code: currencyCode,
           state: state,
           profile_picture: null
         }]);

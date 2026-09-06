@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from './loading-utils.js';
-import { formatPrice } from './currency-utils.js';
+import { formatServicePrice } from './currency-utils.js';
 
 let currentUser = null;
 let userWishlist = [];
@@ -170,7 +170,7 @@ async function renderProvider(user, providerId, container) {
             <button type="button" data-wishlist-id="${service.id}" class="absolute right-4 top-4 rounded-full bg-white p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
             <h4 class="text-xl font-bold mb-2">${service.title || 'Untitled Service'}</h4>
             <p class="text-lg text-blue-600 font-semibold mb-2">
-              ${hasDeal ? `<span class="text-sm text-gray-500 line-through mr-2">${formatPrice(service.price ?? 0)}</span>${formatPrice(discountedPrice)}` : formatPrice(service.price ?? 0)}
+              ${hasDeal ? `<span class="text-sm text-gray-500 line-through mr-2">${formatServicePrice(service, service.price ?? 0)}</span>${formatServicePrice(service, discountedPrice)}` : formatServicePrice(service, service.price ?? 0)}
             </p>
             ${hasDeal ? `
               <p class="text-sm text-indigo-600 font-semibold mb-2">${service.deal_message || `Book ${service.group_discount_threshold}+ and save ${service.group_discount_percent}%`}</p>

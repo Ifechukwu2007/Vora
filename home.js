@@ -1,6 +1,6 @@
 import { LoadingSpinner } from './loading-utils.js';
 import { supabase, supabasePublic } from './supabase.js';
-import { formatPrice } from './currency-utils.js';
+import { formatServicePrice } from './currency-utils.js';
 import { initializeUserCountry } from './user-country-loader.js';
 
 const FEATURED_CATEGORY = 'All';
@@ -168,7 +168,7 @@ function buildSection(title, subtitle, services, options = {}) {
                 <div class="p-4">
                     <div class="flex items-start justify-between gap-2">
                         <h3 class="font-semibold text-gray-900 line-clamp-2">${service.title}</h3>
-                        <span class="text-sm font-semibold text-pink-600">${formatPrice(discountedPrice)}</span>
+                        <span class="text-sm font-semibold text-pink-600">${formatServicePrice(service, discountedPrice)}</span>
                     </div>
                     <p class="mt-2 text-sm text-gray-500 line-clamp-2">${getServiceSummary(service)}</p>
                     <div class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-gray-500">

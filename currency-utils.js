@@ -9,6 +9,11 @@ const EXCHANGE_RATES = {
   NGN: 1,                      // Nigerian Naira (base)
   USD: 1 / 1550,              // US Dollar (1 USD = ~1550 NGN)
   ZAR: 1 / 90,                // South African Rand (1 ZAR = ~90 NGN)
+  GHS: 1 / 12,
+  GBP: 1 / 2000,
+  CAD: 1 / 1150,
+  AUD: 1 / 1050,
+  INR: 1 / 18,
 };
 
 // Currency metadata
@@ -16,6 +21,11 @@ const CURRENCY_CONFIG = {
   NGN: { symbol: "₦", decimals: 0, name: "Nigerian Naira" },
   USD: { symbol: "$", decimals: 2, name: "US Dollar" },
   ZAR: { symbol: "R", decimals: 2, name: "South African Rand" },
+  GHS: { symbol: "GH₵", decimals: 2, name: "Ghanaian Cedi" },
+  GBP: { symbol: "£", decimals: 2, name: "British Pound" },
+  CAD: { symbol: "CA$", decimals: 2, name: "Canadian Dollar" },
+  AUD: { symbol: "A$", decimals: 2, name: "Australian Dollar" },
+  INR: { symbol: "₹", decimals: 2, name: "Indian Rupee" },
 };
 
 // Map countries to their currencies
@@ -27,6 +37,7 @@ const COUNTRY_CURRENCY_MAP = {
   "Australia": "AUD",        // Will use USD for display
   "India": "INR",            // Will use USD for display
   "South Africa": "ZAR",
+  "Ghana": "GHS",
 };
 
 /**
@@ -55,6 +66,10 @@ export function setPreferredCurrency(currency) {
  */
 export function getCurrencyForCountry(country) {
   return COUNTRY_CURRENCY_MAP[country] || "NGN";
+}
+
+export function getCurrencyCodeForCountry(country) {
+  return getCurrencyForCountry(country);
 }
 
 /**
@@ -110,6 +125,21 @@ export function formatPrice(priceInNGN, includeSymbol = true) {
   return includeSymbol ? `${config.symbol}${formatted}` : formatted;
 }
 
+export function formatPriceInCurrency(amount, currencyCode = "NGN", includeSymbol = true) {
+  const config = CURRENCY_CONFIG[currencyCode] || CURRENCY_CONFIG.NGN;
+  const formatted = Number(amount || 0).toLocaleString("en-US", {
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
+  });
+  return includeSymbol ? `${config.symbol}${formatted}` : formatted;
+}
+
+export function formatServicePrice(service, amount) {
+  return service?.currency_code
+    ? formatPriceInCurrency(amount, service.currency_code)
+    : formatPrice(amount);
+}
+
 /**
  * Format price without the currency display (just the number)
  * @param {number} priceInNGN - Price in Nigerian Naira
@@ -160,6 +190,8 @@ export default {
   convertCurrency,
   formatPrice,
   formatPriceNumber,
+  formatPriceInCurrency,
+  formatServicePrice,
   getCurrencySymbol,
   getCurrencyCode,
   updateExchangeRates,

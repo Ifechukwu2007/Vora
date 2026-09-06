@@ -11,6 +11,10 @@ const els = {
   email: document.getElementById("email"),
   country: document.getElementById("country"),
   countryCode: document.getElementById("countryCode"),
+  countryCodeValue: document.getElementById("countryCodeValue"),
+  currencyCode: document.getElementById("currencyCode"),
+  state: document.getElementById("state"),
+  landmark: document.getElementById("landmark"),
   phoneLocal: document.getElementById("phoneLocal"),
   location: document.getElementById("location"),
   profileVerified: document.getElementById("profileVerified"),
@@ -73,11 +77,22 @@ async function ensureBucketExists() {
 async function loadProfile(userId) {
   console.log("Loading profile for user:", userId);
   
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("users")
-    .select("uid, full_name, email, phone, location, profile_picture, verified, country")
+    .select("uid, full_name, email, phone, landmark, location, profile_picture, verified, country, state, country_code, currency_code")
     .eq("uid", userId)
     .maybeSingle();
+
+  // Older deployments may not have the profile metadata migration yet.
+  if (error && /column|schema cache|does not exist/i.test(error.message || "")) {
+    const legacyResult = await supabase
+      .from("users")
+      .select("uid, full_name, email, phone, location, profile_picture, verified, country, state")
+      .eq("uid", userId)
+      .maybeSingle();
+    data = legacyResult.data;
+    error = legacyResult.error;
+  }
 
   if (error) {
     console.error("Error loading from users table:", error);
@@ -91,6 +106,10 @@ async function loadProfile(userId) {
   els.email.value = profileData.email || "";
   els.phoneLocal.value = profileData.phone || "";
   els.location.value = profileData.location || "";
+  if (els.landmark) els.landmark.value = profileData.landmark || "";
+  if (els.state) els.state.value = profileData.state || "";
+  if (els.countryCodeValue) els.countryCodeValue.value = profileData.country_code || "";
+  if (els.currencyCode) els.currencyCode.value = profileData.currency_code || "";
   if (els.profileVerified) {
     els.profileVerified.textContent = profileData.verified ? 'Verified' : 'Not verified';
   }
@@ -103,6 +122,9 @@ async function loadProfile(userId) {
     els.country.value = profileData.country || "";
   }
   applyCountryCode(profileData.country);
+  const countryConfig = getCountryConfig(profileData.country);
+  if (els.countryCodeValue) els.countryCodeValue.value = profileData.country_code || countryConfig.code || "";
+  if (els.currencyCode) els.currencyCode.value = profileData.currency_code || countryConfig.currencyCode || countryConfig.currency || "";
 
   const picturePath = profileData.profile_picture;
   const pictureUrl = picturePath ? await getProfilePicturePublicUrl(picturePath) : "";
@@ -303,6 +325,7 @@ async function initAuthAndProfile() {
       const full_name = (els.name.value || "").trim();
       const phone = normalizePhone(els.phoneLocal.value);
       const location = (els.location.value || "").trim();
+      const landmark = (els.landmark?.value || "").trim();
 
       // Email field is disabled; we do not update it here.
       // Country/countryCode are readonly display fields (set at signup) —
@@ -311,13 +334,22 @@ async function initAuthAndProfile() {
       const payload = {
         full_name,
         phone,
+        landmark,
         location,
       };
 
-      const { error: updateError } = await supabase
+      let { error: updateError } = await supabase
         .from("users")
         .update(payload)
         .eq("uid", user.id);
+
+      if (updateError && /column|schema cache|does not exist/i.test(updateError.message || "")) {
+        const legacyUpdate = await supabase
+          .from("users")
+          .update({ full_name, phone, location })
+          .eq("uid", user.id);
+        updateError = legacyUpdate.error;
+      }
 
       showLoading(false);
 
@@ -440,6 +472,6 @@ initAuthAndProfile().catch((err) => {
       }
     }
   });
-  alert("You must be logged in to view your profile. Redirecting...");
+  alert(err?.message || "We could not load your profile. Please try again.");
   window.location.replace("home.html");
 });

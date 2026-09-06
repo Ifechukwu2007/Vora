@@ -1,8 +1,10 @@
 import { supabase, supabasePublic } from "./supabase.js";
 import { resolveProfilePictureUrl } from './auth.js';
 import { LoadingSpinner } from "./loading-utils.js";
-import { formatPrice } from "./currency-utils.js";
+import { formatPrice, formatPriceInCurrency } from "./currency-utils.js";
 import { getServiceImages } from "./service-images.js";
+import { resolveLocationInput } from "./location-resolver.js";
+import { calculateTravelFee, hasConfiguredTravelPricing } from "./travel-fee.js";
 
 // ============================
 // GET URL PARAMS
@@ -37,6 +39,12 @@ let platformCommissionPercent = 0;
 const RECENT_SERVICES_KEY = 'vorabukeen_recent_services';
 const RESERVATION_DEPOSIT_THRESHOLD = 50000;
 const RESERVATION_DEPOSIT_PERCENT = 10;
+
+function formatServicePrice(service, amount) {
+  return service?.currency_code
+    ? formatPriceInCurrency(amount, service.currency_code)
+    : formatPrice(amount);
+}
 
 function escapeServiceHtml(value) {
   return String(value ?? '')
@@ -129,13 +137,12 @@ function normalizeProfile(profile) {
   return Array.isArray(profile) ? profile[0] : profile;
 }
 
-function getTravelFeeForLocation(service, location = 'provider') {
-  if (!service) return 0;
-  if (location !== 'customer') return 0;
-  return Number(service.travel_price || 0) || 0;
+function getTravelFeeForLocation(service, location = 'provider', customerCoordinates = null) {
+  if (!service || location !== 'customer' || !customerCoordinates) return 0;
+  return calculateTravelFee(service, customerCoordinates).fee;
 }
 
-function bookingPriceInfo(service, peopleCount, location = 'provider') {
+function bookingPriceInfo(service, peopleCount, location = 'provider', customerCoordinates = null) {
   const threshold = Number(service?.group_discount_threshold) || 0;
   const discountPercent = Number(service?.group_discount_percent) || 0;
   const basePrice = Number(service?.price) || 0;
@@ -143,11 +150,19 @@ function bookingPriceInfo(service, peopleCount, location = 'provider') {
   const perPerson = meetsDeal
     ? Math.round(basePrice * (1 - discountPercent / 100))
     : basePrice;
-  const travelFee = getTravelFeeForLocation(service, location);
+  const travelFee = getTravelFeeForLocation(service, location, customerCoordinates);
   const subtotal = (peopleCount * perPerson);
   const serviceFee = Math.round(subtotal * (platformCommissionPercent / 100));
   const total = subtotal + serviceFee + travelFee;
   return { perPerson, subtotal, serviceFee, total, meetsDeal, travelFee };
+}
+
+async function resolveCustomerTravel(service, customerLocation) {
+  if (!service?.travels_to_customer) {
+    return { fee: 0, distanceKm: null, unavailable: true, reason: 'This provider does not travel to customers.' };
+  }
+  const coordinates = await resolveLocationInput(customerLocation);
+  return { ...calculateTravelFee(service, coordinates, customerLocation), coordinates };
 }
 
 function reservationPaymentDetails(total) {
@@ -311,9 +326,16 @@ async function loadService() {
     const discountedPrice = hasDeal
       ? Math.round(Number(service.price || 0) * (1 - discountPercent / 100))
       : null;
-    const discountedPriceText = hasDeal ? formatPrice(discountedPrice) : null;
+    const discountedPriceText = hasDeal ? formatServicePrice(service, discountedPrice) : null;
     const summaryDetails = parseServiceSummary(service.description || '');
     const availabilityDays = getAvailabilityDetails(service);
+    const serviceLatitude = Number(service.latitude);
+    const serviceLongitude = Number(service.longitude);
+    const hasServiceCoordinates = Number.isFinite(serviceLatitude) && Number.isFinite(serviceLongitude);
+    const serviceLocationQuery = hasServiceCoordinates
+      ? `${serviceLatitude},${serviceLongitude}`
+      : (providerProfile?.location || service.location || '');
+    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(serviceLocationQuery)}&travelmode=driving`;
     const availabilityHtml = availabilityDays.length ? `
           <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <p class="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Availability</p>
@@ -322,6 +344,7 @@ async function loadService() {
             </div>
           </div>
         ` : '';
+    const hasTravelPricing = service.travels_to_customer && hasConfiguredTravelPricing(service.travel_pricing);
     const detailCardsHtml = [
       { label: 'Category', value: summaryDetails.category || service.category || 'Not specified' },
       { label: 'Delivery', value: summaryDetails.delivery || 'Not specified' },
@@ -330,9 +353,11 @@ async function loadService() {
       { label: 'Capacity', value: summaryDetails.capacity || 'Flexible' },
       { label: 'Who interacts', value: summaryDetails.interaction || 'Not specified' },
       { label: 'Business', value: summaryDetails.businessName || 'Not provided' },
-      { label: 'Travel fee', value: service.travel_price ? formatPrice(service.travel_price) : 'Not specified' },
+      { label: 'Travel fee', value: hasTravelPricing
+        ? ({ distance: 'Calculated by distance', location: 'Calculated by destination', both: 'Destination rate or distance' }[service.travel_pricing?.mode] || 'Calculated by distance')
+        : null },
       { label: 'Booking mode', value: summaryDetails.bookingMode || (service.instant_booking ? 'Instant booking enabled' : 'Manual approval for first bookings') }
-    ].map((item) => `
+    ].filter((item) => item.value !== null).map((item) => `
       <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">${item.label}</p>
         <p class="mt-2 text-sm font-semibold text-slate-900">${item.value}</p>
@@ -402,13 +427,13 @@ async function loadService() {
           <div class="inline-flex items-center gap-3 rounded-3xl bg-gray-50 p-4 mt-3 justify-end">
             ${hasDeal ? `
               <div class="text-right">
-                <p class="text-sm text-gray-500 line-through">${formatPrice(service.price)}</p>
+                <p class="text-sm text-gray-500 line-through">${formatServicePrice(service, service.price)}</p>
                 <p class="text-4xl font-extrabold text-green-600">${discountedPriceText}</p>
                 <p class="text-xs text-gray-700 mt-1">${service.group_discount_percent}% off per person</p>
               </div>
               <span class="inline-flex items-center rounded-full bg-red-100 text-red-700 px-3 py-1 text-xs font-semibold">DEAL</span>
             ` : `
-              <p class="text-4xl font-extrabold text-green-600">${formatPrice(service.price || 0)}</p>
+                <p class="text-4xl font-extrabold text-green-600">${formatServicePrice(service, service.price || 0)}</p>
             `}
           </div>
         </div>
@@ -444,9 +469,17 @@ async function loadService() {
               <p class="mt-2 text-sm leading-6 text-slate-600">
                 ${providerProfile?.location || service.location || 'Not specified'}
               </p>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                <strong>Service area:</strong> ${summaryDetails.serviceArea || 'Not specified'}
+              </p>
             </div>
-            <div class="inline-flex items-center rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm border border-slate-200">
-              📍 Exact spot shared after booking
+            <div class="flex flex-col items-start gap-2 sm:items-end">
+              <div class="inline-flex items-center rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm border border-slate-200">
+                📍 Exact service location
+              </div>
+              <a href="${directionsUrl}" target="_blank" rel="noopener" class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
+                Get directions
+              </a>
             </div>
           </div>
           <div id="serviceMap" class="vorabukeen-map mt-6 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner"></div>
@@ -811,8 +844,8 @@ async function openBookingModal(service, providerId) {
 
   // Store the exact selected service so pricing and travel fee logic always match the active booking.
   window.currentService = { ...(service || {}) };
+  window.currentCustomerTravel = null;
 
-  const travelPrice = getTravelFeeForLocation(service, 'customer');
   const threshold = Number(service?.group_discount_threshold) || 0;
   const discountPercent = Number(service?.group_discount_percent) || 0;
   const hasGroupDeal = threshold > 0 && discountPercent > 0;
@@ -820,6 +853,7 @@ async function openBookingModal(service, providerId) {
     ? Math.round(Number(service.price || 0) * (1 - discountPercent / 100))
     : Number(service.price || 0);
   const initialBookingInfo = bookingPriceInfo(service, 1, 'provider');
+  const canTravelToCustomer = service.travels_to_customer && hasConfiguredTravelPricing(service.travel_pricing);
   const initialPerPerson = hasGroupDeal ? discountedPrice : initialBookingInfo.perPerson;
   const initialTotal = initialBookingInfo.total;
   const initialDealText = hasGroupDeal
@@ -849,7 +883,7 @@ async function openBookingModal(service, providerId) {
               <span id="peopleCount" class="text-2xl font-bold">1</span>
               <button type="button" onclick="updatePeople(1)" class="bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-lg font-bold text-lg" title="Add person">+</button>
             </div>
-            <p id="bookingPerPerson" class="text-xs text-gray-600 mt-2">Price per person: ${formatPrice(initialPerPerson)}</p>
+            <p id="bookingPerPerson" class="text-xs text-gray-600 mt-2">Price per person: ${formatServicePrice(service, initialPerPerson)}</p>
             <p id="dealInfo" class="text-xs text-indigo-600 mt-1">${initialDealText}</p>
           </div>
 
@@ -857,7 +891,7 @@ async function openBookingModal(service, providerId) {
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div class="flex justify-between items-center">
               <span id="totalLabel" class="text-gray-700 font-semibold">Total Price:</span>
-              <span id="totalDisplay" class="text-2xl font-bold text-green-600">${formatPrice(initialTotal)}</span>
+              <span id="totalDisplay" class="text-2xl font-bold text-green-600">${formatServicePrice(service, initialTotal)}</span>
             </div>
             <p id="discountSavings" class="text-sm text-green-700 mt-2"></p>
           </div>
@@ -882,10 +916,10 @@ async function openBookingModal(service, providerId) {
                 <input type="radio" name="serviceLocation" value="provider" class="h-4 w-4" checked onchange="updateTravelFee()">
                 <span class="ml-3 text-gray-900 font-medium">I will come to the provider</span>
               </label>
-              <label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+              ${canTravelToCustomer ? `<label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input type="radio" name="serviceLocation" value="customer" class="h-4 w-4" onchange="updateTravelFee()">
                 <span class="ml-3 text-gray-900 font-medium">Provider should come to me</span>
-              </label>
+              </label>` : ''}
             </div>
             
             <!-- CUSTOMER LOCATION INPUT -->
@@ -896,7 +930,9 @@ async function openBookingModal(service, providerId) {
             </div>
             
             <div id="travelFeeDiv" class="hidden mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
-              <p class="text-sm text-orange-800"><strong>Travel Fee:</strong> <span id="travelFeeAmount">${formatPrice(travelPrice)}</span></p>
+              <p class="text-sm text-orange-800"><strong>Distance:</strong> <span id="travelDistanceAmount">-</span></p>
+              <p class="text-sm text-orange-800 mt-1"><strong>Travel Fee:</strong> <span id="travelFeeAmount">${formatServicePrice(service, 0)}</span></p>
+              <p id="travelFeeStatus" class="mt-1 text-xs text-orange-700">Enter your location to calculate the fee.</p>
             </div>
           </div>
 
@@ -911,10 +947,6 @@ async function openBookingModal(service, providerId) {
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
               Book &amp; Pay
             </button>
-            <button type="button" id="reserveBookingBtn" class="w-full border-2 border-slate-300 hover:bg-slate-50 text-slate-900 py-3 rounded-lg font-semibold transition">
-              Reserve
-            </button>
-            <p id="reserveInfo" class="text-xs leading-5 text-center text-slate-500"></p>
           </div>
         </form>
       </div>
@@ -932,9 +964,7 @@ async function openBookingModal(service, providerId) {
     e.preventDefault();
     submitBooking(service, providerId);
   });
-  document.getElementById('reserveBookingBtn')?.addEventListener('click', () => {
-    reserveBooking(service, providerId);
-  });
+  document.getElementById('customerLocation')?.addEventListener('blur', updateTravelFee);
 
   updateTotalPrice();
 }
@@ -946,10 +976,11 @@ function updatePeople(change) {
   updateTotalPrice();
 }
 
-function updateTravelFee() {
+async function updateTravelFee() {
   const location = document.querySelector('input[name="serviceLocation"]:checked').value;
   const travelFeeDiv = document.getElementById('travelFeeDiv');
   const customerLocationDiv = document.getElementById('customerLocationDiv');
+  const travelDistanceAmount = document.getElementById('travelDistanceAmount');
   
   if (location === 'customer') {
     travelFeeDiv.classList.remove('hidden');
@@ -957,8 +988,37 @@ function updateTravelFee() {
   } else {
     travelFeeDiv.classList.add('hidden');
     customerLocationDiv.classList.add('hidden');
+    if (travelDistanceAmount) travelDistanceAmount.textContent = '-';
   }
   
+  const customerLocation = document.getElementById('customerLocation')?.value.trim();
+  if (location === 'customer' && customerLocation) {
+    try {
+      const travel = await resolveCustomerTravel(window.currentService, customerLocation);
+      window.currentCustomerTravel = travel;
+      const status = document.getElementById('travelFeeStatus');
+      if (travelDistanceAmount) {
+        travelDistanceAmount.textContent = !Number.isFinite(travel.distanceKm)
+          ? '-'
+          : `${travel.distanceKm.toFixed(2)} km`;
+      }
+      if (status) status.textContent = travel.unavailable
+        ? (travel.reason || 'Travel is unavailable for this distance.')
+        : travel.matchedLocation
+          ? `Matched destination rate: ${travel.matchedLocation}.`
+          : 'Calculated from the provider base to your location.';
+    } catch (error) {
+      window.currentCustomerTravel = null;
+      if (travelDistanceAmount) travelDistanceAmount.textContent = '-';
+      const status = document.getElementById('travelFeeStatus');
+      if (status) status.textContent = error.message;
+    }
+  } else {
+    window.currentCustomerTravel = null;
+    if (travelDistanceAmount) travelDistanceAmount.textContent = '-';
+    const status = document.getElementById('travelFeeStatus');
+    if (status) status.textContent = 'Enter your location to calculate the fee.';
+  }
   updateTotalPrice();
 }
 
@@ -966,9 +1026,9 @@ function updateTotalPrice() {
   const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
   const location = document.querySelector('input[name="serviceLocation"]:checked').value;
   const service = window.currentService;
-  const { perPerson, total, meetsDeal, travelFee, subtotal, serviceFee } = bookingPriceInfo(service, peopleCount, location);
+  const { perPerson, total, meetsDeal, travelFee, subtotal, serviceFee } = bookingPriceInfo(service, peopleCount, location, window.currentCustomerTravel?.coordinates);
 
-  document.getElementById('totalDisplay').textContent = formatPrice(total);
+  document.getElementById('totalDisplay').textContent = formatServicePrice(service, total);
   const totalLabel = document.getElementById('totalLabel');
   const discountSavings = document.getElementById('discountSavings');
   if (totalLabel) {
@@ -980,7 +1040,7 @@ function updateTotalPrice() {
       const originalServiceFee = Math.round(originalSubtotal * (platformCommissionPercent / 100));
       const originalTotal = originalSubtotal + originalServiceFee + travelFee;
       const savings = Math.max(0, originalTotal - total);
-      discountSavings.textContent = `You save ${formatPrice(savings)} with this group deal.`;
+      discountSavings.textContent = `You save ${formatServicePrice(service, savings)} with this group deal.`;
     } else {
       discountSavings.textContent = '';
     }
@@ -988,7 +1048,7 @@ function updateTotalPrice() {
 
   const pricePerPersonLabel = document.getElementById('bookingPerPerson');
   if (pricePerPersonLabel) {
-    pricePerPersonLabel.textContent = `Price per person: ${formatPrice(perPerson)}`;
+    pricePerPersonLabel.textContent = `Price per person: ${formatServicePrice(service, perPerson)}`;
   }
   const dealInfo = document.getElementById('dealInfo');
   if (dealInfo) {
@@ -1003,36 +1063,23 @@ function updateTotalPrice() {
 
   const travelFeeAmount = document.getElementById('travelFeeAmount');
   if (travelFeeAmount) {
-    travelFeeAmount.textContent = formatPrice(travelFee);
+    travelFeeAmount.textContent = formatServicePrice(service, travelFee);
   }
 
   const serviceFeeAmount = document.getElementById('serviceFeeAmount');
   if (serviceFeeAmount) {
-    serviceFeeAmount.textContent = formatPrice(serviceFee);
+    serviceFeeAmount.textContent = formatServicePrice(service, serviceFee);
   }
 
-  const reservationDetails = reservationPaymentDetails(total);
-  const reserveButton = document.getElementById('reserveBookingBtn');
-  const reserveInfo = document.getElementById('reserveInfo');
-  if (reserveButton) {
-    reserveButton.textContent = reservationDetails.requiresDeposit ? 'Reserve with deposit' : 'Reserve';
-  }
-  if (reserveInfo) {
-    reserveInfo.textContent = reservationDetails.requiresDeposit
-      ? `Pay ${formatPrice(reservationDetails.reservationFee)} through Paystack. The remaining ${formatPrice(reservationDetails.remainingBalance)} is paid to the provider in cash.`
-      : 'Reserve without paying online. Payment will be made directly to the provider.';
-  }
 }
 
-function submitBooking(service, providerId) {
+async function submitBooking(service, providerId) {
   const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
   const scheduleDate = document.getElementById('scheduleDate').value;
   const scheduleTime = document.getElementById('scheduleTime').value;
   const serviceLocation = document.querySelector('input[name="serviceLocation"]:checked').value;
   const specialInstructions = document.getElementById('specialInstructions').value;
   const customerLocation = document.getElementById('customerLocation').value;
-  const { total: totalPrice } = bookingPriceInfo(service, peopleCount, serviceLocation);
-  const travelFee = serviceLocation === 'customer' ? (service.travel_price || 0) : 0;
 
   if (!scheduleDate || !scheduleTime) {
     alert('Please select both date and time');
@@ -1044,6 +1091,21 @@ function submitBooking(service, providerId) {
     return;
   }
 
+  let travel = { fee: 0 };
+  if (serviceLocation === 'customer') {
+    try {
+      travel = await resolveCustomerTravel(service, customerLocation);
+    } catch (error) {
+      alert(error.message || 'Please enter a valid customer location.');
+      return;
+    }
+    if (travel.unavailable) {
+      alert(travel.reason || 'Travel is unavailable for this distance.');
+      return;
+    }
+  }
+  const travelFee = travel.fee;
+
   const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
 
   try {
@@ -1054,7 +1116,7 @@ function submitBooking(service, providerId) {
     console.warn('Could not clear previous booking state before creating a new pending booking:', err);
   }
 
-  const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation);
+  const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation, travel.coordinates);
   const resolvedService = service || currentServiceContext || {};
   const resolvedProvider = currentProviderContext || {};
   const pendingBooking = {
@@ -1100,98 +1162,6 @@ function submitBooking(service, providerId) {
   LoadingSpinner.navigateTo(`complete-payment.html?${params.toString()}`);
 }
 
-async function reserveBooking(service, providerId) {
-  const peopleCount = parseInt(document.getElementById('peopleCount').textContent, 10);
-  const scheduleDate = document.getElementById('scheduleDate').value;
-  const scheduleTime = document.getElementById('scheduleTime').value;
-  const serviceLocation = document.querySelector('input[name="serviceLocation"]:checked').value;
-  const specialInstructions = document.getElementById('specialInstructions').value;
-  const customerLocation = document.getElementById('customerLocation').value;
-
-  if (!scheduleDate || !scheduleTime) {
-    alert('Please select both date and time');
-    return;
-  }
-
-  if (serviceLocation === 'customer' && !customerLocation.trim()) {
-    alert('Please enter your location');
-    return;
-  }
-
-  const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation);
-  const reservationDetails = reservationPaymentDetails(bookingInfo.total);
-  const reserveButton = document.getElementById('reserveBookingBtn');
-  if (reserveButton) {
-    reserveButton.disabled = true;
-    reserveButton.textContent = 'Reserving...';
-  }
-
-  try {
-    if (reservationDetails.requiresDeposit) {
-      const scheduledDateTime = `${scheduleDate}T${scheduleTime}`;
-      const pendingBooking = {
-        serviceId: service.id,
-        providerId,
-        serviceTitle: service.title,
-        serviceImage: service.image_url || '',
-        providerName: currentProviderContext?.full_name || service.provider_name || '',
-        providerPicture: currentProviderContext?.profile_picture || service.provider_picture || '',
-        providerLocation: currentProviderContext?.location || service.location || '',
-        numberOfPeople: peopleCount,
-        scheduledDate: scheduledDateTime,
-        serviceLocation,
-        customerLocation,
-        travelFee: bookingInfo.travelFee,
-        specialInstructions,
-        totalPrice: bookingInfo.total,
-        pricePerPerson: bookingInfo.perPerson,
-        paymentMethod: 'reserve_deposit',
-        reservationFee: reservationDetails.reservationFee,
-        remainingBalance: reservationDetails.remainingBalance,
-      };
-      localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
-      LoadingSpinner.navigateTo(`complete-payment.html?${new URLSearchParams({
-        serviceId: service.id,
-        providerId,
-        paymentMethod: 'reserve_deposit',
-      }).toString()}`);
-      return;
-    }
-
-    const { data: booking, error } = await supabase.from('bookings').insert({
-      user_id: currentUser.id,
-      provider_id: providerId,
-      service_id: service.id,
-      scheduled_date: `${scheduleDate}T${scheduleTime}`,
-      status: 'pending',
-      booking_status: 'reserved',
-      payment_method: 'reserve_cash',
-      payment_status: 'pending',
-      total_price: bookingInfo.total,
-      number_of_people: peopleCount,
-      price_per_person: bookingInfo.perPerson,
-      travel_fee: bookingInfo.travelFee,
-      special_instructions: specialInstructions,
-      service_location: serviceLocation,
-      customer_location: customerLocation,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).select('id').single();
-
-    if (error) throw error;
-
-    document.getElementById('bookingModal')?.remove();
-    window.location.href = `my-bookings.html?reserved=${encodeURIComponent(booking.id)}`;
-  } catch (error) {
-    console.error('Reserve booking failed:', error);
-    alert(`Could not reserve this service: ${error.message || error}`);
-    if (reserveButton) {
-      reserveButton.disabled = false;
-      reserveButton.textContent = 'Reserve';
-    }
-  }
-}
-
 // ============================
 // INIT
 // ============================
@@ -1206,5 +1176,4 @@ window.updatePeople = updatePeople;
 window.updateTravelFee = updateTravelFee;
 window.updateTotalPrice = updateTotalPrice;
 window.submitBooking = submitBooking;
-window.reserveBooking = reserveBooking;
 window.openBookingModal = openBookingModal;

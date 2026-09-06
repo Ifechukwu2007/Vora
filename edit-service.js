@@ -3,7 +3,8 @@ import { supabase } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
 import { setupLocationPicker } from "./location-picker.js";
 import { getCountryConfig, getUserCountry } from "./country-config.js";
-import { getGeocodeCountryCode } from "./location-data.js";
+import { COUNTRY_STATE_MAP, DEFAULT_COUNTRY, STATE_CITY_MAP, getGeocodeCountryCode } from "./location-data.js";
+import { getCurrencyCodeForCountry } from "./currency-utils.js";
 
 
 let selectedImageFiles = [];
@@ -27,7 +28,6 @@ const els = {
   serviceIncludes: document.getElementById("service-includes"),
   servicePrice: document.getElementById("service-price"),
   dealMessage: document.getElementById("deal-message"),
-  travelPrice: document.getElementById("travel-price"),
   groupDiscountThreshold: document.getElementById("group-discount-threshold"),
   groupDiscountPercent: document.getElementById("group-discount-percent"),
   businessName: document.getElementById("business-name"),
@@ -41,6 +41,49 @@ const els = {
   serviceLongitude: document.getElementById("service-longitude"),
   locationCoordinates: document.getElementById("service-location-coordinates"),
 };
+
+function getTravelPricing() {
+  const values = ["travel-fee-5", "travel-fee-10", "travel-fee-20", "travel-fee-above"]
+    .map((id) => document.getElementById(id)?.value.trim() || "");
+  const distanceBands = [5, 10, 20, null].map((maxKm, index) => ({
+    maxKm,
+    fee: values[index] === "" ? null : Number.parseFloat(values[index]),
+  }));
+  const locationRates = Array.from(document.querySelectorAll('[data-travel-selected-cities] [data-location-rate-row]')).map((row) => ({
+    state: row.querySelector('[data-location-rate-state]')?.value.trim() || '',
+    city: row.querySelector('[data-location-rate-city]')?.value.trim() || '',
+    fee: Number.parseFloat(row.querySelector('[data-location-rate-fee]')?.value || ''),
+  })).filter((rate) => rate.state || rate.city || Number.isFinite(rate.fee))
+    .map((rate) => ({ ...rate, location: [rate.city, rate.state].filter(Boolean).join(', ') }));
+  return {
+    mode: document.getElementById("travel-pricing-mode")?.value || "both",
+    distanceBands,
+    locationRates,
+    baseLocation: {
+      country: document.getElementById("travel-base-country")?.value.trim() || "",
+      state: document.getElementById("travel-base-state")?.value.trim() || "",
+      city: document.getElementById("travel-base-city")?.value.trim() || "",
+      area: document.getElementById("travel-base-area")?.value.trim() || "",
+    },
+  };
+}
+
+function validateTravelPricing() {
+  if (!document.getElementById("travels-to-customer")?.checked) return true;
+  const pricing = getTravelPricing();
+  const invalidBaseLocation = !pricing.baseLocation.country || !pricing.baseLocation.state || !pricing.baseLocation.city || !pricing.baseLocation.area;
+  const invalidBands = pricing.mode !== "location" && (pricing.distanceBands.slice(0, 3).some((band) => !Number.isFinite(band.fee) || band.fee < 0)
+    || (pricing.distanceBands[3].fee !== null && (!Number.isFinite(pricing.distanceBands[3].fee) || pricing.distanceBands[3].fee < 0)));
+  const invalidLocations = pricing.mode === "location"
+    ? (!pricing.locationRates.length || pricing.locationRates.some((rate) => !rate.location || !Number.isFinite(rate.fee) || rate.fee < 0))
+    : pricing.locationRates.some((rate) => !rate.location || !Number.isFinite(rate.fee) || rate.fee < 0);
+  const invalid = invalidBaseLocation || invalidBands || invalidLocations;
+  if (invalid) {
+    if (invalidBaseLocation) showFieldError("error-travel-base-location", "Enter the country, state, city, and area where you are based.");
+    if (invalidBands || invalidLocations) showFieldError("error-travel-pricing", "Complete the selected travel fee rules. Add a destination and fee for location-based pricing.");
+  }
+  return !invalid;
+}
 
 const STORAGE_BUCKET = "services";
 let currentService = null;
@@ -300,15 +343,12 @@ function validateCurrentStep() {
   }
 
   const priceInput = els.servicePrice;
-  const travelPriceInput = els.travelPrice;
   const dealMessageInput = els.dealMessage;
   const thresholdInput = els.groupDiscountThreshold;
   const percentInput = els.groupDiscountPercent;
   const businessInput = els.businessName;
   const priceValue = priceInput.value.trim();
   const priceNumber = Number.parseFloat(priceValue);
-  const travelPrice = travelPriceInput.value.trim();
-  const travelPriceNumber = Number.parseFloat(travelPrice);
   const dealMessage = dealMessageInput.value.trim();
   const threshold = thresholdInput.value.trim();
   const percent = percentInput.value.trim();
@@ -322,13 +362,7 @@ function validateCurrentStep() {
     setFieldState(priceInput, true);
   }
 
-  if (!travelPrice || Number.isNaN(travelPriceNumber) || travelPriceNumber < 0) {
-    showFieldError("error-travel-price", "Please enter a valid travel price of 0 or more.");
-    setFieldState(travelPriceInput, false);
-    hasError = true;
-  } else {
-    setFieldState(travelPriceInput, true);
-  }
+  if (!validateTravelPricing()) hasError = true;
 
   const dealMessageError = validateMeaningfulText(dealMessage, "Promotional headline", { minLength: 4, minWords: 1 });
   if (dealMessageError) {
@@ -634,7 +668,7 @@ function renderSelectedFilePreviews() {
   els.photoFileList.innerHTML = selectedImageFiles.map((file) => `<div class="rounded-md border border-slate-200 bg-white px-3 py-2">${file.name}</div>`).join('');
 }
 
-function fillForm(service) {
+function fillForm(service, registeredCountry) {
   currentService = service;
   const { mainDescription, category, delivery, location, serviceArea, capacity, interaction, includes, businessName } = parseSummaryDetails(service.description || "");
 
@@ -651,7 +685,47 @@ function fillForm(service) {
   els.serviceIncludes.value = includes || "";
   els.servicePrice.value = service.price ?? service.base_price ?? "";
   els.dealMessage.value = service.deal_message ?? service.deal_headline ?? "";
-  els.travelPrice.value = service.travel_price ?? service.travel_price_amount ?? "";
+  const legacyTravelFee = service.travel_price ?? service.travel_price_amount;
+  const travelPricing = Array.isArray(service.travel_pricing)
+    ? { mode: "distance", distanceBands: service.travel_pricing, locationRates: [], baseLocation: {} }
+    : (service.travel_pricing || {});
+  const travelBands = Array.isArray(travelPricing.distanceBands) ? travelPricing.distanceBands : [];
+  document.getElementById("travels-to-customer").checked = service.travels_to_customer ?? Number(legacyTravelFee) > 0;
+  const pricingMode = document.getElementById("travel-pricing-mode");
+  if (pricingMode) pricingMode.value = ["distance", "location", "both"].includes(travelPricing.mode) ? travelPricing.mode : "distance";
+  const baseLocation = travelPricing.baseLocation || {};
+  const baseCountry = document.getElementById("travel-base-country");
+  const baseState = document.getElementById("travel-base-state");
+  const baseCity = document.getElementById("travel-base-city");
+  if (baseCountry) baseCountry.value = registeredCountry || DEFAULT_COUNTRY;
+  if (baseState) {
+    const states = COUNTRY_STATE_MAP[baseCountry?.value] || [];
+    baseState.innerHTML = `<option value="">Select a state</option>${states.map((state) => `<option value="${state}">${state}</option>`).join('')}`;
+    baseState.value = baseLocation.state || '';
+    if (baseCity) baseCity.innerHTML = `<option value="">Select a city</option>${(STATE_CITY_MAP[baseState.value] || []).map((city) => `<option value="${city}">${city}</option>`).join('')}`;
+  }
+  const baseCountryInput = document.getElementById("travel-base-country");
+  baseCountryInput?.setAttribute('aria-readonly', 'true');
+  document.getElementById("travel-base-city").value = baseLocation.city || '';
+  document.getElementById("travel-base-area").value = baseLocation.area || '';
+  ["travel-fee-5", "travel-fee-10", "travel-fee-20", "travel-fee-above"].forEach((id, index) => {
+    const input = document.getElementById(id);
+    const value = travelBands[index]?.fee;
+    if (input && value !== undefined && value !== null) input.value = value;
+  });
+  const selectedCities = document.querySelector("[data-travel-selected-cities]");
+  if (selectedCities) selectedCities.innerHTML = '';
+  (Array.isArray(travelPricing.locationRates) ? travelPricing.locationRates : []).forEach((rate) => {
+    const row = document.createElement("div");
+    row.dataset.locationRateRow = "";
+    row.dataset.state = rate.state || String(rate.location || '').split(',').slice(1).join(',').trim();
+    row.dataset.city = rate.city || String(rate.location || '').split(',')[0].trim();
+    row.className = "grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto]";
+    const city = rate.city || String(rate.location || '').split(',')[0].trim();
+    const state = rate.state || String(rate.location || '').split(',').slice(1).join(',').trim();
+    row.innerHTML = `<span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">${city}, ${state}</span><input type="hidden" data-location-rate-state value="${String(state).replace(/"/g, "&quot;")}"><input type="hidden" data-location-rate-city value="${String(city).replace(/"/g, "&quot;")}"><input type="number" data-location-rate-fee min="0" step="0.01" placeholder="Travel fee" class="rounded-md border border-gray-300 px-3 py-2" value="${rate.fee ?? ""}"><button type="button" data-remove-location-rate class="px-3 text-sm font-semibold text-red-600">Remove</button>`;
+    selectedCities?.appendChild(row);
+  });
   els.groupDiscountThreshold.value = service.group_discount_threshold ?? "";
   els.groupDiscountPercent.value = service.group_discount_percent ?? "";
   els.businessName.value = businessName || "";
@@ -734,12 +808,90 @@ async function main() {
   updateWizardUI();
   renderCategoryDetails();
 
+  const locationRates = document.getElementById("travel-location-rates");
+  const pricingMode = document.getElementById("travel-pricing-mode");
+  const travelToggle = document.getElementById("travels-to-customer");
+  const travelOptions = document.getElementById("travel-options");
+  const baseCountry = document.getElementById("travel-base-country");
+  const baseState = document.getElementById("travel-base-state");
+  const baseCity = document.getElementById("travel-base-city");
+  if (baseCountry) {
+    baseCountry.innerHTML = Object.keys(COUNTRY_STATE_MAP).sort().map((country) => `<option value="${country}">${country}</option>`).join('');
+    baseCountry.value = DEFAULT_COUNTRY;
+    baseState.innerHTML = `<option value="">Select a state</option>${(COUNTRY_STATE_MAP[DEFAULT_COUNTRY] || []).map((state) => `<option value="${state}">${state}</option>`).join('')}`;
+    baseCity.innerHTML = '<option value="">Select a city</option>';
+  }
+  baseState?.addEventListener('change', () => {
+    baseCity.innerHTML = `<option value="">Select a city</option>${(STATE_CITY_MAP[baseState.value] || []).map((city) => `<option value="${city}">${city}</option>`).join('')}`;
+  });
+  const updateLocationRateVisibility = () => {
+    locationRates?.classList.toggle("hidden", pricingMode?.value === "distance");
+  };
+  pricingMode?.addEventListener("change", updateLocationRateVisibility);
+  travelToggle?.addEventListener("change", () => {
+    travelOptions?.classList.toggle("hidden", !travelToggle.checked);
+    clearErrors();
+  });
+  const renderCityOptions = (section) => {
+    const destinationState = section.querySelector('[data-travel-destination-state]');
+    const cityOptions = section.querySelector('[data-travel-city-options]');
+    const state = destinationState.value;
+    const cities = STATE_CITY_MAP[state] || [];
+    cityOptions.innerHTML = state
+      ? `${cities.map((city) => `<label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" data-city-option="${city}" class="h-4 w-4">${city}</label>`).join('')}<div class="flex gap-2 sm:col-span-2"><input data-manual-city-input type="text" placeholder="Add another city or area" class="flex-1 rounded-md border border-gray-300 px-3 py-2"><button type="button" data-add-manual-city class="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Add city</button></div>`
+      : '';
+  };
+  const setupStateSection = (section) => {
+    const destinationState = section.querySelector('[data-travel-destination-state]');
+    destinationState.innerHTML = '<option value="">Select a state</option>' + (COUNTRY_STATE_MAP[baseCountry?.value] || []).map((state) => `<option value="${state}">${state}</option>`).join('');
+    destinationState.addEventListener('change', () => renderCityOptions(section));
+    section.querySelector('[data-travel-city-options]').addEventListener('click', (event) => {
+      if (event.target.matches('[data-city-option]') && event.target.checked) {
+        const selected = section.querySelector('[data-travel-selected-cities]');
+        const city = event.target.dataset.cityOption;
+        selected.insertAdjacentHTML('beforeend', `<div data-location-rate-row data-state="${destinationState.value}" data-city="${city}" class="grid gap-3 sm:grid-cols-[1fr_180px_auto]"><span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">${city}, ${destinationState.value}</span><input type="hidden" data-location-rate-state value="${destinationState.value}"><input type="hidden" data-location-rate-city value="${city}"><input type="number" data-location-rate-fee min="0" step="0.01" placeholder="Travel fee" class="rounded-md border border-gray-300 px-3 py-2"><button type="button" data-remove-location-rate class="px-3 text-sm font-semibold text-red-600">Remove</button></div>`);
+      }
+      if (event.target.matches('[data-add-manual-city]')) {
+        const input = section.querySelector('[data-manual-city-input]');
+        const city = input?.value.trim();
+        if (city) {
+          const selected = section.querySelector('[data-travel-selected-cities]');
+          selected.insertAdjacentHTML('beforeend', `<div data-location-rate-row data-state="${destinationState.value}" data-city="${city}" class="grid gap-3 sm:grid-cols-[1fr_180px_auto]"><span class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">${city}, ${destinationState.value}</span><input type="hidden" data-location-rate-state value="${destinationState.value}"><input type="hidden" data-location-rate-city value="${city}"><input type="number" data-location-rate-fee min="0" step="0.01" placeholder="Travel fee" class="rounded-md border border-gray-300 px-3 py-2"><button type="button" data-remove-location-rate class="px-3 text-sm font-semibold text-red-600">Remove</button></div>`);
+          input.value = '';
+        }
+      }
+    });
+  };
+  const refreshDestinationStates = () => {
+    locationRates.querySelectorAll('[data-travel-state-section]').forEach((section) => {
+      const stateSelect = section.querySelector('[data-travel-destination-state]');
+      const currentState = stateSelect.value;
+      stateSelect.innerHTML = '<option value="">Select a state</option>' + (COUNTRY_STATE_MAP[baseCountry?.value] || []).map((state) => `<option value="${state}">${state}</option>`).join('');
+      if ([...stateSelect.options].some((option) => option.value === currentState)) stateSelect.value = currentState;
+      renderCityOptions(section);
+    });
+  };
+  locationRates.querySelectorAll('[data-travel-state-section]').forEach(setupStateSection);
+  baseCountry?.addEventListener('change', refreshDestinationStates);
+  document.getElementById('add-location-rate')?.addEventListener('click', () => {
+    const section = locationRates.querySelector('[data-travel-state-section]').cloneNode(true);
+    section.querySelector('[data-travel-destination-state]').value = '';
+    section.querySelector('[data-travel-city-options]').innerHTML = '';
+    section.querySelector('[data-travel-selected-cities]').innerHTML = '';
+    section.querySelector('[data-remove-travel-state]').classList.remove('hidden');
+    locationRates.insertBefore(section, document.getElementById('add-location-rate'));
+    setupStateSection(section);
+  });
+  locationRates.addEventListener('click', (event) => event.target.matches('[data-remove-travel-state]') && event.target.closest('[data-travel-state-section]')?.remove());
+  updateLocationRateVisibility();
+  travelOptions?.classList.toggle("hidden", !travelToggle?.checked);
+
   els.serviceCategory.addEventListener("change", () => {
     renderCategoryDetails();
     clearErrors();
   });
 
-  document.querySelectorAll("#service-location, #service-area, #service-capacity, #service-interaction, #service-title, #service-description, #service-includes, #service-price, #travel-price, #deal-message, #group-discount-threshold, #group-discount-percent, #business-name, #service-category, #service-delivery").forEach((input) => {
+  document.querySelectorAll("#service-location, #service-area, #service-capacity, #service-interaction, #service-title, #service-description, #service-includes, #service-price, #travels-to-customer, #travel-fee-5, #travel-fee-10, #travel-fee-20, #travel-fee-above, #deal-message, #group-discount-threshold, #group-discount-percent, #business-name, #service-category, #service-delivery").forEach((input) => {
     input.addEventListener("input", () => {
       clearErrors();
       validateCurrentStep();
@@ -770,10 +922,9 @@ async function main() {
     const user = await ensureAuth();
     currentUser = user;
     const service = await loadService(serviceId, user.id);
-    fillForm(service);
-    
     // Get user's country and pass it to location picker
     const userCountry = getUserCountry();
+    fillForm(service, userCountry);
     const countryCode = getGeocodeCountryCode(userCountry);
     
     setupLocationPicker({
@@ -824,7 +975,6 @@ async function main() {
         const dealMessage = els.dealMessage.value.trim();
         const groupDiscountThreshold = els.groupDiscountThreshold.value.trim();
         const groupDiscountPercent = els.groupDiscountPercent.value.trim();
-        const travelPrice = els.travelPrice.value.trim();
         const availabilityDays = getSelectedAvailabilityDays();
 
         const summaryDetails = [
@@ -858,7 +1008,10 @@ async function main() {
           location,
           latitude: selectedLatitude,
           longitude: selectedLongitude,
-          travel_price: travelPrice && !Number.isNaN(parseFloat(travelPrice)) ? parseFloat(travelPrice) : null,
+          country_code: getCountryConfig(getUserCountry()).code,
+          currency_code: getCurrencyCodeForCountry(getUserCountry()),
+          travels_to_customer: document.getElementById("travels-to-customer")?.checked || false,
+          travel_pricing: document.getElementById("travels-to-customer")?.checked ? getTravelPricing() : null,
           deal_message: dealMessage || null,
           deal_headline: dealMessage || null,
           group_discount_threshold: groupDiscountThreshold ? parseInt(groupDiscountThreshold, 10) : null,

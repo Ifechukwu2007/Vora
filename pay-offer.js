@@ -444,6 +444,10 @@ function getPeopleCount() {
 }
 
 function getTravelFee() {
+  if ((booking?.service_location || 'provider') !== 'customer') {
+    return 0;
+  }
+
   return roundNGN(
     booking?.travel_fee ??
     booking?.provider_travel_fee ??

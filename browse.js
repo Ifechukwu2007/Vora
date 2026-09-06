@@ -1,6 +1,6 @@
 import { supabase, supabasePublic } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
-import { formatPrice } from "./currency-utils.js";
+import { formatServicePrice } from "./currency-utils.js";
 
 const CACHE_KEY = 'browse_services_cache';
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -172,15 +172,15 @@ async function renderBrowseMap() {
             <div class="min-w-[190px] p-1">
               <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">${escapeHtml(service.category || 'Service')}</p>
               <p class="mt-1 font-bold text-slate-900">${escapeHtml(service.title || 'Service')}</p>
-              <p class="mt-2 text-base font-bold text-slate-900">${escapeHtml(formatPrice(getBuyerPrice(service)))}</p>
+              <p class="mt-2 text-base font-bold text-slate-900">${escapeHtml(formatServicePrice(service, getBuyerPrice(service)))}</p>
               <button type="button" class="browse-map-select mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white" data-service-id="${escapeHtml(service.id)}">Select service</button>
             </div>
         `);
         const markerElement = document.createElement('button');
         markerElement.type = 'button';
         markerElement.className = 'browse-price-marker';
-        markerElement.textContent = formatPrice(getBuyerPrice(service));
-        markerElement.setAttribute('aria-label', `View ${service.title || 'service'} at ${formatPrice(getBuyerPrice(service))}`);
+        markerElement.textContent = formatServicePrice(service, getBuyerPrice(service));
+        markerElement.setAttribute('aria-label', `View ${service.title || 'service'} at ${formatServicePrice(service, getBuyerPrice(service))}`);
         new maplibregl.Marker({ element: markerElement })
             .setLngLat([longitude, latitude])
             .setPopup(popup)
@@ -353,7 +353,7 @@ function createServiceCard(service) {
             <div class="mt-4 flex items-center justify-between gap-4">
                 <div>
                     <p class="text-sm text-slate-500">From</p>
-                    <p class="text-xl font-semibold text-slate-900">${formatPrice(buyerPrice)}</p>
+                    <p class="text-xl font-semibold text-slate-900">${formatServicePrice(service, buyerPrice)}</p>
                 </div>
                 <div class="text-right text-sm text-slate-500">
                     <p>${provider?.full_name || 'Provider'}</p>

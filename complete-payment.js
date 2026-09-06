@@ -1,7 +1,7 @@
 // complete-payment.js
 import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
-import { formatPrice } from './currency-utils.js';
+import { formatServicePrice } from './currency-utils.js';
 
 const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
 const VERIFY_FUNCTION_NAME = 'verify-payment';
@@ -29,7 +29,7 @@ function getBookingId() {
 
 function getPendingBooking() {
   try {
-    return JSON.parse(localStorage.getItem('vorabukeenPendingBooking') || 'null');
+    return JSON.parse(localStorage.getItem('voraPendingBooking') || 'null');
   } catch (err) {
     console.warn('Could not read pending booking:', err);
     return null;
@@ -228,7 +228,7 @@ async function loadBooking(bookingId) {
   let providerData = null;
 
   if (data.service_id) {
-    const { data: serviceRow } = await supabase.from('services').select('id, title, price, image_url, travel_price, location').eq('id', data.service_id).maybeSingle();
+    const { data: serviceRow } = await supabase.from('services').select('id, title, price, currency_code, image_url, travel_price, travels_to_customer, travel_pricing, latitude, longitude, location').eq('id', data.service_id).maybeSingle();
     serviceData = serviceRow;
   }
 
@@ -318,22 +318,22 @@ function renderBooking(booking) {
     ? Number(pendingBooking?.reservationFee || reservationDetails.reservationFee)
     : total;
 
-  setText('per-person-price', formatPrice(perPerson));
-  setText('service-fee', formatPrice(serviceFee));
-  setText('service-price-total', formatPrice(total));
-  setText('service-price-summary', formatPrice(amountDueNow));
+  setText('per-person-price', formatServicePrice(service, perPerson));
+  setText('service-fee', formatServicePrice(service, serviceFee));
+  setText('service-price-total', formatServicePrice(service, total));
+  setText('service-price-summary', formatServicePrice(service, amountDueNow));
   setText('payment-amount-label', isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
   setText('payment-mode-title', isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
   setText('payment-mode-description', isReservationDeposit
     ? 'Pay the reservation fee through Paystack to secure your booking. Pay the remaining balance to the provider in cash after the service.'
     : 'Submit your booking and pay securely through Paystack.');
   setText('deposit-balance-note', isReservationDeposit
-    ? `Pay ${formatPrice(amountDueNow)} through Paystack now. The remaining ${formatPrice(Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
+    ? `Pay ${formatServicePrice(service, amountDueNow)} through Paystack now. The remaining ${formatServicePrice(service, Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
     : 'Your full booking total will be paid securely through Paystack.');
 
   if (travelFee > 0) {
-    setText('travel-fee-breakdown-value', formatPrice(travelFee));
-    setText('travel-fee-card-value', formatPrice(travelFee));
+    setText('travel-fee-breakdown-value', formatServicePrice(service, travelFee));
+    setText('travel-fee-card-value', formatServicePrice(service, travelFee));
     show('travel-fee-breakdown');
     show('travel-fee-card');
   } else {
