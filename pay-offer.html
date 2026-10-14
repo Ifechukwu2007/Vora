@@ -6,7 +6,7 @@
   <title>Pay for Offer | Vorabukeen</title>
   <link rel="icon" type="image/svg+xml" href="/vorabukeen-logo.svg">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://js.paystack.co/v2/inline.js"></script>
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-900">
   <header class="border-b border-slate-200 bg-white">
@@ -65,7 +65,7 @@
         <div id="travel-fee-card" class="hidden"></div>
         <div class="flex items-end justify-between border-t border-[#eeeeee] pt-4"><span class="font-bold">Total</span><span id="service-price-total" class="text-2xl font-bold">NGN 0</span></div>
       </div>
-      <p class="mt-5 flex items-center gap-2 text-xs leading-5 text-slate-500"><svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Payments are securely processed by Paystack.</p>
+      <p class="mt-5 flex items-center gap-2 text-xs leading-5 text-slate-500"><svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Payments are securely processed by Flutterwave.</p>
     </section>
     <span id="booking-people" class="hidden">1</span>
     <span id="service-price-summary" class="hidden">NGN 0</span>
@@ -74,7 +74,7 @@
 
   <footer class="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
     <div class="mx-auto max-w-xl">
-      <button id="confirm-booking-btn" class="w-full rounded-2xl bg-indigo-600 px-5 py-4 text-base font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400">Pay with Paystack</button>
+      <button id="confirm-booking-btn" class="w-full rounded-2xl bg-indigo-600 px-5 py-4 text-base font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400">Pay with Flutterwave</button>
     </div>
   </footer>
   <script src="./pay-offer.js" type="module"></script>

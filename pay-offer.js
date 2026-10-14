@@ -31,7 +31,7 @@ const CONFIG = {
   // Minimum service fee in NGN.
   DEFAULT_MIN_SERVICE_FEE: 0,
 
-  // Paystack currency.
+  // Flutterwave currency.
   CURRENCY: "NGN",
 
   // Payment timeout.
@@ -131,7 +131,7 @@ function setButtonLoading(loading) {
   if (loading) {
     confirmBookingBtn.textContent = "Opening secure payment…";
   } else {
-    confirmBookingBtn.textContent = "Pay with Paystack";
+    confirmBookingBtn.textContent = "Pay with Flutterwave";
   }
 }
 
@@ -776,7 +776,7 @@ async function createPaymentRecord(reference) {
 
     status: "pending",
 
-    payment_method: "paystack",
+    payment_method: "flutterwave",
 
     created_at:
       new Date().toISOString()
@@ -795,14 +795,7 @@ async function createPaymentRecord(reference) {
       error
     );
 
-    /*
-     * Do not stop payment because the payment
-     * record could not be created client-side.
-     *
-     * Paystack verification should be authoritative.
-     */
-
-    return null;
+    throw new Error("Unable to prepare the payment record. Please try again.");
   }
 
   return data;
@@ -815,7 +808,7 @@ async function createPaymentRecord(reference) {
 |
 | This is NOT the final security mechanism.
 |
-| Your Paystack webhook / Edge Function should also
+| Your Flutterwave webhook / Edge Function should also
 | update the booking after verifying the transaction.
 |
 */
@@ -855,22 +848,23 @@ async function updateBookingAfterPayment(reference) {
 |
 | IMPORTANT:
 |
-| Paystack secret key MUST NOT be placed in this file.
+| Flutterwave public key can be configured at runtime, but secrets must not be placed in this file.
 |
 | Verification must happen in a Supabase Edge Function.
 |
 */
 
-async function verifyPayment(reference) {
+async function verifyPayment(reference, transactionId) {
   try {
     const {
       data,
       error
     } = await supabase.functions.invoke(
-      "verify-paystack-payment",
+      "verify-flutterwave-payment",
       {
         body: {
           reference,
+          transaction_id: transactionId,
           booking_id: booking.id,
           offer_id: offer?.id || null
         }
@@ -904,11 +898,11 @@ async function verifyPayment(reference) {
 
 /*
 |--------------------------------------------------------------------------
-| OPEN PAYSTACK
+| OPEN FLUTTERWAVE
 |--------------------------------------------------------------------------
 */
 
-async function payWithPaystack() {
+async function payWithFlutterwave() {
   clearError();
 
   if (isProcessingPayment) {
@@ -918,17 +912,6 @@ async function payWithPaystack() {
   if (!paymentCalculation) {
     showError(
       "Payment information is not ready yet."
-    );
-
-    return;
-  }
-
-  if (
-    !window.PaystackPop ||
-    typeof window.PaystackPop !== "function"
-  ) {
-    showError(
-      "Paystack could not be loaded. Please refresh the page."
     );
 
     return;
@@ -994,152 +977,54 @@ async function payWithPaystack() {
       );
     }
 
-    /*
-     * Paystack expects amount in KOBO.
-     *
-     * NGN 1,000 = 100,000 kobo.
-     */
+    if (typeof window.FlutterwaveCheckout !== "function") {
+      throw new Error("Flutterwave could not be loaded. Please refresh the page.");
+    }
 
-    const amountInKobo =
-      Math.round(
-        paymentCalculation.total * 100
-      );
-
-    const popup = new window.PaystackPop();
-
-    popup.newTransaction({
-        key:
-          'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c',
-
+    let verificationStarted = false;
+    window.FlutterwaveCheckout({
+      public_key: "FLWPUBK-b539349824466b87d53b0272631b01d6-X",
+      tx_ref: reference,
+      amount: paymentCalculation.total,
+      currency: CONFIG.CURRENCY,
+      payment_options: "card,account,banktransfer,ussd,mobilemoney",
+      customer: {
         email,
-
-        amount:
-          amountInKobo,
-
-        currency:
-          CONFIG.CURRENCY,
-
-        reference:
-          reference,
-
-        metadata: {
-          booking_id:
-            String(booking.id),
-
-          offer_id:
-            offer?.id
-              ? String(offer.id)
-              : "",
-
-          customer_id:
-            String(user.id),
-
-          provider_id:
-            offer?.provider_id ||
-            booking.provider_id
-              ? String(
-                  offer?.provider_id ||
-                  booking.provider_id
-                )
-              : "",
-
-          service:
-            service?.title ||
-            service?.name ||
-            booking?.service_title ||
-            "Vorabukeen service",
-
-          people:
-            paymentCalculation.people,
-
-          provider_amount:
-            paymentCalculation.providerAmount,
-
-          travel_fee:
-            paymentCalculation.travelFee,
-
-          service_fee:
-            paymentCalculation.platformFee,
-
-          total:
-            paymentCalculation.total
-        },
-
-        onSuccess: async (response) => {
-          try {
-            confirmBookingBtn.textContent =
-              "Verifying payment…";
-
-            /*
-             * NEVER trust response.status alone.
-             *
-             * The Edge Function verifies the transaction
-             * using the Paystack secret key.
-             */
-
-            const verified =
-              await verifyPayment(
-                response.reference
-              );
-
-            /*
-             * Update local booking state.
-             */
-
-            await updateBookingAfterPayment(
-              response.reference
-            );
-
-            confirmBookingBtn.textContent =
-              "Payment successful";
-
-            confirmBookingBtn.disabled =
-              true;
-
-            /*
-             * Redirect to booking confirmation.
-             */
-
-            const params =
-              new URLSearchParams({
-                bookingId:
-                  booking.id,
-
-                reference:
-                  response.reference
-              });
-
-            window.location.href =
-              `booking-confirmed.html?${params.toString()}`;
-
-          } catch (error) {
-            console.error(
-              "Payment verification error:",
-              error
-            );
-
-            setButtonLoading(false);
-
-            showError(
-              error.message ||
-              "Payment was received but could not be verified yet. Please do not pay again."
-            );
+        name: user.user_metadata?.full_name || email,
+        phone_number: user.user_metadata?.phone || ""
+      },
+      customizations: {
+        title: "Vorabukeen",
+        description: service?.title || service?.name || booking?.service_title || "Service payment",
+        logo: "https://vorabukeen.com/vorabukeen-logo.svg"
+      },
+      meta: { booking_id: String(booking.id), offer_id: String(offer?.id || "") },
+      callback: async (response) => {
+        verificationStarted = true;
+        try {
+          const transactionId = response?.transaction_id;
+          const transactionReference = response?.tx_ref || reference;
+          if (!transactionId) {
+            throw new Error("Flutterwave did not return a transaction ID.");
           }
-        },
-
-        onCancel: () => {
+          await verifyPayment(transactionReference, String(transactionId));
+          await updateBookingAfterPayment(transactionReference);
+          const params = new URLSearchParams({ bookingId: booking.id, reference: transactionReference });
+          window.location.href = `booking-confirmed.html?${params.toString()}`;
+        } catch (error) {
+          console.error("Flutterwave verification error:", error);
           setButtonLoading(false);
-
-          /*
-           * Don't show an alarming error just because
-           * the customer closed the Paystack window.
-           */
+          showError(error.message || "Payment was received but could not be verified yet. Please do not pay again.");
         }
-      });
+      },
+      onclose: () => {
+        if (!verificationStarted) setButtonLoading(false);
+      }
+    });
 
   } catch (error) {
     console.error(
-      "Paystack error:",
+      "Flutterwave error:",
       error
     );
 
@@ -1197,7 +1082,7 @@ async function initialize() {
 
 confirmBookingBtn.addEventListener(
   "click",
-  payWithPaystack
+  payWithFlutterwave
 );
 
 /*

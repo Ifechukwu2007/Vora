@@ -212,7 +212,7 @@ async function loadPayoutSettings() {
   const [{ data: payout, error: payoutError }, { data: payoutsData, error: payoutsError }, { data: bookingsData, error: bookingsError }] = await Promise.all([
     supabase
       .from("payout_settings")
-      .select("bank_name, bank_code, account_number, account_name, account_verified, recipient_code, last_verified_at")
+      .select("bank_name, bank_code, account_number, account_name, account_verified, last_verified_at")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -248,8 +248,8 @@ async function loadPayoutSettings() {
   const available = allPayouts.filter((record) => String(record.payout_status || record.status || "").toLowerCase() === "paid").reduce((total, record) => total + Number(record.provider_amount || 0), 0)
     + allBookings.filter((booking) => String(booking.payout_status || "").toLowerCase() === "paid").reduce((total, booking) => total + Number(booking.provider_amount || getBookingRevenueAmount(booking)), 0);
 
-  const upcoming = allPayouts.filter((record) => String(record.payout_status || record.status || "").toLowerCase() === "pending").reduce((total, record) => total + Number(record.provider_amount || 0), 0)
-    + allBookings.filter((booking) => String(booking.payout_status || "").toLowerCase() === "pending").reduce((total, booking) => total + Number(booking.provider_amount || getBookingRevenueAmount(booking)), 0);
+  const upcoming = allPayouts.filter((record) => ["pending", "eligible", "processing"].includes(String(record.payout_status || record.status || "").toLowerCase())).reduce((total, record) => total + Number(record.provider_amount || 0), 0)
+    + allBookings.filter((booking) => ["pending", "eligible", "processing"].includes(String(booking.payout_status || "").toLowerCase())).reduce((total, booking) => total + Number(booking.provider_amount || getBookingRevenueAmount(booking)), 0);
 
   const currentMonth = new Date();
   const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getTime();
@@ -265,7 +265,7 @@ async function loadPayoutSettings() {
   }, 0);
 
   const pendingRelease = [...allPayouts, ...allBookings]
-    .filter((entry) => String(entry.payout_status || entry.status || "").toLowerCase() === "pending")
+    .filter((entry) => ["pending", "eligible", "processing"].includes(String(entry.payout_status || entry.status || "").toLowerCase()))
     .sort((a, b) => new Date(a.created_at || a.paid_at || a.updated_at || Date.now()) - new Date(b.created_at || b.paid_at || b.updated_at || Date.now()));
 
   const nextRelease = pendingRelease[0]?.created_at || pendingRelease[0]?.paid_at || null;
@@ -292,7 +292,7 @@ async function loadPayoutSettings() {
     renderMethodCard(payout);
     renderHistory(payout, summary);
 
-    if (payout.account_verified && payout.recipient_code) {
+    if (payout.account_verified) {
       setStatus("✅ Your payout method is verified and ready for automatic releases.");
     } else {
       setStatus("Add or update your payout method so provider earnings can be released after settlement.");
@@ -325,7 +325,6 @@ async function savePayoutMethod() {
       bank_code: valid.bank_code,
       account_number: valid.account_number,
       account_name: valid.account_name,
-      recipient_code: null,
       account_verified: false,
       last_verified_at: null,
       updated_at: new Date().toISOString(),

@@ -1855,7 +1855,7 @@ async function loadPayments() {
                             ${escapeHTML(
                                 payment.reference ||
                                 payment.transaction_reference ||
-                                payment.paystack_reference ||
+                                payment.flutterwave_reference ||
                                 shortId(
                                     payment.id
                                 )

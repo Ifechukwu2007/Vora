@@ -3,13 +3,13 @@ import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
 import { formatServicePrice } from './currency-utils.js';
 
-const PAYSTACK_PUBLIC_KEY = window.__PAYSTACK_PUBLIC_KEY || 'pk_live_27b721ec9cd9be469fe24d0acd065dc8d6b9e67c';
-const VERIFY_FUNCTION_NAME = 'verify-payment';
+const FLUTTERWAVE_PUBLIC_KEY = 'FLWPUBK-b539349824466b87d53b0272631b01d6-X';
+const VERIFY_FUNCTION_NAME = 'verify-flutterwave-payment';
 
 let currentBooking = null;
 let currentUser = null;
 let paymentFlowInProgress = false;
-let paystackPopupTimer = null;
+let flutterwavePopupTimer = null;
 const PLATFORM_SERVICE_FEE_PERCENT = 5;
 const RESERVATION_DEPOSIT_THRESHOLD = 50000;
 const RESERVATION_DEPOSIT_PERCENT = 10;
@@ -73,6 +73,14 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
+function fillCheckoutProfile(user) {
+  const names = String(user?.user_metadata?.full_name || '').trim().split(/\s+/).filter(Boolean);
+  const firstName = document.getElementById('checkout-first-name');
+  const lastName = document.getElementById('checkout-last-name');
+  if (firstName) firstName.value = names.shift() || '';
+  if (lastName) lastName.value = names.join(' ');
+}
+
 function show(id) {
   const el = document.getElementById(id);
   if (el) el.classList.remove('hidden');
@@ -84,110 +92,35 @@ function hide(id) {
 }
 
 function disableConfirmButton(disabled, label) {
-  const btn = document.getElementById('confirm-booking-btn');
-  if (!btn) return;
-  btn.disabled = disabled;
-  btn.textContent = label || 'Confirm and pay';
-  btn.classList.toggle('opacity-60', disabled);
-  btn.classList.toggle('cursor-not-allowed', disabled);
+  const button = document.getElementById('confirm-booking-btn');
+  if (!button) return;
+  button.disabled = disabled;
+  button.textContent = label || 'Confirm and pay';
+  button.classList.toggle('opacity-60', disabled);
+  button.classList.toggle('cursor-not-allowed', disabled);
 }
 
 function showError(message) {
-  let el = document.getElementById('payment-error');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'payment-error';
-    el.className = 'mt-4 hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
-    const target = document.getElementById('confirm-booking-btn')?.parentElement || document.querySelector('main');
-    if (target) {
-      target.appendChild(el);
-    }
+  let errorElement = document.getElementById('payment-error');
+  if (!errorElement) {
+    errorElement = document.createElement('div');
+    errorElement.id = 'payment-error';
+    errorElement.className = 'mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+    (document.getElementById('confirm-booking-btn')?.parentElement || document.querySelector('main'))?.appendChild(errorElement);
   }
-
-  if (!el) return;
-  el.textContent = message;
-  el.classList.remove('hidden');
-}
-
-function hideError() {
-  const el = document.getElementById('payment-error');
-  if (el) {
-    el.textContent = '';
-    el.classList.add('hidden');
+  if (errorElement) {
+    errorElement.textContent = message;
+    errorElement.classList.remove('hidden');
   }
 }
 
 function resetPaymentFlowState() {
-  if (paystackPopupTimer) {
-    clearTimeout(paystackPopupTimer);
-    paystackPopupTimer = null;
+  if (flutterwavePopupTimer) {
+    clearTimeout(flutterwavePopupTimer);
+    flutterwavePopupTimer = null;
   }
   paymentFlowInProgress = false;
   disableConfirmButton(false, 'Confirm and pay');
-}
-
-function ensurePaystackLoaded() {
-  return new Promise((resolve, reject) => {
-    if (typeof PaystackPop !== 'undefined') {
-      resolve();
-      return;
-    }
-
-    let script = document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]');
-    if (!script) {
-      script = document.createElement('script');
-      script.src = 'https://js.paystack.co/v1/inline.js';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-
-    const cleanup = () => {
-      script.removeEventListener('load', onLoad);
-      script.removeEventListener('error', onError);
-      clearTimeout(timeout);
-      clearInterval(poll);
-    };
-
-    const maybeResolve = () => {
-      if (typeof PaystackPop !== 'undefined') {
-        cleanup();
-        resolve();
-        return true;
-      }
-      return false;
-    };
-
-    const onLoad = () => {
-      if (!maybeResolve()) {
-        cleanup();
-        reject(new Error('Paystack loaded but PaystackPop is unavailable'));
-      }
-    };
-
-    const onError = () => {
-      cleanup();
-      reject(new Error('Failed to load Paystack script'));
-    };
-
-    script.addEventListener('load', onLoad, { once: true });
-    script.addEventListener('error', onError, { once: true });
-
-    const timeout = setTimeout(() => {
-      if (!maybeResolve()) {
-        cleanup();
-        reject(new Error('Timed out waiting for Paystack to load'));
-      }
-    }, 10000);
-
-    const poll = setInterval(() => {
-      maybeResolve();
-    }, 100);
-
-    if (script.readyState && ['loaded', 'complete', 'interactive'].includes(script.readyState)) {
-      setTimeout(maybeResolve, 0);
-    }
-  });
 }
 
 async function loadBooking(bookingId) {
@@ -325,11 +258,11 @@ function renderBooking(booking) {
   setText('payment-amount-label', isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
   setText('payment-mode-title', isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
   setText('payment-mode-description', isReservationDeposit
-    ? 'Pay the reservation fee through Paystack to secure your booking. Pay the remaining balance to the provider in cash after the service.'
-    : 'Submit your booking and pay securely through Paystack.');
+    ? 'Pay the reservation fee securely to secure your booking. Pay the remaining balance to the provider in cash.'
+    : 'Submit your booking and pay securely by card.');
   setText('deposit-balance-note', isReservationDeposit
-    ? `Pay ${formatServicePrice(service, amountDueNow)} through Paystack now. The remaining ${formatServicePrice(service, Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
-    : 'Your full booking total will be paid securely through Paystack.');
+    ? `Pay ${formatServicePrice(service, amountDueNow)} now. The remaining ${formatServicePrice(service, Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
+    : 'Your full booking total will be paid securely by card.');
 
   if (travelFee > 0) {
     setText('travel-fee-breakdown-value', formatServicePrice(service, travelFee));
@@ -407,15 +340,18 @@ async function createBookingFromPending(pendingBooking) {
   return data;
 }
 
-async function createPendingPayment(bookingId, amount, paymentMethod = 'paystack') {
+async function createPendingPayment(bookingId, amount, paymentMethod = 'flutterwave') {
+  const serviceCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
   const payload = {
     booking_id: bookingId,
     user_id: currentUser.id,
     provider_id: currentBooking?.provider_id || null,
     service_id: currentBooking?.service_id || null,
     amount,
-    currency: 'NGN',
+    currency: serviceCurrency,
     payment_method: paymentMethod,
+    provider: 'flutterwave',
+    currency_code: serviceCurrency,
     status: 'pending',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -434,15 +370,15 @@ async function createPendingPayment(bookingId, amount, paymentMethod = 'paystack
   }
 }
 
-async function verifyPaymentOnServer(reference, bookingId) {
+async function verifyPaymentOnServer(reference, bookingId, transactionId) {
   try {
     const { data, error } = await supabase.functions.invoke(VERIFY_FUNCTION_NAME, {
-      body: { reference, bookingId },
+      body: { reference, booking_id: bookingId, transaction_id: transactionId },
     });
 
     if (error) {
-      console.warn('Verification function unavailable, continuing with local fallback:', error);
-      return { success: true, fallback: true };
+      console.error('Payment verification function unavailable:', error);
+      return { success: false, message: 'Payment verification is temporarily unavailable. Your booking was not marked paid.' };
     }
 
     if (!data?.success) {
@@ -451,8 +387,8 @@ async function verifyPaymentOnServer(reference, bookingId) {
 
     return data;
   } catch (err) {
-    console.warn('Verification fallback used:', err.message || err);
-    return { success: true, fallback: true };
+    console.error('Payment verification failed:', err.message || err);
+    return { success: false, message: 'Payment could not be verified. Please try again or contact support.' };
   }
 }
 
@@ -479,6 +415,8 @@ async function createPayoutRecord(bookingId, amount) {
     platform_fee: settlement.platformFee,
     provider_amount: settlement.providerAmount,
     amount: settlement.providerAmount,
+    payment_provider: 'flutterwave',
+    currency_code: currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN',
     payout_status: 'pending',
     status: 'pending',
     created_at: new Date().toISOString(),
@@ -498,7 +436,7 @@ async function createPayoutRecord(bookingId, amount) {
   }
 }
 
-async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'paystack') {
+async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'flutterwave') {
   const settlement = calculatePlatformSplit(amount);
   const basicUpdate = {
     status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
@@ -509,6 +447,8 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'pa
     provider_amount: settlement.providerAmount,
     payout_status: 'pending',
     payment_method: paymentMethod,
+    payment_provider: 'flutterwave',
+    provider_payout_status: 'pending',
   };
 
   try {
@@ -575,18 +515,18 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'pa
   }
 }
 
-async function handlePaymentSuccess(bookingId, reference) {
+async function handlePaymentSuccess(bookingId, reference, transactionId) {
   paymentFlowInProgress = true;
   try {
     disableConfirmButton(true, 'Verifying payment...');
-    const verification = await verifyPaymentOnServer(reference, bookingId);
+    const verification = await verifyPaymentOnServer(reference, bookingId, transactionId);
     if (!verification?.success) {
       throw new Error(verification?.message || 'Payment verification failed.');
     }
 
     const pendingBooking = getPendingBooking();
     const fullTotal = Number(currentBooking?.total_price || pendingBooking?.totalPrice || 0);
-    const paymentMethod = pendingBooking?.paymentMethod || currentBooking?.payment_method || 'paystack';
+    const paymentMethod = pendingBooking?.paymentMethod || currentBooking?.payment_method || 'flutterwave';
     const amountToSettle = paymentMethod === 'reserve_deposit'
       ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
       : fullTotal;
@@ -605,78 +545,64 @@ async function handlePaymentSuccess(bookingId, reference) {
   }
 }
 
-async function launchPaystack(amountNaira, bookingId) {
+async function launchFlutterwave(amountNaira, bookingId) {
   if (window.location.protocol === 'file:') {
-    showError('Preview mode: payment would open here.');
-    disableConfirmButton(false, 'Confirm and pay');
-    paymentFlowInProgress = false;
-    return;
-  }
-
-  try {
-    await ensurePaystackLoaded();
-    if (typeof PaystackPop === 'undefined' || typeof PaystackPop.setup !== 'function') {
-      throw new Error('Paystack popup is unavailable on this page.');
-    }
-  } catch (err) {
-    console.error('Paystack initialization failed:', err);
-    showError('Payment library failed to load. Please refresh and try again.');
+    showError('Preview mode: Flutterwave checkout would open here.');
     disableConfirmButton(false, 'Confirm and pay');
     paymentFlowInProgress = false;
     return;
   }
 
   const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
-  const safeRestoreButton = () => {
-    resetPaymentFlowState();
-  };
-
-  paystackPopupTimer = setTimeout(() => {
-    console.warn('Paystack popup did not respond in time. Resetting the payment button.');
-    safeRestoreButton();
-    showError('The payment popup did not open. Please try again.');
-  }, 20000);
+  const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
+  const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'card';
+  let verificationStarted = false;
 
   try {
-    const handler = PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: currentUser?.email || 'customer@example.com',
-      amount: Math.round(amountNaira * 100),
-      currency: 'NGN',
-      ref: reference,
-      metadata: {
-        booking_id: bookingId,
-        user_id: currentUser?.id || null,
-      },
-      callback: function (response) {
-        if (paystackPopupTimer) {
-          clearTimeout(paystackPopupTimer);
-          paystackPopupTimer = null;
-        }
-        paymentFlowInProgress = true;
-        handlePaymentSuccess(bookingId, response.reference).catch((err) => {
-          console.error('Payment verification failed after callback:', err);
-          showError('Payment succeeded, but we could not verify it immediately. Please check My Bookings or contact support.');
-          safeRestoreButton();
-        });
-      },
-      onClose: function () {
-        if (paymentFlowInProgress) {
-          return;
-        }
-        safeRestoreButton();
-      },
-    });
-
-    if (!handler || typeof handler.openIframe !== 'function') {
-      throw new Error('Paystack popup could not be opened.');
+    if (typeof window.FlutterwaveCheckout !== 'function') {
+      throw new Error('Flutterwave could not be loaded. Please refresh and try again.');
     }
 
-    handler.openIframe();
+        verificationStarted = true;
+    window.FlutterwaveCheckout({
+      public_key: FLUTTERWAVE_PUBLIC_KEY,
+      tx_ref: reference,
+      amount: Number(amountNaira),
+      currency: paymentCurrency,
+      payment_options: 'card,account,banktransfer,ussd,mobilemoney',
+      customer: {
+        email: currentUser?.email || '',
+        name: currentUser?.user_metadata?.full_name || currentUser?.email || 'Customer',
+        phone_number: currentUser?.user_metadata?.phone || '',
+      },
+      customizations: {
+        title: 'Vorabukeen',
+        description: 'Service booking payment',
+        logo: 'https://vorabukeen.com/vorabukeen-logo.svg',
+      },
+      meta: { booking_id: bookingId, user_id: currentUser?.id || '' },
+      callback: async (response) => {
+        const transactionId = response?.transaction_id;
+        const transactionReference = response?.tx_ref || reference;
+        if (!transactionId) {
+          showError('Flutterwave did not return a transaction ID. Please contact support before trying again.');
+          resetPaymentFlowState();
+          return;
+        }
+        await handlePaymentSuccess(bookingId, transactionReference, String(transactionId));
+      },
+      onclose: () => {
+        if (!verificationStarted) {
+          paymentFlowInProgress = false;
+          resetPaymentFlowState();
+        }
+      },
+    });
   } catch (err) {
-    console.error('Failed to open Paystack iframe:', err);
-    showError('The payment popup could not be opened. Please try again.');
-    safeRestoreButton();
+    console.error('Failed to start Flutterwave checkout:', err);
+    showError(err.message || 'Flutterwave checkout could not be started. Please try again.');
+    disableConfirmButton(false, 'Confirm and pay');
+    paymentFlowInProgress = false;
   }
 }
 
@@ -684,6 +610,7 @@ async function init() {
   disableConfirmButton(true, 'Loading...');
   currentUser = await requireAuth();
   if (!currentUser) return;
+  fillCheckoutProfile(currentUser);
 
   await loadPlatformCommission();
 
@@ -767,10 +694,21 @@ async function init() {
       };
     }
 
+    const returnedPayment = getParam('status') === 'successful' || getParam('payment') === 'success';
+    const returnedReference = getParam('tx_ref') || getParam('reference');
+    const returnedTransactionId = getParam('transaction_id');
+    if (returnedPayment && returnedReference && bookingId) {
+      await handlePaymentSuccess(bookingId, returnedReference, returnedTransactionId);
+      return;
+    }
+    if (getParam('status') && getParam('status') !== 'successful') {
+      showError('Flutterwave reports that this payment was not completed. You can try again.');
+    }
+
     renderBooking(currentBooking);
 
     const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || currentBooking.payment_method === 'reserve_deposit';
-    disableConfirmButton(false, isReservationDeposit ? 'Pay reservation fee' : 'Confirm and pay');
+    disableConfirmButton(false, isReservationDeposit ? 'Pay reservation fee' : 'Pay with Flutterwave');
   } catch (err) {
     showError(err.message || 'We could not prepare this checkout.');
     disableConfirmButton(true, 'Unavailable');
@@ -816,17 +754,17 @@ async function init() {
 
       const fullTotal = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
       const pendingBooking = getPendingBooking();
-      const paymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'paystack';
+      const paymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'flutterwave';
       const amountDue = paymentMethod === 'reserve_deposit'
         ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
         : fullTotal;
       await createPendingPayment(bookingId, amountDue, paymentMethod);
-      launchPaystack(amountDue, bookingId);
+      launchFlutterwave(amountDue, bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');
       paymentFlowInProgress = false;
-      disableConfirmButton(false, 'Confirm and pay');
+      disableConfirmButton(false, 'Pay with Flutterwave');
     }
   };
 }

@@ -633,7 +633,7 @@ function wireDeletionRequest() {
 function wirePaymentMethods() {
   els.addPaymentMethodBtn?.addEventListener("click", () => {
     alert(
-      "Adding a payment method isn't available yet — this needs a Paystack card-tokenization flow, which hasn't been built into this page."
+      "Adding a payment method isn't available yet — this needs a Flutterwave card-tokenization flow, which hasn't been built into this page."
     );
   });
 }

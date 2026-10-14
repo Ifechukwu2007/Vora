@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =========================
-  // PAYSTACK KEY (replace with env/build-time injection)
+  // FLUTTERWAVE KEY (replace with env/build-time injection)
   // =========================
   // =========================
   // ELEMENTS (single declarations)

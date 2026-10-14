@@ -1127,6 +1127,7 @@ async function submitBooking(service, providerId) {
     providerName: resolvedProvider.full_name || resolvedService.provider_name || service.provider_name || '',
     providerPicture: resolvedProvider.profile_picture || resolvedService.provider_picture || service.provider_picture || '',
     providerLocation: resolvedProvider.location || resolvedService.location || '',
+    currencyCode: resolvedService.currency_code || 'NGN',
     numberOfPeople: peopleCount,
     scheduledDate: scheduledDateTime,
     serviceLocation,
@@ -1137,7 +1138,7 @@ async function submitBooking(service, providerId) {
     pricePerPerson: bookingInfo.perPerson,
     discountedTotal: bookingInfo.total,
     discountedPerPerson: bookingInfo.perPerson,
-    paymentMethod: 'paystack',
+    paymentMethod: 'flutterwave',
   };
   try {
     localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));

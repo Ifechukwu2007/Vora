@@ -108,8 +108,8 @@ function patchMobileMenu() {
     sideMenu.className = 'fixed top-0 left-0 z-50 h-full w-72 transform -translate-x-full overflow-y-auto bg-white shadow-xl transition-transform duration-300 lg:hidden';
     document.body.appendChild(sideMenu);
   }
-  // If a page provided a custom paystack-like side menu, don't overwrite it
-  if (sideMenu.dataset.paystack === 'true') return;
+  // If a page provided a custom payment-shell side menu, don't overwrite it
+  if (sideMenu.dataset.paymentShell === 'true') return;
 
   sideMenu.className = 'fixed top-0 left-0 z-50 h-full w-72 transform -translate-x-full overflow-y-auto bg-white shadow-xl transition-transform duration-300 lg:hidden';
   sideMenu.innerHTML = `

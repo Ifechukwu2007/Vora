@@ -211,7 +211,11 @@ function getActionButtonsHtml(b, status) {
 
 // perform a status update on a booking
 async function updateBookingStatus(id, nextStatus) {
-  const { error } = await supabase.from(CONFIG.BOOKINGS_TABLE).update({ status: nextStatus, booking_status: nextStatus, updated_at: new Date().toISOString() }).eq('id', id);
+  const update = { status: nextStatus, booking_status: nextStatus, updated_at: new Date().toISOString() };
+  if (nextStatus === 'completed') {
+    update.provider_payout_status = 'eligible';
+  }
+  const { error } = await supabase.from(CONFIG.BOOKINGS_TABLE).update(update).eq('id', id);
   if (error) throw error;
 }
 

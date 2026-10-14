@@ -595,11 +595,15 @@ function setupBookingActions() {
             if (!confirm("Are you sure you want to confirm completion? This will release payment to the provider.")) return;
             const { error } = await supabase
                 .from("bookings")
-                .update({ status: "completed" })
+                .update({ status: "completed", booking_status: "completed", provider_payout_status: "eligible", updated_at: new Date().toISOString() })
                 .eq("id", bookingId);
             if (error) {
                 alert("Failed to confirm completion: " + error.message);
             } else {
+                await supabase
+                    .from("payouts")
+                    .update({ payout_status: "eligible", status: "eligible", eligible_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                    .eq("booking_id", bookingId);
                 alert("Thank you! Payment will be released to the provider.");
                 await loadBookings();
             }
@@ -639,6 +643,9 @@ function setupBookingActions() {
                     .update({
                         status: "cancelled",
                         booking_status: "cancelled",
+                        cancelled_at: new Date().toISOString(),
+                        cancelled_by: currentUser.id,
+                        refund_status: "pending",
                         updated_at: new Date().toISOString()
                     })
                     .eq("id", bookingId)

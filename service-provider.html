@@ -11,7 +11,6 @@
 <link rel="manifest" href="/manifest.json">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="style.css">
-<script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 
 <body class="bg-gray-100">
@@ -74,7 +73,7 @@
 </header>
 
 <!-- ================= MOBILE MENU ================= -->
-<div id="sideMenu" data-paystack="true"
+<div id="sideMenu" data-payment-shell="true"
   class="fixed top-0 left-0 h-full w-72 bg-slate-900 text-white z-50
   transform -translate-x-full transition-transform duration-300 overflow-y-auto lg:hidden">
 
@@ -197,8 +196,8 @@
         <h3 class="text-lg font-semibold mt-4 mb-2">Choose payment:</h3>
         <div class="space-y-2">
           <label class="flex items-center">
-            <input type="radio" name="paymentMethod" value="paystack" class="mr-2">
-            Pay with Paystack
+            <input type="radio" name="paymentMethod" value="flutterwave" class="mr-2">
+            Pay with Flutterwave
           </label>
           <label class="flex items-center">
             <input type="radio" name="paymentMethod" value="cash" class="mr-2">
