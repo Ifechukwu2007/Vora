@@ -1071,7 +1071,7 @@ function updateTotalPrice() {
     serviceFeeAmount.textContent = formatServicePrice(service, serviceFee);
   }
 
-}
+} 
 
 async function submitBooking(service, providerId) {
   const peopleCount = parseInt(document.getElementById('peopleCount').textContent);
