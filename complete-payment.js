@@ -51,21 +51,18 @@ function reservationPaymentDetails(total) {
 
 async function requireAuth() {
   try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data?.session?.user) {
-      const isFileProtocol = window.location.protocol === 'file:';
-      if (isFileProtocol) {
-        return { id: 'preview-user', email: 'preview@vorabukeen.com' };
-      }
-      const returnUrl = encodeURIComponent(window.location.href);
-      window.location.href = `login.html?returnUrl=${returnUrl}`;
-      return null;
-    }
-    return data.session.user;
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data?.user || null;
   } catch (err) {
-    console.warn('Auth check skipped for preview:', err);
-    return { id: 'preview-user', email: 'preview@vorabukeen.com' };
+    console.warn('Could not verify checkout authentication:', err);
+    return null;
   }
+}
+
+function redirectToLogin() {
+  const redirect = encodeURIComponent(window.location.href);
+  window.location.href = `login.html?redirect=${redirect}`;
 }
 
 function setText(id, value) {
@@ -194,6 +191,13 @@ function getTravelFeeForBooking(booking, service = {}) {
   return Number(booking?.travel_fee ?? service?.travel_price ?? 0) || 0;
 }
 
+function getBookingPriceDetails(pricePerPerson, numberOfPeople, travelFee, existingTotal = 0) {
+  const serviceSubtotal = pricePerPerson * numberOfPeople;
+  const derivedServiceFee = Math.round(serviceSubtotal * (platformCommissionPercent / 100));
+  const serviceFee = Math.max(derivedServiceFee, Math.max(0, existingTotal - serviceSubtotal - travelFee));
+  return { serviceSubtotal, serviceFee, total: serviceSubtotal + serviceFee + travelFee };
+}
+
 function renderBooking(booking) {
   const service = booking.services || {};
   const provider = booking.providers || {};
@@ -241,10 +245,14 @@ function renderBooking(booking) {
 
   const perPerson = Number(booking.price_per_person) || Number(service.price) || 0;
   const travelFee = getTravelFeeForBooking(booking, service);
-  const serviceSubtotal = perPerson * Number(booking.number_of_people || 1);
-  const derivedServiceFee = Math.round(serviceSubtotal * (platformCommissionPercent / 100));
-  const serviceFee = Math.max(derivedServiceFee, Math.max(0, Number(booking.total_price || 0) - serviceSubtotal - travelFee));
-  const total = Number(booking.total_price) || serviceSubtotal + serviceFee + travelFee;
+  const priceDetails = getBookingPriceDetails(
+    perPerson,
+    Number(booking.number_of_people || 1),
+    travelFee,
+    Number(booking.total_price) || 0,
+  );
+  const { serviceFee, total } = priceDetails;
+  booking.total_price = total;
   const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || booking.payment_method === 'reserve_deposit';
   const reservationDetails = reservationPaymentDetails(total);
   const amountDueNow = isReservationDeposit
@@ -296,10 +304,15 @@ async function createBookingFromPending(pendingBooking) {
   }
 
   // Ensure all numeric fields are actual numbers
-  const totalPrice = Number(pendingBooking.totalPrice) || 0;
   const numberOfPeople = Number(pendingBooking.numberOfPeople) || 1;
   const pricePerPerson = Number(pendingBooking.pricePerPerson) || 0;
   const travelFee = Number(pendingBooking.travelFee) || 0;
+  const totalPrice = getBookingPriceDetails(
+    pricePerPerson,
+    numberOfPeople,
+    travelFee,
+    Number(pendingBooking.totalPrice) || 0,
+  ).total;
 
   if (totalPrice <= 0) {
     console.error('Invalid total price:', pendingBooking.totalPrice);
@@ -528,7 +541,7 @@ async function handlePaymentSuccess(bookingId, reference, transactionId) {
     const fullTotal = Number(currentBooking?.total_price || pendingBooking?.totalPrice || 0);
     const paymentMethod = pendingBooking?.paymentMethod || currentBooking?.payment_method || 'flutterwave';
     const amountToSettle = paymentMethod === 'reserve_deposit'
-      ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
+      ? reservationPaymentDetails(fullTotal).reservationFee
       : fullTotal;
     await markBookingPaid(bookingId, reference, amountToSettle, paymentMethod);
     localStorage.removeItem('voraPendingBooking');
@@ -609,8 +622,7 @@ async function launchFlutterwave(amountNaira, bookingId) {
 async function init() {
   disableConfirmButton(true, 'Loading...');
   currentUser = await requireAuth();
-  if (!currentUser) return;
-  fillCheckoutProfile(currentUser);
+  if (currentUser) fillCheckoutProfile(currentUser);
 
   await loadPlatformCommission();
 
@@ -620,6 +632,13 @@ async function init() {
   if (!bookingId && !pendingBooking) {
     showError('No booking was specified. Please start your booking again.');
     disableConfirmButton(true, 'Unavailable');
+    return;
+  }
+
+  if (bookingId && !currentUser) {
+    showError('Log in to access this booking and continue to payment.');
+    disableConfirmButton(false, 'Log in to pay');
+    document.getElementById('confirm-booking-btn')?.addEventListener('click', redirectToLogin, { once: true });
     return;
   }
 
@@ -708,7 +727,9 @@ async function init() {
     renderBooking(currentBooking);
 
     const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || currentBooking.payment_method === 'reserve_deposit';
-    disableConfirmButton(false, isReservationDeposit ? 'Pay reservation fee' : 'Pay with Flutterwave');
+    disableConfirmButton(false, currentUser
+      ? (isReservationDeposit ? 'Pay reservation fee' : 'Pay with Flutterwave')
+      : 'Log in to pay');
   } catch (err) {
     showError(err.message || 'We could not prepare this checkout.');
     disableConfirmButton(true, 'Unavailable');
@@ -722,6 +743,12 @@ async function init() {
   }
 
   confirmBtn.onclick = async function () {
+    currentUser = await requireAuth();
+    if (!currentUser) {
+      redirectToLogin();
+      return;
+    }
+
     if (!currentBooking) {
       showError('Booking details are still loading.');
       return;
@@ -756,8 +783,15 @@ async function init() {
       const pendingBooking = getPendingBooking();
       const paymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'flutterwave';
       const amountDue = paymentMethod === 'reserve_deposit'
-        ? Number(pendingBooking?.reservationFee || reservationPaymentDetails(fullTotal).reservationFee)
+        ? reservationPaymentDetails(fullTotal).reservationFee
         : fullTotal;
+      const { error: bookingUpdateError } = await supabase
+        .from('bookings')
+        .update({ total_price: fullTotal })
+        .eq('id', bookingId);
+      if (bookingUpdateError) {
+        throw new Error('Could not update your booking total before payment. Please try again.');
+      }
       await createPendingPayment(bookingId, amountDue, paymentMethod);
       launchFlutterwave(amountDue, bookingId);
     } catch (err) {

@@ -88,7 +88,8 @@ export function calculateTravelFee(service, customerCoordinates, customerLocatio
   const band = pricing.mode === 'location' && !locationRate
     ? null
     : pricing.distanceBands.find((entry) => entry.maxKm === null || distanceKm <= entry.maxKm);
-  const fee = Number(locationRate?.fee ?? band?.fee);
+  const selectedFee = locationRate?.fee ?? band?.fee;
+  const fee = selectedFee === null || selectedFee === undefined ? NaN : Number(selectedFee);
   return {
     fee: Number.isFinite(fee) && fee >= 0 ? fee : 0,
     distanceKm,

@@ -2,6 +2,7 @@ import { LoadingSpinner } from './loading-utils.js';
 import { supabase, supabasePublic } from './supabase.js';
 import { formatServicePrice } from './currency-utils.js';
 import { initializeUserCountry } from './user-country-loader.js';
+import { placeOneSponsoredService } from './promotion-utils.mjs';
 
 const FEATURED_CATEGORY = 'All';
 const RECENT_KEY = 'vorabukeen_recent_services';
@@ -10,6 +11,7 @@ const MAX_CARDS = 8;
 let allServices = [];
 let reviewStatsMap = {};
 let providerMap = {};
+let sponsoredServiceIds = new Set();
 let currentUser = null;
 let userWishlist = [];
 let currentLocationLabel = 'Onitsha, Nigeria';
@@ -149,6 +151,7 @@ function buildSection(title, subtitle, services, options = {}) {
         const discountPercent = Number(service.group_discount_percent) || 0;
         const hasDeal = Number(service.group_discount_threshold) > 0 && discountPercent > 0;
         const discountedPrice = hasDeal ? Math.round(price * (1 - discountPercent / 100)) : price;
+        const isSponsored = options.sponsoredServiceId === String(service.id);
 
         const isWishlisted = userWishlist.includes(service.id);
         return `
@@ -156,6 +159,7 @@ function buildSection(title, subtitle, services, options = {}) {
                 <div class="relative h-40 overflow-hidden">
                     <img src="${getServiceImage(service)}" alt="${service.title}" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/600x400/FFF1F2/DB2777?text=Service';" />
                     <div class="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-gray-700">${service.category || 'Service'}</div>
+                    ${isSponsored ? '<span class="absolute bottom-3 left-3 rounded-sm bg-amber-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-900">Sponsored</span>' : ''}
                     <div class="absolute top-3 right-3 hidden gap-2">
                         ${title === 'Recently viewed' ? `<button type="button" data-remove-recent="${service.id}" class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 shadow hover:bg-slate-100" aria-label="Remove from recently viewed">Remove</button>` : ''}
                         <button type="button" data-id="${service.id}" class="wishlistBtn bg-white rounded-full p-2 shadow ${isWishlisted ? 'text-pink-600' : 'text-slate-500'}">${isWishlisted ? '❤️' : '🤍'}</button>
@@ -270,12 +274,15 @@ function renderHomepageSections(searchTerm = '') {
         .map((id) => allServices.find((service) => String(service.id) === String(id)))
         .filter(Boolean);
     const recentSection = recentlyViewed.length
-        ? buildSection('Recently viewed', 'Pick up where you left off.', recentlyViewed, { limit: MAX_CARDS })
+        ? buildSection('Recently viewed', 'Pick up where you left off.', recentlyViewed, { limit: MAX_CARDS, allowSponsored: false })
         : '';
 
     const sections = categories.map((category) => {
-        const services = categoryMap[category].slice(0, MAX_CARDS);
-        return buildSection(category, `Explore ${category.toLowerCase()} services.`, services, { limit: MAX_CARDS });
+        const placement = placeOneSponsoredService(categoryMap[category], sponsoredServiceIds);
+        return buildSection(category, `Explore ${category.toLowerCase()} services.`, placement.services, {
+            limit: MAX_CARDS,
+            sponsoredServiceId: placement.sponsoredServiceId,
+        });
     }).filter(Boolean);
 
     const searchSummary = searchTerm
@@ -395,7 +402,93 @@ async function loadHomepageData() {
         allServices = [];
     }
 
+    await loadSponsoredServices();
     renderHomepageSections(currentSearchQuery);
+}
+
+async function loadSponsoredServices() {
+    sponsoredServiceIds = new Set();
+    try {
+        const { data: config, error: configError } = await supabasePublic
+            .from('promotion_config')
+            .select('enabled')
+            .eq('id', 'platform')
+            .maybeSingle();
+        if (configError || config?.enabled !== true) return;
+
+        const now = new Date().toISOString();
+        const { data: promotions, error: promotionsError } = await supabasePublic
+            .from('service_promotions')
+            .select('service_id')
+            .eq('status', 'active')
+            .not('paid_at', 'is', null)
+            .lte('starts_at', now)
+            .gt('ends_at', now)
+            .order('created_at', { ascending: true });
+        if (promotionsError) throw promotionsError;
+
+        const promotionIds = [...new Set((promotions || []).map((promotion) => String(promotion.service_id)))];
+        const loadedIds = new Set(allServices.map((service) => String(service.id)));
+        const missingIds = promotionIds.filter((id) => !loadedIds.has(id));
+        if (missingIds.length) {
+            const { data: promotedServices, error: servicesError } = await supabasePublic
+                .from('services')
+                .select('*')
+                .in('id', missingIds);
+            if (servicesError) throw servicesError;
+            allServices = [...allServices, ...(promotedServices || [])];
+        }
+
+        const promotedServices = allServices.filter((service) => promotionIds.includes(String(service.id)));
+        const providerIds = [...new Set(promotedServices.map((service) => service.provider_id).filter(Boolean))];
+        const missingProviderIds = providerIds.filter((id) => !providerMap[id]);
+        if (missingProviderIds.length) {
+            const { data: profiles } = await supabasePublic
+                .from('profiles')
+                .select('id, full_name, profile_picture, verified')
+                .in('id', missingProviderIds);
+            providerMap = { ...providerMap, ...Object.fromEntries((profiles || []).map((provider) => [provider.id, provider])) };
+
+            const stillMissingIds = missingProviderIds.filter((id) => !providerMap[id]);
+            if (stillMissingIds.length) {
+                const { data: users } = await supabasePublic
+                    .from('users')
+                    .select('id, full_name, profile_picture, verified')
+                    .in('id', stillMissingIds);
+                providerMap = { ...providerMap, ...Object.fromEntries((users || []).map((provider) => [provider.id, provider])) };
+            }
+        }
+
+        const verifiedProviderIds = new Set(Object.values(providerMap)
+            .filter((provider) => provider.verified === true || provider.verified === 'true')
+            .map((provider) => String(provider.id)));
+        sponsoredServiceIds = new Set(promotedServices
+            .filter((service) => verifiedProviderIds.has(String(service.provider_id)))
+            .map((service) => String(service.id)));
+
+        const reviewServiceIds = promotedServices
+            .filter((service) => !reviewStatsMap[service.id])
+            .map((service) => service.id);
+        if (reviewServiceIds.length) {
+            const { data: reviews, error: reviewsError } = await supabasePublic
+                .from('reviews')
+                .select('service_id, rating')
+                .in('service_id', reviewServiceIds);
+            if (reviewsError) throw reviewsError;
+            (reviews || []).forEach((review) => {
+                if (!reviewStatsMap[review.service_id]) reviewStatsMap[review.service_id] = { sum: 0, count: 0 };
+                reviewStatsMap[review.service_id].sum += Number(review.rating || 0);
+                reviewStatsMap[review.service_id].count += 1;
+            });
+            reviewServiceIds.forEach((id) => {
+                const stats = reviewStatsMap[id];
+                if (stats) stats.avg = stats.sum / stats.count;
+            });
+        }
+    } catch (error) {
+        console.warn('Sponsored homepage listings are unavailable; showing organic results only.', error);
+        sponsoredServiceIds = new Set();
+    }
 }
 
 async function updateHeroState(user) {

@@ -1,6 +1,7 @@
 import { supabase, supabasePublic } from "./supabase.js";
 import { LoadingSpinner } from "./loading-utils.js";
 import { formatServicePrice } from "./currency-utils.js";
+import { placeOneSponsoredService } from "./promotion-utils.mjs";
 
 const CACHE_KEY = 'browse_services_cache';
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -16,6 +17,8 @@ let userWishlist = [];
 let reviewStatsMap = {};
 let reviewsMap = {};
 let providerMap = {};
+let sponsoredServiceIds = new Set();
+let currentSponsoredServiceId = null;
 let recentlyViewedMode = false;
 let browseMap = null;
 let browseMapRenderId = 0;
@@ -328,6 +331,7 @@ function createServiceCard(service) {
     const averageRating = stats?.count ? stats.avg.toFixed(1) : null;
     const provider = providerMap[service.provider_id];
     const isWishlisted = userWishlist.includes(service.id);
+    const isSponsored = currentSponsoredServiceId === String(service.id);
 
     const card = document.createElement('div');
     card.className = 'bg-white rounded-3xl shadow-sm transition hover:shadow-lg cursor-pointer overflow-hidden';
@@ -340,6 +344,7 @@ function createServiceCard(service) {
         <div class="p-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
+                    ${isSponsored ? '<p class="mb-2 inline-flex rounded-sm bg-amber-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-900">Sponsored</p>' : ''}
                     <p class="text-xs uppercase tracking-[0.22em] text-slate-500">${service.category || 'Service'}</p>
                     <h3 class="mt-2 text-lg font-semibold text-slate-900">${service.title}</h3>
                 </div>
@@ -630,6 +635,12 @@ function browseApplyFilters() {
     if (!recentlyViewedMode || currentFilters.sort !== 'newest') {
         filteredServices = getSortedServices(filteredServices);
     }
+    const placement = placeOneSponsoredService(filteredServices, sponsoredServiceIds, {
+        preserveOrder: currentFilters.sort !== 'newest',
+        allowSponsored: !recentlyViewedMode,
+    });
+    filteredServices = placement.services;
+    currentSponsoredServiceId = placement.sponsoredServiceId;
     currentPage = 1;
     renderServicesGrid();
     updateServiceCountText();
@@ -707,6 +718,41 @@ async function loadServices(container) {
                 </div>
             `;
         }
+    }
+}
+
+async function loadSponsoredService() {
+    sponsoredServiceIds = new Set();
+    try {
+        const { data: config, error: configError } = await supabasePublic
+            .from('promotion_config')
+            .select('enabled')
+            .eq('id', 'platform')
+            .maybeSingle();
+        if (configError || config?.enabled !== true) return;
+
+        const now = new Date().toISOString();
+        const { data: promotions, error } = await supabasePublic
+            .from('service_promotions')
+            .select('service_id')
+            .eq('status', 'active')
+            .not('paid_at', 'is', null)
+            .lte('starts_at', now)
+            .gt('ends_at', now)
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+
+        const verifiedProviderIds = new Set(
+            Object.values(providerMap)
+                .filter((provider) => provider.verified === true || provider.verified === 'true')
+                .map((provider) => String(provider.id))
+        );
+        sponsoredServiceIds = new Set((promotions || [])
+            .map((promotion) => allServices.find((service) => String(service.id) === String(promotion.service_id)))
+            .filter((service) => service && verifiedProviderIds.has(String(service.provider_id)))
+            .map((service) => String(service.id)));
+    } catch (error) {
+        console.warn('Sponsored listings are unavailable; showing organic results only.', error);
     }
 }
 
@@ -834,6 +880,7 @@ async function initPage() {
 
     await loadWishlist();
     await loadServices(servicesContainer);
+    await loadSponsoredService();
 
     if (recentlyViewedMode) {
         const recentIds = getRecentViewIds();

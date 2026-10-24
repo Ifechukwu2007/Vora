@@ -348,12 +348,6 @@ if (registerForm) {
 // LOGOUT FUNCTIONALITY
 // ===============================
 
-const PUBLIC_PAGES = ['login', 'register', 'home', 'index', 'browse', 'service', 'contact-us', 'how-it-works', 'privacy-policy', 'terms-of-service', 'notifications', 'add-service', 'request.html'];
-
-function isFilePreview() {
-  return window.location.protocol === 'file:';
-}
-
 async function updateLogoutVisibility() {
   const logoutElements = document.querySelectorAll('[data-logout], [id^="logoutBtn"]');
 
@@ -388,7 +382,7 @@ function updateAuthLinks(isLoggedIn) {
     'a[href="my-bookings.html"], a[href="my-messages.html"]'
   );
   protectedLinks.forEach((link) => {
-    link.style.display = isLoggedIn ? "" : "none";
+    link.style.display = "";
   });
 
   const profileIcons = document.querySelectorAll('[data-profile-icon="true"]');
@@ -465,79 +459,11 @@ async function handleLogout() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await updateLogoutVisibility();
-  await redirectIfNotOnPublicPage();
 });
-
-// ===============================
-// GLOBAL AUTH STATE LISTENER
-// ===============================
-// Redirect to login if session is lost or user logs out
-
-async function redirectIfNotOnPublicPage() {
-  if (isFilePreview()) return;
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const hasSession = !!sessionData?.session;
-  const currentPage = window.location.pathname;
-  const isPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
-
-  if (!hasSession && !isPublicPage) {
-    window.location.href = 'home.html';
-  }
-}
 
 supabase.auth.onAuthStateChange(async (event, session) => {
   await updateLogoutVisibility();
-
-  if (isFilePreview()) return;
-
-  // If session is null and we're not already on public pages, redirect to login
-  if (!session) {
-    const currentPage = window.location.pathname;
-    const isFullyPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
-
-    if (!isFullyPublicPage) {
-      window.location.href = 'home.html';
-    }
-  }
 });
-
-// ===============================
-// GLOBAL CLICK PROTECTION
-// ===============================
-// After logout, any clicks redirect to login (except on fully public pages and info pages)
-
-document.addEventListener('click', async (e) => {
-  if (isFilePreview()) return;
-
-  // Get current session
-  const { data: sessionData } = await supabase.auth.getSession();
-  const hasSession = !!sessionData?.session;
-
-  // Check if user is on a public page
-  const currentPage = window.location.pathname;
-  const isPublicPage = PUBLIC_PAGES.some(page => currentPage.includes(page));
-
-  // Check if clicked element is a link to an info page
-  const clickedElement = e.target.closest('a'); 
-  if (clickedElement && clickedElement.href) {
-    const href = clickedElement.href.toLowerCase();
-    const infoPages = ['how-it-works.html', 'privacy-policy.html', 'terms-of-service.html'];
-    const isInfoPageLink = infoPages.some(page => href.includes(page));
-    
-    if (isInfoPageLink) {
-      // Allow navigation to info pages
-      return;
-    }
-  }
-
-  // If no session and not on public page, redirect to login on any click
-  if (!hasSession && !isPublicPage) {
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = 'home.html';
-  }
-}, true);
 
 // ===============================
 // EXPORT

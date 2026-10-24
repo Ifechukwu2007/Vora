@@ -828,12 +828,6 @@ async function renderServiceMap(service, providerProfile) {
 // ============================
 
 async function openBookingModal(service, providerId) {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session?.user) {
-    window.location.href = 'home.html';
-    return;
-  }
-
   try {
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('bookingId');
@@ -853,7 +847,7 @@ async function openBookingModal(service, providerId) {
     ? Math.round(Number(service.price || 0) * (1 - discountPercent / 100))
     : Number(service.price || 0);
   const initialBookingInfo = bookingPriceInfo(service, 1, 'provider');
-  const canTravelToCustomer = service.travels_to_customer && hasConfiguredTravelPricing(service.travel_pricing);
+  const canTravelToCustomer = Boolean(service.travels_to_customer);
   const initialPerPerson = hasGroupDeal ? discountedPrice : initialBookingInfo.perPerson;
   const initialTotal = initialBookingInfo.total;
   const initialDealText = hasGroupDeal
@@ -910,7 +904,7 @@ async function openBookingModal(service, providerId) {
 
           <!-- SERVICE LOCATION -->
           <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3">Service Location</label>
+            <label class="block text-sm font-semibold text-gray-900 mb-3">Where should the service take place?</label>
             <div class="space-y-3">
               <label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input type="radio" name="serviceLocation" value="provider" class="h-4 w-4" checked onchange="updateTravelFee()">
@@ -918,7 +912,7 @@ async function openBookingModal(service, providerId) {
               </label>
               ${canTravelToCustomer ? `<label class="flex items-center p-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input type="radio" name="serviceLocation" value="customer" class="h-4 w-4" onchange="updateTravelFee()">
-                <span class="ml-3 text-gray-900 font-medium">Provider should come to me</span>
+                <span class="ml-3 text-gray-900 font-medium">Provider should come to my location (distance-based travel fee)</span>
               </label>` : ''}
             </div>
             
