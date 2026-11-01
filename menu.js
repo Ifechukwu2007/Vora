@@ -19,6 +19,14 @@ function createNavLink(linkInfo) {
   return link;
 }
 
+function createProviderNavLink() {
+  const link = document.createElement('a');
+  link.href = 'add-service.html';
+  link.className = 'whitespace-nowrap rounded-full bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700';
+  link.textContent = 'Become a Provider';
+  return link;
+}
+
 function createMobileLink(linkInfo) {
   const link = document.createElement('a');
   link.href = linkInfo.href;
@@ -44,6 +52,7 @@ function patchDesktopNav(header) {
   if (COMMON_LINKS.length > 0) {
     nav.innerHTML = '';
     COMMON_LINKS.forEach((linkInfo) => nav.appendChild(createNavLink(linkInfo)));
+    nav.appendChild(createProviderNavLink());
   }
 }
 

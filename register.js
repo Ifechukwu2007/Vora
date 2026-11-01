@@ -90,7 +90,7 @@ function validateLandmark(landmark) {
 }
 
 function validateCountry(country) {
-  return typeof country === 'string' && country.trim().length > 0;
+  return country === "Nigeria";
 }
 
 function validateState(state) {
@@ -99,13 +99,7 @@ function validateState(state) {
 }
 
 const COUNTRY_PHONE_CODE = {
-  "Nigeria": "+234",
-  "United States": "+1",
-  "United Kingdom": "+44",
-  "Canada": "+1",
-  "Australia": "+61",
-  "India": "+91",
-  "South Africa": "+27"
+  "Nigeria": "+234"
 };
 
 function validateLocation(location) {

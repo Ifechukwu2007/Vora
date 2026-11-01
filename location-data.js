@@ -115,17 +115,6 @@ export const COUNTRY_STATE_MAP = {
     "Upper East",
     "Upper West"
   ],
-  "South Africa": [
-    "Eastern Cape",
-    "Free State",
-    "Gauteng",
-    "KwaZulu-Natal",
-    "Limpopo",
-    "Mpumalanga",
-    "Northern Cape",
-    "North West",
-    "Western Cape"
-  ],
   "United Kingdom": [
     "England",
     "Northern Ireland",
@@ -242,35 +231,19 @@ export const STATE_CITY_MAP = {
   "North East": ["Nalerigu", "Gambaga", "Walewale"],
   "Upper East": ["Bolgatanga", "Bawku", "Navrongo"],
   "Upper West": ["Wa", "Lawra", "Tumu"],
-  "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl", "Worcester"],
-  "Gauteng": ["Johannesburg", "Pretoria", "Soweto", "Midrand", "Ekurhuleni"],
-  "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Richards Bay", "Newcastle"],
-  "Eastern Cape": ["Gqeberha", "East London", "Mthatha", "Grahamstown"],
-  "Free State": ["Bloemfontein", "Welkom", "Kroonstad"],
-  "Limpopo": ["Polokwane", "Thohoyandou", "Tzaneen"],
-  "Mpumalanga": ["Mbombela", "Middelburg", "Nelspruit"],
-  "Northern Cape": ["Kimberley", "Upington", "Kuruman"],
-  "North West": ["Mahikeng", "Rustenburg", "Klerksdorp"],
 };
 
 // Mapping of country names to MapTiler country codes for geocoding
 export const COUNTRY_GEOCODE_CODES = {
-  "Nigeria": "ng",
-  "United States": "us",
-  "United Kingdom": "gb",
-  "Canada": "ca",
-  "Australia": "au",
-  "India": "in",
-  "South Africa": "za",
-  "Ghana": "gh"
+  "Nigeria": "ng"
 };
 
 export function getSortedCountryOptions() {
-  return Object.keys(COUNTRY_STATE_MAP).sort();
+  return [DEFAULT_COUNTRY];
 }
 
 export function getStatesForCountry(country) {
-  return COUNTRY_STATE_MAP[country] || [];
+  return country === DEFAULT_COUNTRY ? COUNTRY_STATE_MAP[DEFAULT_COUNTRY] : [];
 }
 
 export function getGeocodeCountryCode(country) {

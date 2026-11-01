@@ -6,12 +6,6 @@ const MAPTILER_STYLE_URL = MAPTILER_KEY
 // Country-specific coordinates for default map center
 const COUNTRY_DEFAULT_COORDS = {
   'ng': { latitude: 6.151173, longitude: 6.780686 }, // Nigeria (Lagos area)
-  'za': { latitude: -33.918861, longitude: 18.423300 }, // South Africa (Cape Town area)
-  'us': { latitude: 37.7749, longitude: -122.4194 }, // USA (San Francisco)
-  'ca': { latitude: 43.6532, longitude: -79.3832 }, // Canada (Toronto)
-  'gb': { latitude: 51.5074, longitude: -0.1278 }, // UK (London)
-  'au': { latitude: -33.8688, longitude: 151.2093 }, // Australia (Sydney)
-  'in': { latitude: 19.0760, longitude: 72.8777 }, // India (Mumbai)
 };
 
 async function geocodeLocation(location, countryCode = 'ng') {

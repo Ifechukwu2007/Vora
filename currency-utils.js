@@ -8,7 +8,6 @@
 const EXCHANGE_RATES = {
   NGN: 1,                      // Nigerian Naira (base)
   USD: 1 / 1550,              // US Dollar (1 USD = ~1550 NGN)
-  ZAR: 1 / 90,                // South African Rand (1 ZAR = ~90 NGN)
   GHS: 1 / 12,
   GBP: 1 / 2000,
   CAD: 1 / 1150,
@@ -20,7 +19,6 @@ const EXCHANGE_RATES = {
 const CURRENCY_CONFIG = {
   NGN: { symbol: "₦", decimals: 0, name: "Nigerian Naira" },
   USD: { symbol: "$", decimals: 2, name: "US Dollar" },
-  ZAR: { symbol: "R", decimals: 2, name: "South African Rand" },
   GHS: { symbol: "GH₵", decimals: 2, name: "Ghanaian Cedi" },
   GBP: { symbol: "£", decimals: 2, name: "British Pound" },
   CAD: { symbol: "CA$", decimals: 2, name: "Canadian Dollar" },
@@ -31,26 +29,20 @@ const CURRENCY_CONFIG = {
 // Map countries to their currencies
 const COUNTRY_CURRENCY_MAP = {
   "Nigeria": "NGN",
-  "United States": "USD",
-  "United Kingdom": "GBP",  // Will use USD for display
-  "Canada": "CAD",           // Will use USD for display
-  "Australia": "AUD",        // Will use USD for display
-  "India": "INR",            // Will use USD for display
-  "South Africa": "ZAR",
-  "Ghana": "GHS",
 };
 
 /**
  * Get the user's preferred currency
- * @returns {string} Currency code like "NGN", "USD", "ZAR"
+ * @returns {string} Currency code like "NGN" or "USD"
  */
 export function getPreferredCurrency() {
-  return localStorage.getItem("preferredCurrency") || "NGN";
+  const currency = localStorage.getItem("preferredCurrency");
+  return CURRENCY_CONFIG[currency] ? currency : "NGN";
 }
 
 /**
  * Set the user's preferred currency
- * @param {string} currency - Currency code like "NGN", "USD", "ZAR"
+ * @param {string} currency - Currency code like "NGN" or "USD"
  */
 export function setPreferredCurrency(currency) {
   if (Object.keys(CURRENCY_CONFIG).includes(currency)) {
@@ -85,8 +77,8 @@ export function setCurrencyByCountry(country) {
  * Convert price from one currency to another
  * All prices in DB are stored in NGN, so conversion is always through NGN
  * @param {number} amount - The amount to convert
- * @param {string} fromCurrency - Source currency ("NGN", "USD", "ZAR", etc.)
- * @param {string} toCurrency - Target currency ("NGN", "USD", "ZAR", etc.)
+ * @param {string} fromCurrency - Source currency ("NGN", "USD", etc.)
+ * @param {string} toCurrency - Target currency ("NGN", "USD", etc.)
  * @returns {number} Converted amount
  */
 export function convertCurrency(amount, fromCurrency, toCurrency) {

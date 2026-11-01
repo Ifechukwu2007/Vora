@@ -44,7 +44,6 @@ const BUCKET_NAME = "profile-pictures";
 // it into country-config.js later so there's one source of truth.
 const COUNTRY_DISPLAY = {
   Nigeria: { flag: "🇳🇬", currency: "NGN ₦" },
-  "South Africa": { flag: "🇿🇦", currency: "ZAR R" },
 };
 
 const DEFAULT_NOTIFICATION_PREFS = {

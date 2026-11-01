@@ -56,7 +56,7 @@ function applyCountryBankOptions() {
 
   if (bankSelect) {
     bankSelect.value = bankSelect.value || "";
-    bankSelect.placeholder = country === "South Africa" ? "e.g. Capitec Bank" : "e.g. Access Bank";
+    bankSelect.placeholder = "e.g. Access Bank";
   }
 
   if (bankCountryLabel) {

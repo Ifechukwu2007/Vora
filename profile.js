@@ -49,7 +49,7 @@ function getSafeFilename(name) {
 // Sets the displayed phone code from a country name, WITHOUT ever falling
 // back to a hardcoded country's code. If we can't resolve a code for the
 // given country, we clear the field instead of showing a wrong/default one
-// (e.g. showing Nigeria's +234 for a South African user).
+// (e.g. showing Nigeria's +234 for a user with a legacy non-Nigerian profile).
 function applyCountryCode(countryName) {
   if (!els.countryCode) return;
 

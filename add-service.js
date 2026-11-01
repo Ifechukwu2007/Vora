@@ -2,8 +2,7 @@ import { supabase } from './supabase.js';
 import { LoadingSpinner } from './loading-utils.js';
 import { setupLocationPicker } from './location-picker.js';
 import { getCountryConfig, getUserCountry } from './country-config.js';
-import { getGeocodeCountryCode } from './location-data.js';
-import { COUNTRY_STATE_MAP, DEFAULT_COUNTRY, STATE_CITY_MAP } from './location-data.js';
+import { getGeocodeCountryCode, getSortedCountryOptions, COUNTRY_STATE_MAP, DEFAULT_COUNTRY, STATE_CITY_MAP } from './location-data.js';
 import { getCurrencyCodeForCountry } from './currency-utils.js';
 
 
@@ -584,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (baseCity) baseCity.innerHTML = `<option value="">Select a city</option>${cities.map((city) => `<option value="${city}">${city}</option>`).join('')}`;
     };
     if (baseCountry) {
-        baseCountry.innerHTML = Object.keys(COUNTRY_STATE_MAP).sort().map((country) => `<option value="${country}">${country}</option>`).join('');
+        baseCountry.innerHTML = getSortedCountryOptions().map((country) => `<option value="${country}">${country}</option>`).join('');
         baseCountry.value = COUNTRY_STATE_MAP[userCountry] ? userCountry : DEFAULT_COUNTRY;
         populateStates();
     }
