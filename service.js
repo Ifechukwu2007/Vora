@@ -35,7 +35,7 @@ const { data: sessionData } = await supabase.auth.getSession();
 const currentUser = sessionData?.session?.user || null;
 let currentServiceContext = null;
 let currentProviderContext = null;
-let platformCommissionPercent = 0;
+let platformCommissionPercent = 10;
 const RECENT_SERVICES_KEY = 'vorabukeen_recent_services';
 const RESERVATION_DEPOSIT_THRESHOLD = 50000;
 const RESERVATION_DEPOSIT_PERCENT = 10;
@@ -55,55 +55,95 @@ function escapeServiceHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function renderServiceCarousel(images, title) {
+function renderServiceGallery(images, title) {
   if (!images.length) return '';
 
+  const renderTile = (url, index, primary = false) => `
+    <button type="button" class="service-gallery-tile${primary ? ' service-gallery-primary' : ''}" data-gallery-open="${index}" aria-label="View photo ${index + 1} of ${images.length}">
+      <img src="${escapeServiceHtml(url)}" alt="${escapeServiceHtml(title)} - photo ${index + 1}" data-gallery-source loading="eager" decoding="async"${primary ? ' fetchpriority="high"' : ''} onerror="this.closest('button').style.display='none'">
+    </button>
+  `;
+  const secondaryImages = images.slice(1, 5);
+  const secondaryClass = secondaryImages.length === 1
+    ? 'is-single'
+    : secondaryImages.length === 2
+      ? 'is-two'
+      : secondaryImages.length === 3
+        ? 'is-three'
+        : '';
+
   return `
-    <div class="service-carousel" data-service-carousel role="region" aria-label="Service photos">
-      <div class="service-carousel-track">
-        ${images.map((url, index) => `
-          <img src="${escapeServiceHtml(url)}" alt="${escapeServiceHtml(title)} - photo ${index + 1}" class="service-carousel-image${index === 0 ? ' is-active' : ''}" data-carousel-image="${index}" loading="${index === 0 ? 'eager' : 'lazy'}" onerror="this.style.display='none'">
-        `).join('')}
-      </div>
-      ${images.length > 1 ? `
-        <button type="button" class="service-carousel-control service-carousel-prev" data-carousel-prev aria-label="Previous service photo" title="Previous photo">&#8249;</button>
-        <button type="button" class="service-carousel-control service-carousel-next" data-carousel-next aria-label="Next service photo" title="Next photo">&#8250;</button>
-        <div class="service-carousel-dots" role="tablist" aria-label="Choose service photo">
-          ${images.map((_, index) => `<button type="button" role="tab" class="service-carousel-dot${index === 0 ? ' is-active' : ''}" data-carousel-dot="${index}" aria-label="Show photo ${index + 1}" aria-selected="${index === 0}"></button>`).join('')}
+    <div class="service-gallery-grid${images.length === 1 ? ' has-one' : ''}" data-service-gallery data-gallery-title="${escapeServiceHtml(title)}" role="group" aria-label="Service photos">
+      ${renderTile(images[0], 0, true)}
+      ${secondaryImages.length ? `
+        <div class="service-gallery-secondary ${secondaryClass}">
+          ${secondaryImages.map((url, index) => renderTile(url, index + 1)).join('')}
         </div>
       ` : ''}
-      <span class="service-carousel-count">1 / ${images.length}</span>
+      ${images.length > 5 ? `
+        <div class="service-gallery-preloads" aria-hidden="true">
+          ${images.slice(5).map((url, index) => `<img src="${escapeServiceHtml(url)}" data-gallery-source data-gallery-index="${index + 5}" alt="" loading="eager" decoding="async">`).join('')}
+        </div>
+      ` : ''}
+      ${images.length > 1 ? `
+        <button type="button" class="service-gallery-show-all" data-gallery-open="0">
+          <span aria-hidden="true">▦</span> Show all ${images.length} photos
+        </button>
+      ` : ''}
+      <dialog class="service-lightbox" data-service-lightbox aria-label="Service photos">
+        <div class="service-lightbox-header">
+          <span data-gallery-count>1 / ${images.length}</span>
+          <button type="button" class="service-lightbox-close" data-gallery-close aria-label="Close photos">&times;</button>
+        </div>
+        <div class="service-lightbox-viewer${images.length === 1 ? ' is-single' : ''}">
+          ${images.length > 1 ? '<button type="button" class="service-lightbox-nav" data-gallery-prev aria-label="Previous photo">&lsaquo;</button>' : ''}
+          <img src="${escapeServiceHtml(images[0])}" alt="${escapeServiceHtml(title)} - photo 1" data-gallery-active-image decoding="async">
+          ${images.length > 1 ? '<button type="button" class="service-lightbox-nav" data-gallery-next aria-label="Next photo">&rsaquo;</button>' : ''}
+        </div>
+      </dialog>
     </div>
   `;
 }
 
-function setupServiceCarousel() {
-  const carousel = document.querySelector('[data-service-carousel]');
-  if (!carousel) return;
-  const images = [...carousel.querySelectorAll('[data-carousel-image]')];
-  const dots = [...carousel.querySelectorAll('[data-carousel-dot]')];
-  const count = carousel.querySelector('.service-carousel-count');
+function setupServiceGallery() {
+  const gallery = document.querySelector('[data-service-gallery]');
+  if (!gallery) return;
+  const images = [...gallery.querySelectorAll('[data-gallery-source]')];
+  const dialog = gallery.querySelector('[data-service-lightbox]');
+  const activeImage = dialog?.querySelector('[data-gallery-active-image]');
+  const count = dialog?.querySelector('[data-gallery-count]');
+  if (!dialog || !activeImage || !images.length) return;
   let currentIndex = 0;
 
   const showImage = (index) => {
     currentIndex = (index + images.length) % images.length;
-    images.forEach((image, imageIndex) => image.classList.toggle('is-active', imageIndex === currentIndex));
-    dots.forEach((dot, dotIndex) => {
-      const active = dotIndex === currentIndex;
-      dot.classList.toggle('is-active', active);
-      dot.setAttribute('aria-selected', String(active));
-    });
+    activeImage.src = images[currentIndex].src;
+    activeImage.alt = `${gallery.dataset.galleryTitle} - photo ${currentIndex + 1}`;
     if (count) count.textContent = `${currentIndex + 1} / ${images.length}`;
   };
 
-  carousel.querySelector('[data-carousel-prev]')?.addEventListener('click', () => showImage(currentIndex - 1));
-  carousel.querySelector('[data-carousel-next]')?.addEventListener('click', () => showImage(currentIndex + 1));
-  dots.forEach((dot) => dot.addEventListener('click', () => showImage(Number(dot.dataset.carouselDot))));
-  carousel.addEventListener('keydown', (event) => {
-    if (event.key === 'ArrowLeft') showImage(currentIndex - 1);
-    if (event.key === 'ArrowRight') showImage(currentIndex + 1);
+  gallery.querySelectorAll('[data-gallery-open]').forEach((button) => {
+    button.addEventListener('click', () => {
+      showImage(Number(button.dataset.galleryOpen));
+      dialog.showModal();
+    });
   });
-  carousel.tabIndex = 0;
+  dialog.querySelector('[data-gallery-prev]')?.addEventListener('click', () => showImage(currentIndex - 1));
+  dialog.querySelector('[data-gallery-next]')?.addEventListener('click', () => showImage(currentIndex + 1));
+  dialog.querySelector('[data-gallery-close]')?.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      showImage(currentIndex - 1);
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      showImage(currentIndex + 1);
+    }
+  });
 }
 
 function rememberRecentlyViewedService(id) {
@@ -122,7 +162,8 @@ async function loadPlatformCommission() {
   const { data, error } = await supabasePublic
     .from('settings')
     .select('*')
-    .eq('id', 'platform')
+    .order('id', { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (error) {
     console.warn('Could not load platform commission:', error.message || error);
@@ -300,7 +341,7 @@ async function loadService() {
 
     // IMAGES (support multiple)
     const images = getServiceImages(service);
-    const serviceImageHtml = renderServiceCarousel(images, service.title) || `\n        <img src="https://placehold.co/800x500?text=Vorabukeen" class="w-full h-80 object-cover rounded-xl"/>\n    `;
+    const serviceImageHtml = renderServiceGallery(images, service.title) || `\n        <img src="https://placehold.co/800x500?text=Vorabukeen" class="w-full h-80 object-cover rounded-xl"/>\n    `;
 
     currentServiceContext = { ...service, image_url: images[0] || '', image_urls: images, provider_name: providerProfile?.full_name || service.provider_name || '' };
     currentProviderContext = providerProfile || {};
@@ -502,7 +543,7 @@ async function loadService() {
       };
     }
 
-    setupServiceCarousel();
+    setupServiceGallery();
 
     renderReviewSummary(reviews || []);
     renderReviews(reviews || [], Object.keys(resolvedUsersById).length ? resolvedUsersById : usersById);
@@ -1021,8 +1062,9 @@ function updateTotalPrice() {
   const location = document.querySelector('input[name="serviceLocation"]:checked').value;
   const service = window.currentService;
   const { perPerson, total, meetsDeal, travelFee, subtotal, serviceFee } = bookingPriceInfo(service, peopleCount, location, window.currentCustomerTravel?.coordinates);
+  const displayedTotal = total;
 
-  document.getElementById('totalDisplay').textContent = formatServicePrice(service, total);
+  document.getElementById('totalDisplay').textContent = formatServicePrice(service, displayedTotal);
   const totalLabel = document.getElementById('totalLabel');
   const discountSavings = document.getElementById('discountSavings');
   if (totalLabel) {
@@ -1033,7 +1075,7 @@ function updateTotalPrice() {
       const originalSubtotal = (Number(service.price || 0) * peopleCount);
       const originalServiceFee = Math.round(originalSubtotal * (platformCommissionPercent / 100));
       const originalTotal = originalSubtotal + originalServiceFee + travelFee;
-      const savings = Math.max(0, originalTotal - total);
+      const savings = Math.max(0, originalTotal - displayedTotal);
       discountSavings.textContent = `You save ${formatServicePrice(service, savings)} with this group deal.`;
     } else {
       discountSavings.textContent = '';
@@ -1111,6 +1153,7 @@ async function submitBooking(service, providerId) {
   }
 
   const bookingInfo = bookingPriceInfo(service, peopleCount, serviceLocation, travel.coordinates);
+  const bookingTotal = bookingInfo.total;
   const resolvedService = service || currentServiceContext || {};
   const resolvedProvider = currentProviderContext || {};
   const pendingBooking = {
@@ -1128,11 +1171,10 @@ async function submitBooking(service, providerId) {
     customerLocation,
     travelFee,
     specialInstructions,
-    totalPrice: bookingInfo.total,
+    totalPrice: bookingTotal,
     pricePerPerson: bookingInfo.perPerson,
-    discountedTotal: bookingInfo.total,
+    discountedTotal: bookingTotal,
     discountedPerPerson: bookingInfo.perPerson,
-    paymentMethod: 'flutterwave',
   };
   try {
     localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
@@ -1149,9 +1191,9 @@ async function submitBooking(service, providerId) {
   params.append('customerLocation', customerLocation);
   params.append('travelFee', travelFee);
   params.append('specialInstructions', specialInstructions);
-  params.append('totalPrice', bookingInfo.total);
+  params.append('totalPrice', bookingTotal);
   params.append('pricePerPerson', bookingInfo.perPerson);
-  params.append('discountedTotal', bookingInfo.total);
+  params.append('discountedTotal', bookingTotal);
   params.append('discountedPerPerson', bookingInfo.perPerson);
 
   LoadingSpinner.navigateTo(`complete-payment.html?${params.toString()}`);

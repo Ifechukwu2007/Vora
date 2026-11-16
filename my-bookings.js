@@ -276,6 +276,28 @@ async function loadBookings() {
             return;
         }
 
+        const completionPins = new Map();
+        const activeCustomerBookings = bookings.filter(booking =>
+            String(booking.user_id || booking.userId) === String(currentUser.id)
+            && ['accepted', 'in_progress', 'completed_by_provider', 'awaiting_customer_confirmation']
+                .includes(String(booking.status || '').toLowerCase())
+        );
+        const pinResults = await Promise.all(activeCustomerBookings.map(async booking => {
+            const { data, error: pinError } = await supabase.rpc('get_booking_completion_pin', {
+                p_booking_id: booking.id,
+            });
+            if (pinError) {
+                console.error(`Could not load completion PIN for booking ${booking.id}:`, pinError);
+                return { bookingId: booking.id, pin: null };
+            }
+            return { bookingId: booking.id, pin: data };
+        }));
+        pinResults.forEach(result => {
+            if (/^\d{6}$/.test(String(result.pin || ''))) {
+                completionPins.set(String(result.bookingId), String(result.pin));
+            }
+        });
+
         const providerIds = [...new Set(bookings.map(b => b.provider_id).filter(Boolean))];
         let providersById = {};
 
@@ -408,6 +430,7 @@ async function loadBookings() {
                 : '';
             const bookingTotal = Number(booking.total_price || booking.amount || booking.price || 0);
             const providerLocation = provider?.location || details?.location || null;
+            const completionPin = completionPins.get(String(booking.id));
             const bookingLocationText = booking.service_location === 'customer'
                 ? (booking.customer_location || details?.location || 'Customer Location')
                 : (providerLocation || details?.location || 'Provider Location');
@@ -526,8 +549,15 @@ async function loadBookings() {
                         <button class="cancel-booking-btn bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}">Cancel Booking</button>
                         ` : ''}
                         ${completionAwaitingCustomer ? `
-                        <button class="confirm-completion-btn bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}">✅ Confirm Completion</button>
+                        <p class="rounded-xl bg-purple-50 p-3 text-sm text-purple-800">Your provider marked this service done. Give them the PIN below to confirm completion.</p>
                         <button class="report-problem-btn bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-semibold transition" data-id="${booking.id}">⚠️ Report Problem</button>
+                        ` : ''}
+                        ${completionPin ? `
+                        <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                          <p class="text-sm font-semibold text-blue-900">Service completion PIN</p>
+                          <p class="mt-1 text-sm text-blue-800">Give this PIN to your provider after the service is complete.</p>
+                          <p class="mt-2 font-mono text-2xl font-bold tracking-[0.3em] text-blue-900">${completionPin}</p>
+                        </div>
                         ` : ''}
                     </div>
                 </div>
@@ -586,27 +616,6 @@ function setupBookingActions() {
         button.addEventListener("click", () => {
             selectedBooking = button.dataset.booking;
             openReviewModal(button.dataset.provider, button.dataset.service);
-        });
-    });
-
-    document.querySelectorAll(".confirm-completion-btn").forEach(button => {
-        button.addEventListener("click", async () => {
-            const bookingId = button.dataset.id;
-            if (!confirm("Are you sure you want to confirm completion? This will release payment to the provider.")) return;
-            const { error } = await supabase
-                .from("bookings")
-                .update({ status: "completed", booking_status: "completed", provider_payout_status: "eligible", updated_at: new Date().toISOString() })
-                .eq("id", bookingId);
-            if (error) {
-                alert("Failed to confirm completion: " + error.message);
-            } else {
-                await supabase
-                    .from("payouts")
-                    .update({ payout_status: "eligible", status: "eligible", eligible_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-                    .eq("booking_id", bookingId);
-                alert("Thank you! Payment will be released to the provider.");
-                await loadBookings();
-            }
         });
     });
 

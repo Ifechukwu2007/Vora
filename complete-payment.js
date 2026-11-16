@@ -10,13 +10,35 @@ let currentBooking = null;
 let currentUser = null;
 let paymentFlowInProgress = false;
 let flutterwavePopupTimer = null;
-const PLATFORM_SERVICE_FEE_PERCENT = 5;
+const PLATFORM_SERVICE_FEE_PERCENT = 10;
 const RESERVATION_DEPOSIT_THRESHOLD = 50000;
 const RESERVATION_DEPOSIT_PERCENT = 10;
 let platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
 
 async function loadPlatformCommission() {
-  platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
+  const { data, error } = await supabase
+    .from('settings')
+    .select('*')
+    .order('id', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Could not load platform commission; using the 10% default:', error.message || error);
+    platformCommissionPercent = PLATFORM_SERVICE_FEE_PERCENT;
+    return;
+  }
+
+  const configuredRate = Number(
+    data?.commission ??
+    data?.platform_commission ??
+    data?.commission_percentage ??
+    data?.built_in_margin ??
+    PLATFORM_SERVICE_FEE_PERCENT
+  );
+  platformCommissionPercent = Number.isFinite(configuredRate)
+    ? Math.max(0, Math.min(100, configuredRate))
+    : PLATFORM_SERVICE_FEE_PERCENT;
 }
 
 function getParam(name) {
@@ -252,23 +274,32 @@ function renderBooking(booking) {
     Number(booking.total_price) || 0,
   );
   const { serviceFee, total } = priceDetails;
-  booking.total_price = total;
-  const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || booking.payment_method === 'reserve_deposit';
-  const reservationDetails = reservationPaymentDetails(total);
+  const paymentMethod = pendingBooking?.paymentMethod || booking.payment_method || 'flutterwave';
+  const isCashPayment = ['cash', 'reserve_cash'].includes(paymentMethod);
+  const checkoutTotal = isCashPayment
+    ? priceDetails.serviceSubtotal + travelFee
+    : total;
+  booking.total_price = checkoutTotal;
+  const isReservationDeposit = paymentMethod === 'reserve_deposit';
+  const reservationDetails = reservationPaymentDetails(checkoutTotal);
   const amountDueNow = isReservationDeposit
     ? Number(pendingBooking?.reservationFee || reservationDetails.reservationFee)
-    : total;
+    : checkoutTotal;
 
   setText('per-person-price', formatServicePrice(service, perPerson));
-  setText('service-fee', formatServicePrice(service, serviceFee));
-  setText('service-price-total', formatServicePrice(service, total));
+  setText('service-fee', formatServicePrice(service, isCashPayment ? 0 : serviceFee));
+  setText('service-price-total', formatServicePrice(service, checkoutTotal));
   setText('service-price-summary', formatServicePrice(service, amountDueNow));
-  setText('payment-amount-label', isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
-  setText('payment-mode-title', isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
-  setText('payment-mode-description', isReservationDeposit
+  setText('payment-amount-label', isCashPayment ? 'Pay provider in cash' : isReservationDeposit ? 'Reservation fee due now' : 'Total due online');
+  setText('payment-mode-title', isCashPayment ? 'Pay your provider directly' : isReservationDeposit ? 'Reserve with a deposit' : 'Complete your payment');
+  setText('payment-mode-description', isCashPayment
+    ? 'Vorabukeen does not collect this payment. Pay the provider directly after the service is complete. You can share your completion PIN with the provider in My Bookings.'
+    : isReservationDeposit
     ? 'Pay the reservation fee securely to secure your booking. Pay the remaining balance to the provider in cash.'
     : 'Submit your booking and pay securely by card.');
-  setText('deposit-balance-note', isReservationDeposit
+  setText('deposit-balance-note', isCashPayment
+    ? `Provider commission (${platformCommissionPercent}%) is recorded separately after the provider confirms completion with your PIN.`
+    : isReservationDeposit
     ? `Pay ${formatServicePrice(service, amountDueNow)} now. The remaining ${formatServicePrice(service, Math.max(0, total - amountDueNow))} is paid to the provider in cash.`
     : 'Your full booking total will be paid securely by card.');
 
@@ -283,6 +314,55 @@ function renderBooking(booking) {
   }
 
   return total;
+}
+
+function getSelectedPaymentMethod() {
+  return document.querySelector('input[name="paymentMethod"]:checked')?.value
+    || getPendingBooking()?.paymentMethod
+    || currentBooking?.payment_method
+    || 'flutterwave';
+}
+
+function updatePaymentMethodSelection() {
+  const paymentMethod = getSelectedPaymentMethod();
+  const pendingBooking = getPendingBooking();
+  const onlineOption = document.getElementById('online-payment-option');
+  const cashOption = document.getElementById('cash-payment-option');
+  const isCashPayment = ['cash', 'reserve_cash'].includes(paymentMethod);
+
+  onlineOption?.classList.toggle('border-slate-900', !isCashPayment);
+  onlineOption?.classList.toggle('bg-slate-50', !isCashPayment);
+  onlineOption?.classList.toggle('border-slate-200', isCashPayment);
+  cashOption?.classList.toggle('border-slate-900', isCashPayment);
+  cashOption?.classList.toggle('bg-slate-50', isCashPayment);
+  cashOption?.classList.toggle('border-slate-200', !isCashPayment);
+
+  if (pendingBooking) {
+    pendingBooking.paymentMethod = paymentMethod;
+    try {
+      localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
+    } catch (err) {
+      console.warn('Could not save the selected payment method:', err);
+    }
+  }
+
+  if (currentBooking) {
+    currentBooking.payment_method = paymentMethod;
+    renderBooking(currentBooking);
+    if (pendingBooking) {
+      pendingBooking.totalPrice = currentBooking.total_price;
+      pendingBooking.discountedTotal = currentBooking.total_price;
+      try {
+        localStorage.setItem('voraPendingBooking', JSON.stringify(pendingBooking));
+      } catch (err) {
+        console.warn('Could not save the selected booking total:', err);
+      }
+    }
+  }
+
+  disableConfirmButton(false, isCashPayment
+    ? 'Confirm cash booking'
+    : paymentMethod === 'reserve_deposit' ? 'Pay reservation fee' : 'Pay with Flutterwave');
 }
 
 function setBookingIdInUrl(bookingId) {
@@ -307,12 +387,16 @@ async function createBookingFromPending(pendingBooking) {
   const numberOfPeople = Number(pendingBooking.numberOfPeople) || 1;
   const pricePerPerson = Number(pendingBooking.pricePerPerson) || 0;
   const travelFee = Number(pendingBooking.travelFee) || 0;
-  const totalPrice = getBookingPriceDetails(
+  const paymentMethod = pendingBooking.paymentMethod || 'flutterwave';
+  const priceDetails = getBookingPriceDetails(
     pricePerPerson,
     numberOfPeople,
     travelFee,
     Number(pendingBooking.totalPrice) || 0,
-  ).total;
+  );
+  const totalPrice = ['cash', 'reserve_cash'].includes(paymentMethod)
+    ? priceDetails.serviceSubtotal + travelFee
+    : priceDetails.total;
 
   if (totalPrice <= 0) {
     console.error('Invalid total price:', pendingBooking.totalPrice);
@@ -324,7 +408,7 @@ async function createBookingFromPending(pendingBooking) {
     provider_id: pendingBooking.providerId || null,
     service_id: pendingBooking.serviceId || null,
     scheduled_date: pendingBooking.scheduledDate || null,
-    status: 'pending_payment',
+    status: ['cash', 'reserve_cash'].includes(paymentMethod) ? 'pending' : 'pending_payment',
     total_price: totalPrice,
     number_of_people: numberOfPeople,
     price_per_person: pricePerPerson,
@@ -333,6 +417,7 @@ async function createBookingFromPending(pendingBooking) {
     service_location: pendingBooking.serviceLocation || 'provider',
     customer_location: pendingBooking.customerLocation || '',
     payment_status: 'pending',
+    payment_method: paymentMethod,
   };
 
   console.log('Creating booking with payload:', payload);
@@ -568,7 +653,7 @@ async function launchFlutterwave(amountNaira, bookingId) {
 
   const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
   const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
-  const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'card';
+  const selectedPaymentMethod = getSelectedPaymentMethod();
   let verificationStarted = false;
 
   try {
@@ -726,9 +811,21 @@ async function init() {
 
     renderBooking(currentBooking);
 
-    const isReservationDeposit = pendingBooking?.paymentMethod === 'reserve_deposit' || currentBooking.payment_method === 'reserve_deposit';
+    const storedPaymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'flutterwave';
+    const selectedPaymentMethod = storedPaymentMethod === 'card' ? 'flutterwave' : storedPaymentMethod;
+    document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+      input.checked = input.value === selectedPaymentMethod;
+      input.disabled = Boolean(bookingId && !pendingBooking && input.value !== selectedPaymentMethod);
+      input.addEventListener('change', updatePaymentMethodSelection);
+    });
+    if (bookingId && !pendingBooking) {
+      show('payment-method-locked-note');
+    }
+    updatePaymentMethodSelection();
+    const isCashPayment = ['cash', 'reserve_cash'].includes(selectedPaymentMethod);
+    const isReservationDeposit = selectedPaymentMethod === 'reserve_deposit';
     disableConfirmButton(false, currentUser
-      ? (isReservationDeposit ? 'Pay reservation fee' : 'Pay with Flutterwave')
+      ? (isCashPayment ? 'Confirm cash booking' : isReservationDeposit ? 'Pay reservation fee' : 'Pay with Flutterwave')
       : 'Log in to pay');
   } catch (err) {
     showError(err.message || 'We could not prepare this checkout.');
@@ -761,12 +858,16 @@ async function init() {
     paymentFlowInProgress = true;
     disableConfirmButton(true, 'Processing...');
     try {
+      const paymentMethod = getSelectedPaymentMethod();
       if (!bookingId) {
         const pendingBooking = getPendingBooking();
         if (!pendingBooking) {
           throw new Error('Missing booking details. Please start your booking again.');
         }
 
+        pendingBooking.paymentMethod = paymentMethod;
+        pendingBooking.totalPrice = Number(currentBooking.total_price) || Number(pendingBooking.totalPrice) || 0;
+        pendingBooking.discountedTotal = pendingBooking.totalPrice;
         const createdBooking = await createBookingFromPending(pendingBooking);
         if (!createdBooking?.id) {
           throw new Error('Could not create your booking before payment. Please try again.');
@@ -778,10 +879,53 @@ async function init() {
         localStorage.setItem('currentBookingId', bookingId);
         setBookingIdInUrl(bookingId);
       }
-
       const fullTotal = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
       const pendingBooking = getPendingBooking();
-      const paymentMethod = pendingBooking?.paymentMethod || currentBooking.payment_method || 'flutterwave';
+      if (['cash', 'reserve_cash'].includes(paymentMethod)) {
+        const providerId = currentBooking?.provider_id || pendingBooking?.providerId || null;
+        const serviceTitle = currentBooking?.services?.title || currentBooking?.title || pendingBooking?.serviceTitle || 'your service';
+        if (!providerId) {
+          throw new Error('The provider for this booking could not be identified.');
+        }
+
+        if (!bookingId) {
+          const createdBooking = await createBookingFromPending(pendingBooking);
+          if (!createdBooking?.id) {
+            throw new Error('Could not create your cash booking. Please try again.');
+          }
+          bookingId = createdBooking.id;
+          currentBooking.id = bookingId;
+        }
+
+        try {
+          await Promise.all([
+            NotificationService.createNotification(
+              providerId,
+              'booking_confirmed',
+              'New cash booking received',
+              `A customer booked ${serviceTitle} and will pay you directly after completion.`,
+              {},
+              currentUser.id
+            ),
+            NotificationService.createNotification(
+              currentUser.id,
+              'booking_confirmed',
+              'Cash booking confirmed',
+              `Your booking for ${serviceTitle} is confirmed. Your completion PIN is available in My Bookings to share with your provider after the service.`,
+              {},
+              providerId
+            ),
+          ]);
+        } catch (notificationError) {
+          console.error('Cash booking succeeded, but notification delivery failed:', notificationError);
+        }
+        localStorage.removeItem('voraPendingBooking');
+        localStorage.removeItem('currentBookingId');
+        localStorage.removeItem('bookingId');
+        window.location.href = 'my-bookings.html';
+        return;
+      }
+
       const amountDue = paymentMethod === 'reserve_deposit'
         ? reservationPaymentDetails(fullTotal).reservationFee
         : fullTotal;
@@ -798,7 +942,10 @@ async function init() {
       console.error(err);
       showError(err.message || 'We could not start the payment.');
       paymentFlowInProgress = false;
-      disableConfirmButton(false, 'Pay with Flutterwave');
+      const method = getSelectedPaymentMethod();
+      disableConfirmButton(false, ['cash', 'reserve_cash'].includes(method)
+        ? 'Confirm cash booking'
+        : method === 'reserve_deposit' ? 'Pay reservation fee' : 'Pay with Flutterwave');
     }
   };
 }

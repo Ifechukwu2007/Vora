@@ -131,6 +131,21 @@ function formatMoney(value) {
     )}`;
 }
 
+function formatMoneyInCurrency(value, currencyCode = "NGN") {
+    const amount = Number(value || 0);
+    try {
+        return new Intl.NumberFormat("en-NG", {
+            style: "currency",
+            currency: currencyCode,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    } catch (error) {
+        console.warn("Unsupported currency code:", currencyCode, error);
+        return `${escapeHTML(currencyCode)} ${amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+}
+
 
 function shortId(value) {
 
@@ -737,6 +752,7 @@ window.showSection =
             "services",
             "bookings",
             "payments",
+            "commissions",
             "reviews",
             "settings"
         ];
@@ -835,6 +851,10 @@ window.showSection =
 
             case "payments":
                 await loadPayments();
+                break;
+
+            case "commissions":
+                await loadCommissionPayments();
                 break;
 
             case "reviews":
@@ -1867,10 +1887,11 @@ async function loadPayments() {
                             class="px-6 py-4 font-medium"
                         >
 
-                            ${formatMoney(
+                            ${formatMoneyInCurrency(
                                 payment.amount ??
                                 payment.total_amount ??
-                                0
+                                0,
+                                payment.currency_code || "NGN"
                             )}
 
                         </td>
@@ -1910,6 +1931,127 @@ async function loadPayments() {
         showError(
             error.message
         );
+    }
+}
+
+async function loadCommissionPayments() {
+    const tbody = $("commissionPaymentsTable");
+    if (!tbody) return;
+
+    renderLoading(tbody, 6);
+    try {
+        const [commissionRows, balanceRows, paymentRows] = await Promise.all([
+            safeQuery(
+                supabase.from("provider_commissions").select("commission_amount, currency_code"),
+                "Loading provider commissions"
+            ),
+            safeQuery(
+                supabase.from("provider_balances").select("commission_paid, outstanding_balance, currency_code"),
+                "Loading provider balances"
+            ),
+            safeQuery(
+                supabase
+                    .from("commission_payments")
+                    .select("id, provider_id, amount, currency_code, reference, status, created_at")
+                    .order("created_at", { ascending: false }),
+                "Loading commission payments"
+            )
+        ]);
+        const providerIds = [...new Set((paymentRows || []).map(payment => payment.provider_id).filter(Boolean))];
+        const providerRows = providerIds.length
+            ? await safeQuery(
+                supabase
+                    .from("users")
+                    .select("id, full_name, name, email")
+                    .in("id", providerIds),
+                "Loading commission provider accounts"
+            )
+            : [];
+        const providersById = new Map((providerRows || []).map(provider => [provider.id, provider]));
+
+        const totalsByCurrency = (rows, amountField, predicate = () => true) => {
+            const totals = new Map();
+            (rows || []).filter(predicate).forEach(row => {
+                const currency = row.currency_code || "NGN";
+                totals.set(currency, (totals.get(currency) || 0) + Number(row[amountField] || 0));
+            });
+            return [...totals.entries()]
+                .map(([currency, amount]) => formatMoneyInCurrency(amount, currency))
+                .join(" · ") || formatMoney(0);
+        };
+
+        $("commissionRecordedTotal").textContent = totalsByCurrency(commissionRows, "commission_amount");
+        $("commissionPaidTotal").textContent = totalsByCurrency(balanceRows, "commission_paid");
+        $("commissionOutstandingTotal").textContent = totalsByCurrency(balanceRows, "outstanding_balance");
+        $("commissionPendingTotal").textContent = totalsByCurrency(
+            paymentRows,
+            "amount",
+            row => row.status === "pending"
+        );
+
+        if (!paymentRows?.length) {
+            renderEmpty(tbody, 6, "No commission payments have been submitted.");
+            return;
+        }
+
+        tbody.innerHTML = paymentRows.map(payment => `
+            <tr class="border-t hover:bg-gray-50">
+              <td class="px-5 py-4"><span class="font-medium">${escapeHTML(providersById.get(payment.provider_id)?.full_name || providersById.get(payment.provider_id)?.name || providersById.get(payment.provider_id)?.email || "Provider")}</span><span class="mt-1 block font-mono text-xs text-gray-500">${escapeHTML(shortId(payment.provider_id))}</span></td>
+              <td class="px-5 py-4 font-medium">${formatMoneyInCurrency(payment.amount, payment.currency_code || "NGN")}</td>
+              <td class="px-5 py-4 font-mono text-xs">${escapeHTML(payment.reference)}</td>
+              <td class="px-5 py-4">${formatDate(payment.created_at)}</td>
+              <td class="px-5 py-4">${statusBadge(payment.status)}</td>
+              <td class="px-5 py-4 text-right">
+                ${payment.status === "pending"
+                    ? `<div class="flex justify-end gap-2"><button type="button" data-confirm-commission="${escapeHTML(payment.id)}" class="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700">Confirm received</button><button type="button" data-reject-commission="${escapeHTML(payment.id)}" class="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Reject</button></div>`
+                    : "—"}
+              </td>
+            </tr>
+        `).join("");
+
+        tbody.querySelectorAll("[data-confirm-commission]").forEach(button => {
+            button.addEventListener("click", async () => {
+                if (!confirm("Confirm that this bank transfer has been received? This reduces the provider's recorded balance.")) return;
+                button.disabled = true;
+                button.textContent = "Confirming...";
+                try {
+                    const { error } = await supabase.rpc("confirm_commission_payment", {
+                        p_payment_id: button.dataset.confirmCommission
+                    });
+                    if (error) throw error;
+                    await loadCommissionPayments();
+                } catch (error) {
+                    console.error("Could not confirm commission payment:", error);
+                    showError(`Commission payment was not confirmed: ${error.message || error}`);
+                    button.disabled = false;
+                    button.textContent = "Confirm received";
+                }
+            });
+        });
+        tbody.querySelectorAll("[data-reject-commission]").forEach(button => {
+            button.addEventListener("click", async () => {
+                const note = prompt("Why are you rejecting this commission transfer?");
+                if (!note?.trim()) return;
+                button.disabled = true;
+                button.textContent = "Rejecting...";
+                try {
+                    const { error } = await supabase.rpc("reject_commission_payment", {
+                        p_payment_id: button.dataset.rejectCommission,
+                        p_note: note.trim()
+                    });
+                    if (error) throw error;
+                    await loadCommissionPayments();
+                } catch (error) {
+                    console.error("Could not reject commission payment:", error);
+                    showError(`Commission payment was not rejected: ${error.message || error}`);
+                    button.disabled = false;
+                    button.textContent = "Reject";
+                }
+            });
+        });
+    } catch (error) {
+        renderEmpty(tbody, 6, "Could not load commission payments.");
+        showError(error.message);
     }
 }
 
@@ -2093,7 +2235,7 @@ async function loadSettings() {
             await supabase
                 .from("settings")
                 .select("*")
-                .eq("id", "platform")
+                .order("id", { ascending: true })
                 .limit(1)
                 .maybeSingle();
 
@@ -2142,6 +2284,9 @@ async function loadSettings() {
         if (data.paypal_ngn_per_usd !== undefined && $("paypalUsdRate")) {
             $("paypalUsdRate").value = data.paypal_ngn_per_usd;
         }
+        if ($("providerCommissionLimit")) {
+            $("providerCommissionLimit").value = data.provider_commission_limit ?? 10000;
+        }
     } catch (error) {
 
         console.error(
@@ -2178,6 +2323,7 @@ async function saveSettings(
         );
 
     const paypalUsdRate = Number($("paypalUsdRate")?.value);
+    const providerCommissionLimit = Number($("providerCommissionLimit")?.value ?? 10000);
     if (
         !Number.isFinite(
             commission
@@ -2195,6 +2341,10 @@ async function saveSettings(
 
     if (!Number.isFinite(paypalUsdRate) || paypalUsdRate <= 0) {
         alert("PayPal USD rate must be greater than zero.");
+        return;
+    }
+    if (!Number.isFinite(providerCommissionLimit) || providerCommissionLimit <= 0) {
+        alert("Provider outstanding commission limit must be greater than zero.");
         return;
     }
     const button =
@@ -2220,7 +2370,7 @@ async function saveSettings(
             await supabase
                 .from("settings")
                 .select("*")
-                .eq("id", "platform")
+                .order("id", { ascending: true })
                 .limit(1)
                 .maybeSingle();
 
@@ -2253,6 +2403,8 @@ async function saveSettings(
 
                         paypal_ngn_per_usd:
                             paypalUsdRate,
+                        provider_commission_limit:
+                            providerCommissionLimit,
                         updated_at:
                             new Date()
                                 .toISOString()
@@ -2280,8 +2432,6 @@ async function saveSettings(
                 await supabase
                     .from("settings")
                     .insert({
-                        id: "platform",
-
                         commission:
                             commission,
 
@@ -2292,7 +2442,9 @@ async function saveSettings(
                             commission,
 
                         paypal_ngn_per_usd:
-                            paypalUsdRate
+                            paypalUsdRate,
+                        provider_commission_limit:
+                            providerCommissionLimit
                     });
 
 

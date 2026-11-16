@@ -84,6 +84,7 @@
           <button type="button" data-section="services" onclick="showSection('services')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">🛠️ Services</button>
           <button type="button" data-section="bookings" onclick="showSection('bookings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">📅 Bookings</button>
           <button type="button" data-section="payments" onclick="showSection('payments')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">💳 Payments</button>
+          <button type="button" data-section="commissions" onclick="showSection('commissions')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">🧾 Commissions</button>
           <button type="button" data-section="reviews" onclick="showSection('reviews')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⭐ Reviews</button>
           <button type="button" data-section="notifications" onclick="showSection('notifications')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">🔔 Notifications</button>
           <button type="button" data-section="settings" onclick="showSection('settings')" class="sidebar-link w-full text-left rounded-xl px-4 py-3">⚙️ Settings</button>
@@ -325,6 +326,35 @@
           </div>
         </section>
 
+        <!-- COMMISSIONS -->
+        <section id="commissionsSection" class="hidden-section">
+          <div class="mb-6">
+            <h2 class="text-2xl font-bold">Provider commissions</h2>
+            <p class="text-gray-500">Review provider-submitted bank transfer references. Confirm only after the funds are received; Vorabukeen does not hold cash-booking payments.</p>
+          </div>
+          <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-2xl border bg-white p-5"><p class="text-sm text-gray-500">Commission recorded</p><p id="commissionRecordedTotal" class="mt-2 text-2xl font-bold">₦0</p></div>
+            <div class="rounded-2xl border bg-white p-5"><p class="text-sm text-gray-500">Commission paid</p><p id="commissionPaidTotal" class="mt-2 text-2xl font-bold">₦0</p></div>
+            <div class="rounded-2xl border bg-white p-5"><p class="text-sm text-gray-500">Outstanding balances</p><p id="commissionOutstandingTotal" class="mt-2 text-2xl font-bold">₦0</p></div>
+            <div class="rounded-2xl border bg-white p-5"><p class="text-sm text-gray-500">Pending transfers</p><p id="commissionPendingTotal" class="mt-2 text-2xl font-bold">₦0</p></div>
+          </div>
+          <div class="overflow-hidden rounded-2xl border bg-white">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 text-sm text-gray-500"><tr>
+                  <th class="px-5 py-4 text-left">Provider</th>
+                  <th class="px-5 py-4 text-left">Amount</th>
+                  <th class="px-5 py-4 text-left">Bank reference</th>
+                  <th class="px-5 py-4 text-left">Date</th>
+                  <th class="px-5 py-4 text-left">Status</th>
+                  <th class="px-5 py-4 text-right">Action</th>
+                </tr></thead>
+                <tbody id="commissionPaymentsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- REVIEWS -->
         <section id="reviewsSection" class="hidden-section">
           <div class="mb-6">
@@ -381,6 +411,11 @@
                 <input id="commission" type="number" min="0" max="100" step="0.01" value="10" class="w-full px-4 py-3 border rounded-xl" />
               </div>
               <div>
+                <label class="block text-sm font-medium mb-2" for="providerCommissionLimit">Provider outstanding commission limit (NGN)</label>
+                <input id="providerCommissionLimit" type="number" min="1" step="0.01" value="10000" class="w-full px-4 py-3 border rounded-xl" />
+                <p class="mt-1 text-xs text-gray-500">At this NGN outstanding balance, providers cannot receive new bookings through any payment method. Commission overdue by 7 days also restricts new bookings.</p>
+              </div>
+              <div>
                 <label class="block text-sm font-medium mb-2">PayPal USD rate (NGN per USD)</label>
                 <input id="paypalUsdRate" type="number" min="1" step="0.01" value="1600" class="w-full px-4 py-3 border rounded-xl" />
                 <p class="mt-1 text-xs text-gray-500">Used only when a customer selects PayPal. Update this rate before accepting PayPal payments.</p>
@@ -406,7 +441,7 @@
   <script>
     // UI-only fallback. admin.js can replace this with its own implementation.
     window.showSection = window.showSection || function(section) {
-      const sections = ["dashboard","providers","customers","services","bookings","payments","reviews","notifications","settings"];
+      const sections = ["dashboard","providers","customers","services","bookings","payments","commissions","reviews","notifications","settings"];
       sections.forEach(name => {
         const el = document.getElementById(name + "Section");
         if (el) el.classList.toggle("hidden-section", name !== section);

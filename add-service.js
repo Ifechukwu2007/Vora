@@ -9,6 +9,55 @@ import { getCurrencyCodeForCountry } from './currency-utils.js';
 let selectedImageFiles = [];
 let currentStep = 1;
 const MAX_PORTFOLIO_IMAGES = 10;
+const COMMISSION_POLICY_VERSION = 'commission-2026-11-v1';
+
+async function getCurrentCommissionPolicy() {
+    const { data, error } = await supabase
+        .from('settings')
+        .select('commission, provider_commission_limit')
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) throw error;
+    const rate = Number(data?.commission ?? 10);
+    const limit = Number(data?.provider_commission_limit ?? 10000);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100 || !Number.isFinite(limit) || limit <= 0) {
+        throw new Error('The current provider commission policy could not be verified.');
+    }
+    return { rate, limit };
+}
+
+async function recordProviderCommissionAgreement(providerId) {
+    if (!document.getElementById('provider-commission-agreement')?.checked) {
+        throw new Error('Please accept the provider commission policy before publishing.');
+    }
+
+    const { rate, limit } = await getCurrentCommissionPolicy();
+    const formattedRate = `${rate}%`;
+    const rateLabel = document.getElementById('provider-commission-rate');
+    const limitLabel = document.getElementById('provider-commission-limit');
+    const formattedLimit = `₦${limit.toLocaleString('en-NG')}`;
+    if (
+        (rateLabel && rateLabel.textContent.trim() !== formattedRate) ||
+        (limitLabel && limitLabel.textContent.trim() !== formattedLimit)
+    ) {
+        if (rateLabel) rateLabel.textContent = formattedRate;
+        if (limitLabel) limitLabel.textContent = formattedLimit;
+        document.getElementById('provider-commission-agreement').checked = false;
+        throw new Error('The commission policy changed. Review the updated terms and accept them again.');
+    }
+
+    const { error } = await supabase
+        .from('provider_commission_agreements')
+        .insert({
+            provider_id: providerId,
+            policy_version: COMMISSION_POLICY_VERSION,
+            commission_rate: rate,
+            commission_limit: limit,
+        });
+    if (error) throw error;
+}
 
 function clearErrors() {
     document.querySelectorAll('[id^="error-"]').forEach((el) => {
@@ -538,6 +587,14 @@ function renderCategoryDetails() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const addServiceForm = document.getElementById('add-service-form');
+    getCurrentCommissionPolicy()
+        .then(({ rate, limit }) => {
+            const rateLabel = document.getElementById('provider-commission-rate');
+            const limitLabel = document.getElementById('provider-commission-limit');
+            if (rateLabel) rateLabel.textContent = `${rate}%`;
+            if (limitLabel) limitLabel.textContent = `₦${limit.toLocaleString('en-NG')}`;
+        })
+        .catch((error) => console.error('Could not load the current provider commission policy:', error));
     const imageInput = document.getElementById('service-image');
     const imagePreview = document.getElementById('image-preview');
     const previewImg = document.getElementById('preview-img');
@@ -733,6 +790,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!validateCurrentStep()) {
                 return;
             }
+            if (!document.getElementById('provider-commission-agreement')?.checked) {
+                alert('Please accept the provider commission policy before publishing.');
+                return;
+            }
 
             const selectedLatitude = Number.parseFloat(document.getElementById('service-latitude').value);
             const selectedLongitude = Number.parseFloat(document.getElementById('service-longitude').value);
@@ -917,6 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 console.log('Adding service with data:', serviceData);
+                await recordProviderCommissionAgreement(user.id);
                 const { data: insertedService, error: insertError } = await supabase
                     .from('services')
                     .insert([serviceData])

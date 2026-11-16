@@ -183,19 +183,29 @@ function getActionButtonsHtml(b, status) {
   }
 
   if (status === 'in_progress') {
-    return `<button data-action="complete-work" data-id="${bookingId}" class="${baseClass} bg-emerald-600 text-white hover:bg-emerald-700">Completed</button>`;
+    return `<button data-action="complete-work" data-id="${bookingId}" class="${baseClass} bg-emerald-600 text-white hover:bg-emerald-700">Mark work done</button>`;
   }
 
   if (status === 'completed_by_provider') {
-    return `<button data-action="mark-done" data-id="${bookingId}" class="${baseClass} bg-amber-600 text-white hover:bg-amber-700">Mark As Done</button>`;
+    return `
+      <div data-completion-form="${bookingId}" class="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+        <label class="block text-sm font-semibold text-blue-900">Customer's completion PIN
+          <input data-completion-pin type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required class="mt-2 w-full rounded-lg border border-blue-200 px-3 py-2 font-mono tracking-widest" placeholder="6-digit PIN">
+        </label>
+        <button type="button" data-action="confirm-completion" data-id="${bookingId}" class="${baseClass} mt-3 w-full bg-blue-600 text-white hover:bg-blue-700">Confirm completion</button>
+      </div>
+    `;
   }
 
-  // Renamed from "awaiting_customer_approval" to match the exact status
-  // string the customer-facing my-bookings.js checks for
-  // ("awaiting_customer_confirmation"). They were previously different
-  // words, so the customer's Confirm/Report buttons never appeared.
   if (status === 'awaiting_customer_confirmation') {
-    return `<div class="rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 border border-purple-100">Awaiting customer confirmation</div>`;
+    return `
+      <div data-completion-form="${bookingId}" class="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+        <label class="block text-sm font-semibold text-blue-900">Customer's completion PIN
+          <input data-completion-pin type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required class="mt-2 w-full rounded-lg border border-blue-200 px-3 py-2 font-mono tracking-widest" placeholder="6-digit PIN">
+        </label>
+        <button type="button" data-action="confirm-completion" data-id="${bookingId}" class="${baseClass} mt-3 w-full bg-blue-600 text-white hover:bg-blue-700">Confirm completion</button>
+      </div>
+    `;
   }
 
   if (status === 'paid') {
@@ -260,16 +270,40 @@ function bindActionButtons(preview){
         } else if (action==='start-work'){
           btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'in_progress'); toast('Work started'); await refreshCurrentBookings();
         } else if (action==='complete-work'){
-          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Marked as completed'); await refreshCurrentBookings();
+          btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'completed_by_provider'); toast('Ask the customer for their completion PIN.'); await refreshCurrentBookings();
         } else if (action==='mark-done'){
           btn.disabled=true; btn.textContent='Working...'; await updateBookingStatus(id,'awaiting_customer_confirmation'); toast('Awaiting customer confirmation'); await refreshCurrentBookings();
+        } else if (action==='confirm-completion'){
+          const pin = btn.closest('[data-completion-form]')?.querySelector('[data-completion-pin]')?.value.trim();
+          if (!/^\d{6}$/.test(pin || '')) {
+            throw new Error('Enter the customer’s 6-digit completion PIN.');
+          }
+          btn.disabled = true;
+          btn.textContent = 'Verifying PIN...';
+          const { data, error } = await supabase.rpc('confirm_booking_completion', {
+            p_booking_id: id,
+            p_pin: pin,
+          });
+          if (error) throw error;
+          const result = Array.isArray(data) ? data[0] : data;
+          if (!result?.success) {
+            throw new Error(result?.message || 'Completion could not be confirmed.');
+          }
+          const commissionNote = Number(result.commission_amount) > 0
+            ? ` Commission of ${formatPrice(result.commission_amount)} was added to your balance.`
+            : '';
+          toast(`Completion confirmed.${commissionNote}`);
+          await refreshCurrentBookings();
         } else if (action==='showmap'){
           const location = btn.dataset.location || '';
           openCustomerLocationModal(location);
         }
       } catch(err) {
         console.error(err);
-        toast(err?.message||'Action failed','error');
+        const message = err?.code === 'PGRST202'
+          ? 'PIN confirmation is not enabled on the server yet. Apply migration 202611080007_restore_booking_completion_pin.sql, then reload the Supabase API schema.'
+          : err?.message || 'Action failed';
+        toast(message, 'error');
         btn.disabled=false;
         btn.textContent=orig;
       }

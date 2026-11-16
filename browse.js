@@ -312,7 +312,8 @@ async function getPlatformSettings() {
     const { data } = await supabasePublic
         .from('settings')
         .select('*')
-        .eq('id', 'platform')
+        .order('id', { ascending: true })
+        .limit(1)
         .maybeSingle();
 
     return {

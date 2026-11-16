@@ -158,6 +158,7 @@
     <div>
       <h1 class="text-3xl font-extrabold text-gray-900">Provider Dashboard</h1>
       <p class="text-gray-600 mt-1">Welcome back, <span id="providerName" class="font-semibold">Provider</span></p>
+      <p id="dashboardLoadError" class="mt-3 hidden rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert"></p>
     </div>
 
     <div id="payoutReminderBanner" class="hidden rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
@@ -173,6 +174,19 @@
     </div>
   </div>
 
+  <section id="providerCommissionPolicyPanel" class="hidden mb-8 rounded-2xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
+    <h2 class="text-xl font-bold text-indigo-950">Accept the provider commission policy</h2>
+    <p class="mt-2 text-sm leading-6 text-indigo-900">To receive new bookings, accept the current terms: commission on cash bookings is due within 7 days of completion; new bookings through any payment method are restricted if commission is overdue or your unpaid/committed NGN cash commission reaches the platform limit. Continued non-payment may lead to service suspension or account termination. The current commission rate is <strong id="dashboardCommissionRate">10%</strong> and the NGN limit is <strong id="dashboardCommissionLimit">₦10,000</strong>. Transfers are reviewed before your balance is changed.</p>
+    <form id="providerCommissionPolicyForm" class="mt-4">
+      <label class="flex items-start gap-3 text-sm text-indigo-950">
+        <input id="dashboardCommissionAgreement" type="checkbox" required class="mt-1 h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+        <span>I agree to the provider commission terms in the <a href="terms-of-service.html" target="_blank" rel="noopener noreferrer" class="font-semibold underline">Terms of Service</a>.</span>
+      </label>
+      <button type="submit" class="mt-4 rounded-lg bg-indigo-700 px-4 py-2 font-semibold text-white hover:bg-indigo-800">Accept policy</button>
+      <p id="providerCommissionPolicyMessage" class="mt-3 text-sm" role="status"></p>
+    </form>
+  </section>
+
   <!-- STATS GRID -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
 
@@ -184,7 +198,7 @@
 
     <!-- Total Revenue -->
     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-green-500">
-      <p class="text-sm text-gray-600 font-medium">Total Revenue</p>
+      <p class="text-sm text-gray-600 font-medium">Completed Booking Revenue</p>
       <h2 id="totalRevenue" class="text-3xl font-bold text-gray-900 mt-2">₦0</h2>
     </div>
 
@@ -212,6 +226,52 @@
     </div>
 
   </div>
+
+  <section class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="mb-5">
+      <h2 class="text-xl font-bold text-slate-900">Provider commission account</h2>
+      <p class="mt-1 text-sm text-slate-600">Cash is paid directly to you. Vorabukeen records commission due after service completion; this balance is not a bank wallet. Settle commission within 7 days.</p>
+    </div>
+    <div id="commissionEnforcementNotice" class="hidden mb-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" role="status"></div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-xl bg-slate-50 p-4"><p class="text-sm text-slate-600">Cash bookings</p><p id="cashCommissionBookings" class="mt-1 text-2xl font-bold">0</p></div>
+      <div class="rounded-xl bg-slate-50 p-4"><p class="text-sm text-slate-600">Commission paid</p><p id="commissionPaid" class="mt-1 text-2xl font-bold">₦0</p></div>
+      <div class="rounded-xl bg-amber-50 p-4"><p class="text-sm text-amber-800">Outstanding balance</p><p id="commissionOutstanding" class="mt-1 text-2xl font-bold text-amber-900">₦0</p></div>
+    </div>
+    <p class="mt-3 text-sm text-slate-600">Total commission recorded: <strong id="commissionTotalOwed">₦0</strong></p>
+
+    <form id="commissionPaymentForm" class="mt-6 grid gap-3 md:grid-cols-4">
+      <label class="text-sm font-medium text-slate-700">Currency
+        <select id="commissionPaymentCurrency" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"></select>
+      </label>
+      <label class="text-sm font-medium text-slate-700">Amount transferred
+        <input id="commissionPaymentAmount" type="number" min="1" step="0.01" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      </label>
+      <label class="text-sm font-medium text-slate-700">Bank transfer reference
+        <input id="commissionPaymentReference" type="text" maxlength="120" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      </label>
+      <div class="flex items-end">
+        <button type="submit" disabled class="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Submit payment for review</button>
+      </div>
+      <p id="commissionPaymentMessage" class="text-sm md:col-span-4" role="status"></p>
+    </form>
+
+    <div class="mt-6 overflow-x-auto">
+      <h3 class="mb-2 font-semibold text-slate-900">Outstanding commission due dates</h3>
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-slate-50 text-slate-600"><tr><th class="p-3">Due date</th><th class="p-3">Amount</th><th class="p-3">Status</th></tr></thead>
+        <tbody id="providerCommissionDueHistory"><tr><td class="p-3 text-slate-500" colspan="3">No outstanding commission.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="mt-6 overflow-x-auto">
+      <h3 class="mb-2 font-semibold text-slate-900">Commission payment history</h3>
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-slate-50 text-slate-600"><tr><th class="p-3">Date</th><th class="p-3">Reference</th><th class="p-3">Amount</th><th class="p-3">Status</th></tr></thead>
+        <tbody id="commissionPaymentHistory"><tr><td class="p-3 text-slate-500" colspan="4">No commission payments yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
 
   <!-- MAIN CONTENT AREA -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -313,7 +373,7 @@
 </footer>
 
 <!-- ================= SCRIPTS ================= -->
-<script src="./dashboard.js?v=2" type="module"></script>
+<script src="./dashboard.js?v=3" type="module"></script>
 <script src="./menu.js?v=3" type="module"></script>
 <script src="./auth.js?v=2" type="module"></script>
 <script src="./notifications.js?v=2" type="module"></script>

@@ -329,6 +329,15 @@
                             <input type="text" id="business-name" name="business-name" required minlength="2" pattern="[A-Za-z][A-Za-z .'-]{1,}" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. Ada's Beauty Studio">
                             <p id="error-business-name" class="mt-1 text-sm text-red-600 hidden"></p>
                         </div>
+
+                        <div class="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                            <h3 class="font-semibold text-slate-900">Provider commission policy</h3>
+                            <p class="mt-2 text-sm leading-6 text-slate-700">The current platform commission is <strong id="provider-commission-rate">10%</strong>. Commission on cash bookings is payable within 7 days after completion is confirmed. Submit payment by bank transfer through your Provider Dashboard. If your unpaid or committed NGN cash commission reaches the platform limit (<strong id="provider-commission-limit">₦10,000</strong> initially), or any commission is overdue, Vorabukeen may restrict all new bookings until payment is confirmed. Continued non-payment may lead to service suspension or account termination under the provider agreement. Any debt recovery will follow applicable law and the agreed dispute process.</p>
+                            <label class="mt-4 flex items-start gap-3 text-sm text-slate-800">
+                                <input type="checkbox" id="provider-commission-agreement" required class="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                                <span>I have read and agree to the provider commission policy and understand that new bookings may be restricted for overdue or threshold-level commission debt. <a href="terms-of-service.html" target="_blank" rel="noopener noreferrer" class="font-semibold text-indigo-700 underline">Review the Terms of Service</a>.</span>
+                            </label>
+                        </div>
                     </div>
                 </section>
             </div>

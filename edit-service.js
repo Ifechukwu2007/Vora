@@ -10,6 +10,55 @@ import { getCurrencyCodeForCountry } from "./currency-utils.js";
 let selectedImageFiles = [];
 let currentStep = 1;
 const MAX_PORTFOLIO_IMAGES = 10;
+const COMMISSION_POLICY_VERSION = "commission-2026-11-v1";
+
+async function getCurrentCommissionPolicy() {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("commission, provider_commission_limit")
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  const rate = Number(data?.commission ?? 10);
+  const limit = Number(data?.provider_commission_limit ?? 10000);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100 || !Number.isFinite(limit) || limit <= 0) {
+    throw new Error("The current provider commission policy could not be verified.");
+  }
+  return { rate, limit };
+}
+
+async function recordProviderCommissionAgreement(providerId) {
+  if (!document.getElementById("provider-commission-agreement")?.checked) {
+    throw new Error("Please accept the provider commission policy before updating this service.");
+  }
+
+  const { rate, limit } = await getCurrentCommissionPolicy();
+  const formattedRate = `${rate}%`;
+  const rateLabel = document.getElementById("provider-commission-rate");
+  const limitLabel = document.getElementById("provider-commission-limit");
+  const formattedLimit = `₦${limit.toLocaleString("en-NG")}`;
+  if (
+    (rateLabel && rateLabel.textContent.trim() !== formattedRate) ||
+    (limitLabel && limitLabel.textContent.trim() !== formattedLimit)
+  ) {
+    if (rateLabel) rateLabel.textContent = formattedRate;
+    if (limitLabel) limitLabel.textContent = formattedLimit;
+    document.getElementById("provider-commission-agreement").checked = false;
+    throw new Error("The commission policy changed. Review the updated terms and accept them again.");
+  }
+
+  const { error } = await supabase
+    .from("provider_commission_agreements")
+    .insert({
+      provider_id: providerId,
+      policy_version: COMMISSION_POLICY_VERSION,
+      commission_rate: rate,
+      commission_limit: limit,
+    });
+  if (error) throw error;
+}
 
 const els = {
   form: document.getElementById("add-service-form"),
@@ -921,6 +970,11 @@ async function main() {
   try {
     const user = await ensureAuth();
     currentUser = user;
+    const { rate: commissionRate, limit: commissionLimit } = await getCurrentCommissionPolicy();
+    const commissionRateLabel = document.getElementById("provider-commission-rate");
+    const commissionLimitLabel = document.getElementById("provider-commission-limit");
+    if (commissionRateLabel) commissionRateLabel.textContent = `${commissionRate}%`;
+    if (commissionLimitLabel) commissionLimitLabel.textContent = `₦${commissionLimit.toLocaleString("en-NG")}`;
     const service = await loadService(serviceId, user.id);
     // Get user's country and pass it to location picker
     const userCountry = getUserCountry();
@@ -943,6 +997,10 @@ async function main() {
       e.preventDefault();
 
       if (!validateCurrentStep()) {
+        return;
+      }
+      if (!document.getElementById("provider-commission-agreement")?.checked) {
+        alert("Please accept the provider commission policy before updating this service.");
         return;
       }
 
@@ -1023,13 +1081,15 @@ async function main() {
           updated_at: new Date().toISOString(),
         };
 
-        const { error: updateErr } = await supabase
+        await recordProviderCommissionAgreement(currentService?.provider_id || user.id);
+
+        const { error: serviceUpdateErr } = await supabase
           .from("services")
           .update(updatePayload)
           .eq("id", serviceId)
           .eq("provider_id", currentService?.provider_id || user.id);
 
-        if (updateErr) throw updateErr;
+        if (serviceUpdateErr) throw serviceUpdateErr;
 
         alert("Service updated successfully ✅");
         LoadingSpinner.navigateTo("my-services.html");
