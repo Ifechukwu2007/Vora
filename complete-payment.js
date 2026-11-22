@@ -3,7 +3,7 @@ import { supabase } from './supabase.js';
 import { NotificationService } from './notification-service.js';
 import { formatServicePrice } from './currency-utils.js';
 
-const FLUTTERWAVE_PUBLIC_KEY = 'FLWPUBK-b539349824466b87d53b0272631b01d6-X';
+const FLUTTERWAVE_PUBLIC_KEY = 'FLWPUBK-8809ba74082a2bbfd33f81fee6c7c430-X';
 const VERIFY_FUNCTION_NAME = 'verify-flutterwave-payment';
 
 let currentBooking = null;
