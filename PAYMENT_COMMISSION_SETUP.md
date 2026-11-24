@@ -16,7 +16,7 @@ The initial platform commission is set to 10% by the migration. Admins can updat
 
 ## Commission settlement
 
-1. A provider transfers the displayed outstanding amount to Vorabukeen's business account.
+1. A provider transfers the displayed outstanding amount in NGN to Vorabukeen's business account: Flutterwave MFB, account name Ifechukwu Atuegbu, account number 9562805066. Include the provider name or ID in the transfer narration.
 2. The provider submits the transfer amount and bank reference from the Provider Dashboard.
 3. An admin verifies the funds in the bank account, then selects **Confirm received** in Admin → Commissions.
 4. The provider balance is reduced only after admin confirmation. Confirmed payments are allocated to the provider's oldest outstanding commission records.

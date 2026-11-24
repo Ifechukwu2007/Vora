@@ -438,7 +438,7 @@ async function createBookingFromPending(pendingBooking) {
   return data;
 }
 
-async function createPendingPayment(bookingId, amount, paymentMethod = 'flutterwave') {
+async function createPendingPayment(bookingId, amount, reference, paymentMethod = 'flutterwave') {
   const serviceCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
   const payload = {
     booking_id: bookingId,
@@ -449,23 +449,19 @@ async function createPendingPayment(bookingId, amount, paymentMethod = 'flutterw
     currency: serviceCurrency,
     payment_method: paymentMethod,
     provider: 'flutterwave',
+    reference,
     currency_code: serviceCurrency,
     status: 'pending',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  try {
-    const { data, error } = await supabase.from('payments').insert(payload).select('*').single();
-    if (error) {
-      console.warn('Could not create payment record:', error.message || error);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.warn('Could not create payment record:', err.message || err);
-    return null;
+  const { data, error } = await supabase.from('payments').insert(payload).select('*').single();
+  if (error) {
+    console.error('Could not create payment record:', error);
+    throw new Error('Unable to prepare the payment record. Please try again.');
   }
+  return data;
 }
 
 async function verifyPaymentOnServer(reference, bookingId, transactionId) {
@@ -536,56 +532,41 @@ async function createPayoutRecord(bookingId, amount) {
 
 async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'flutterwave') {
   const settlement = calculatePlatformSplit(amount);
-  const basicUpdate = {
-    status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
-    booking_status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
-    updated_at: new Date().toISOString(),
-    customer_amount: settlement.customerAmount,
-    platform_fee: settlement.platformFee,
-    provider_amount: settlement.providerAmount,
-    payout_status: 'pending',
-    payment_method: paymentMethod,
-    payment_provider: 'flutterwave',
-    provider_payout_status: 'pending',
-  };
+  const { data: updatedBooking, error } = await supabase
+    .from('bookings')
+    .update({
+      status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
+      booking_status: paymentMethod === 'reserve_deposit' ? 'reserved' : 'confirmed',
+      updated_at: new Date().toISOString(),
+      customer_amount: settlement.customerAmount,
+      platform_fee: settlement.platformFee,
+      provider_amount: settlement.providerAmount,
+      payout_status: 'pending',
+      payment_method: paymentMethod,
+      payment_provider: 'flutterwave',
+      provider_payout_status: 'pending',
+      payment_reference: reference,
+      paid_at: new Date().toISOString(),
+      payment_status: paymentMethod === 'reserve_deposit' ? 'partially_paid' : 'paid',
+    })
+    .eq('id', bookingId)
+    .select('id')
+    .maybeSingle();
+
+  if (error || !updatedBooking) {
+    console.error('Failed to update booking after payment:', error || 'No booking row was updated.');
+    throw new Error('Payment succeeded, but your booking status could not be updated. Support has your reference: ' + reference);
+  }
+
+  if (paymentMethod !== 'reserve_deposit') {
+    await createPayoutRecord(bookingId, settlement.customerAmount);
+  }
+
+  const providerId = currentBooking?.provider_id || getPendingBooking()?.providerId || null;
+  const serviceTitle = currentBooking?.service?.title || currentBooking?.title || getPendingBooking()?.serviceTitle || 'your service';
+  const bookingState = paymentMethod === 'reserve_deposit' ? 'reserved with a deposit' : 'confirmed';
 
   try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({
-        ...basicUpdate,
-        payment_reference: reference,
-        paid_at: new Date().toISOString(),
-        payment_status: paymentMethod === 'reserve_deposit' ? 'partially_paid' : 'paid',
-      })
-      .eq('id', bookingId);
-
-    if (error) {
-      console.warn('Extended booking update failed; retrying with minimal fields:', error.message || error);
-      const { error: fallbackError } = await supabase
-        .from('bookings')
-        .update({
-          ...basicUpdate,
-          payment_reference: reference,
-          paid_at: new Date().toISOString(),
-          payment_status: paymentMethod === 'reserve_deposit' ? 'partially_paid' : 'paid',
-        })
-        .eq('id', bookingId);
-
-      if (fallbackError) {
-        console.error('Failed to update booking after payment:', fallbackError);
-        showError('Payment succeeded, but we had trouble updating your booking status. Support has your reference: ' + reference);
-      }
-    }
-
-    if (paymentMethod !== 'reserve_deposit') {
-      await createPayoutRecord(bookingId, settlement.customerAmount);
-    }
-
-    const providerId = currentBooking?.provider_id || getPendingBooking()?.providerId || null;
-    const serviceTitle = currentBooking?.service?.title || currentBooking?.title || getPendingBooking()?.serviceTitle || 'your service';
-    const bookingState = paymentMethod === 'reserve_deposit' ? 'reserved with a deposit' : 'confirmed';
-
     if (providerId) {
       await NotificationService.createNotification(
         providerId,
@@ -608,8 +589,7 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'fl
       );
     }
   } catch (err) {
-    console.error('Failed to update booking after payment:', err);
-    showError('Payment succeeded, but we had trouble updating your booking status. Support has your reference: ' + reference);
+    console.warn('Booking was updated, but notification delivery failed:', err);
   }
 }
 
@@ -643,7 +623,7 @@ async function handlePaymentSuccess(bookingId, reference, transactionId) {
   }
 }
 
-async function launchFlutterwave(amountNaira, bookingId) {
+async function launchFlutterwave(amountNaira, bookingId, reference) {
   if (window.location.protocol === 'file:') {
     showError('Preview mode: Flutterwave checkout would open here.');
     disableConfirmButton(false, 'Confirm and pay');
@@ -651,7 +631,6 @@ async function launchFlutterwave(amountNaira, bookingId) {
     return;
   }
 
-  const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
   const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
   const selectedPaymentMethod = getSelectedPaymentMethod();
   let verificationStarted = false;
@@ -936,8 +915,9 @@ async function init() {
       if (bookingUpdateError) {
         throw new Error('Could not update your booking total before payment. Please try again.');
       }
-      await createPendingPayment(bookingId, amountDue, paymentMethod);
-      launchFlutterwave(amountDue, bookingId);
+      const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
+      await createPendingPayment(bookingId, amountDue, reference, paymentMethod);
+      launchFlutterwave(amountDue, bookingId, reference);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

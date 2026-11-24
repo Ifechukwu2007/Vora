@@ -711,7 +711,7 @@ async function checkExistingPayment() {
 
   const { data, error } = await supabase
     .from("payments")
-    .select("*")
+    .select("status, reference")
     .eq("booking_id", booking.id)
     .in("status", [
       "success",
@@ -722,22 +722,21 @@ async function checkExistingPayment() {
     .maybeSingle();
 
   if (error) {
-    console.warn(
-      "Could not check existing payment.",
-      error
-    );
-
-    return;
+    console.error("Could not check existing payment:", error);
+    throw new Error("We could not confirm whether this booking has already been paid. Please refresh and try again.");
   }
 
   if (data) {
+    if (booking.payment_status !== "paid" || booking.status !== "confirmed") {
+      await updateBookingAfterPayment(data.reference);
+    }
+
     confirmBookingBtn.disabled = true;
     confirmBookingBtn.textContent = "Already paid";
-
-    throw new Error(
-      "This booking has already been paid for."
-    );
+    return true;
   }
+
+  return false;
 }
 
 /*
@@ -814,31 +813,30 @@ async function createPaymentRecord(reference) {
 */
 
 async function updateBookingAfterPayment(reference) {
-  const updateData = {
-    payment_status: "paid",
-    payment_reference: reference,
-    status: "confirmed"
-  };
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "confirmed",
+      booking_status: "confirmed",
+      payment_status: "paid",
+      payment_method: "flutterwave",
+      payment_provider: "flutterwave",
+      payment_reference: reference,
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", booking.id)
+    .select("id")
+    .maybeSingle();
 
-  const { error } =
-    await supabase
-      .from("bookings")
-      .update(updateData)
-      .eq("id", booking.id);
-
-  if (error) {
-    console.error(
-      "Could not update booking:",
-      error
-    );
-
-    /*
-     * Do not tell the customer payment failed.
-     *
-     * Payment may have succeeded even if this update
-     * failed.
-     */
+  if (error || !data) {
+    console.error("Could not update booking after verified payment:", error || "No booking row was updated.");
+    throw new Error("Payment was verified, but your booking could not be confirmed. Please do not pay again; refresh this page or contact support.");
   }
+
+  booking.status = "confirmed";
+  booking.booking_status = "confirmed";
+  booking.payment_status = "paid";
 }
 
 /*
@@ -983,7 +981,7 @@ async function payWithFlutterwave() {
 
     let verificationStarted = false;
     window.FlutterwaveCheckout({
-      public_key: "FLWPUBK-b539349824466b87d53b0272631b01d6-X",
+      public_key: "FLWPUBK-8809ba74082a2bbfd33f81fee6c7c430-X",
       tx_ref: reference,
       amount: paymentCalculation.total,
       currency: CONFIG.CURRENCY,
@@ -1051,13 +1049,13 @@ async function initialize() {
 
     await loadOffer();
 
-    await checkExistingPayment();
+    const alreadyPaid = await checkExistingPayment();
 
     await calculatePayment();
 
     await renderPage();
 
-    confirmBookingBtn.disabled = false;
+    confirmBookingBtn.disabled = alreadyPaid;
 
   } catch (error) {
     console.error(
