@@ -73,6 +73,14 @@ function showFieldError(fieldId, message) {
     errorEl.classList.remove('hidden');
 }
 
+function focusFirstValidationError() {
+    const errorEl = document.querySelector('[id^="error-"]:not(.hidden)');
+    if (!errorEl) return;
+    errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const field = errorEl.parentElement?.querySelector('input, select, textarea');
+    field?.focus({ preventScroll: true });
+}
+
 function setFieldState(inputEl, isValid) {
     if (!inputEl) return;
     inputEl.classList.toggle('border-red-500', !isValid);
@@ -95,27 +103,31 @@ function getSelectedAvailabilityDays() {
     return Array.from(document.querySelectorAll('input[name="availability-day"]:checked')).map((input) => input.value);
 }
 
-async function prepareImageForUpload(file) {
-    const bitmap = await createImageBitmap(file);
-    try {
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('Canvas 2D context unavailable.');
-        context.drawImage(bitmap, 0, 0);
+async function uploadServiceImages(files, userId) {
+    const uploadedImages = await Promise.all(files.map(async (selectedFile, index) => {
+        const extension = (selectedFile.name.match(/\.([a-z0-9]{1,8})$/i)?.[1]
+            || selectedFile.type.split('/')[1]
+            || 'img').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const fileName = `${userId}/${Date.now()}_${index}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+            .from('services')
+            .upload(fileName, selectedFile, {
+                contentType: selectedFile.type || 'application/octet-stream',
+                upsert: true,
+            });
 
-        const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1));
-        if (!pngBlob) throw new Error('Unable to convert this image to PNG.');
-        if (pngBlob.size > 10 * 1024 * 1024) {
-            throw new Error('This image is larger than 10MB after conversion.');
+        if (uploadError) {
+            throw new Error(`Image upload failed: ${uploadError.message}`);
         }
 
-        const baseName = (file.name || 'portfolio-image').replace(/\.[^/.]+$/i, '') || 'portfolio-image';
-        return new File([pngBlob], `${baseName}.png`, { type: 'image/png' });
-    } finally {
-        bitmap.close();
-    }
+        const { data: urlData } = supabase.storage
+            .from('services')
+            .getPublicUrl(fileName);
+        if (!urlData?.publicUrl) throw new Error('Could not create a public URL for this image.');
+        return urlData.publicUrl;
+    }));
+
+    return uploadedImages;
 }
 
 function normalizeText(value) {
@@ -400,7 +412,7 @@ function validateCurrentStep() {
 
     if (!validateTravelPricing()) hasError = true;
 
-    const dealMessageError = validateMeaningfulText(dealMessage, 'Promotional headline', { minLength: 4, minWords: 1 });
+    const dealMessageError = validateMeaningfulText(dealMessage, 'Promotional headline', { minLength: 4, minWords: 1, required: false });
     if (dealMessageError) {
         showFieldError('error-deal-message', dealMessageError);
         setFieldState(dealMessageInput, false);
@@ -788,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
 
             if (!validateCurrentStep()) {
+                focusFirstValidationError();
                 return;
             }
             if (!document.getElementById('provider-commission-agreement')?.checked) {
@@ -807,8 +820,20 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.innerText = 'Publishing...';
             submitBtn.disabled = true;
 
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) {
+            let user;
+            try {
+                const { data, error: authError } = await supabase.auth.getSession();
+                if (authError) throw authError;
+                user = data.session?.user;
+            } catch (error) {
+                console.error('Could not verify the current user:', error);
+                alert(`Could not verify your login: ${error.message || 'Please try again.'}`);
+                submitBtn.innerText = originalBtnText;
+                submitBtn.disabled = false;
+                return;
+            }
+
+            if (!user) {
                 alert('You must be logged in to add a service.');
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
@@ -839,59 +864,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let providerEmail = user.email || 'provider@vorabukeen.com';
-            try {
-                const { data: userData, error: userError } = await supabase
-                    .from('users')
-                    .select('full_name, email')
-                    .eq('uid', user.id)
-                    .single();
-
-                if (!userError && userData) {
-                    providerEmail = userData.email || user.email || 'provider@vorabukeen.com';
-                }
-            } catch (error) {
-                console.warn('Could not fetch user data:', error);
-                providerEmail = user.email || 'provider@vorabukeen.com';
-            }
+            const providerEmail = user.email || 'provider@vorabukeen.com';
 
             if (selectedImageFiles.length === 0) {
                 alert('Please upload at least one portfolio photo.');
-                submitBtn.innerText = originalBtnText;
-                submitBtn.disabled = false;
-                return;
-            }
-
-            let imageUrls = [];
-            try {
-                for (const [index, selectedFile] of selectedImageFiles.entries()) {
-                    const uploadFile = await prepareImageForUpload(selectedFile);
-                    const fileName = `${user.id}/${Date.now()}_${index}_${uploadFile.name}`;
-                    console.log('Uploading:', {
-                        originalName: selectedFile.name,
-                        originalType: selectedFile.type,
-                        convertedName: uploadFile.name,
-                        convertedType: uploadFile.type,
-                        fileName
-                    });
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('services')
-                        .upload(fileName, uploadFile, { contentType: 'image/png', upsert: true });
-
-                    if (uploadError) {
-                        throw new Error(`Image upload failed: ${uploadError.message}`);
-                    }
-
-                    const { data: urlData } = supabase.storage
-                        .from('services')
-                        .getPublicUrl(fileName);
-                    if (!urlData?.publicUrl) throw new Error('Could not create a public URL for this image.');
-                    imageUrls.push(urlData.publicUrl);
-                }
-            } catch (error) {
-                console.error('Error uploading image:', error);
-                alert(`Error uploading image: ${error.message}`);
                 submitBtn.innerText = originalBtnText;
                 submitBtn.disabled = false;
                 return;
@@ -953,8 +929,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 location,
                 latitude: selectedLatitude,
                 longitude: selectedLongitude,
-                image_url: imageUrls[0] || null,
-                image_urls: imageUrls
             };
             serviceData.country_code = getCountryConfig(userCountry).code;
             serviceData.currency_code = getCurrencyCodeForCountry(userCountry);
@@ -977,8 +951,13 @@ document.addEventListener('DOMContentLoaded', () => {
             serviceData.travel_pricing = serviceData.travels_to_customer ? getTravelPricing() : null;
 
             try {
-                console.log('Adding service with data:', serviceData);
-                await recordProviderCommissionAgreement(user.id);
+                const [imageUrls] = await Promise.all([
+                    uploadServiceImages(selectedImageFiles, user.id),
+                    recordProviderCommissionAgreement(user.id),
+                ]);
+                serviceData.image_url = imageUrls[0] || null;
+                serviceData.image_urls = imageUrls;
+
                 const { data: insertedService, error: insertError } = await supabase
                     .from('services')
                     .insert([serviceData])
@@ -1021,5 +1000,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.disabled = false;
             }
         });
+
     }
 }); 

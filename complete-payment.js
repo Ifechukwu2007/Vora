@@ -279,7 +279,7 @@ function renderBooking(booking) {
   const checkoutTotal = isCashPayment
     ? priceDetails.serviceSubtotal + travelFee
     : total;
-  booking.total_price = checkoutTotal;
+  booking.total_price = priceDetails.serviceSubtotal + travelFee;
   const isReservationDeposit = paymentMethod === 'reserve_deposit';
   const reservationDetails = reservationPaymentDetails(checkoutTotal);
   const amountDueNow = isReservationDeposit
@@ -394,9 +394,7 @@ async function createBookingFromPending(pendingBooking) {
     travelFee,
     Number(pendingBooking.totalPrice) || 0,
   );
-  const totalPrice = ['cash', 'reserve_cash'].includes(paymentMethod)
-    ? priceDetails.serviceSubtotal + travelFee
-    : priceDetails.total;
+  const totalPrice = priceDetails.serviceSubtotal + travelFee;
 
   if (totalPrice <= 0) {
     console.error('Invalid total price:', pendingBooking.totalPrice);
@@ -442,7 +440,7 @@ async function createPendingPayment(bookingId, amount, reference, paymentMethod 
   const serviceCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
   const payload = {
     booking_id: bookingId,
-    user_id: currentUser.id,
+    user_id: currentBooking?.user_id || currentUser.id,
     provider_id: currentBooking?.provider_id || null,
     service_id: currentBooking?.service_id || null,
     amount,
@@ -488,7 +486,10 @@ async function verifyPaymentOnServer(reference, bookingId, transactionId) {
 
 function calculatePlatformSplit(amount) {
   const total = Number(amount || 0) || Number(currentBooking?.total_price || 0) || 0;
-  const platformFee = Math.round(total * (platformCommissionPercent / 100));
+  const serviceSubtotal =
+    Number(currentBooking?.price_per_person || 0) *
+    Number(currentBooking?.number_of_people || 1);
+  const platformFee = Math.round(serviceSubtotal * (platformCommissionPercent / 100));
   const providerAmount = Math.max(0, total - platformFee);
 
   return {
@@ -593,43 +594,73 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'fl
   }
 }
 
+
 async function handlePaymentSuccess(bookingId, reference, transactionId) {
   paymentFlowInProgress = true;
+
   try {
     disableConfirmButton(true, 'Verifying payment...');
-    const verification = await verifyPaymentOnServer(reference, bookingId, transactionId);
+
+    const verification = await verifyPaymentOnServer(
+      reference,
+      bookingId,
+      transactionId
+    );
+
     if (!verification?.success) {
-      throw new Error(verification?.message || 'Payment verification failed.');
+      throw new Error(
+        verification?.message || 'Payment verification failed.'
+      );
     }
 
-    const pendingBooking = getPendingBooking();
-    const fullTotal = Number(currentBooking?.total_price || pendingBooking?.totalPrice || 0);
-    const paymentMethod = pendingBooking?.paymentMethod || currentBooking?.payment_method || 'flutterwave';
-    const amountToSettle = paymentMethod === 'reserve_deposit'
-      ? reservationPaymentDetails(fullTotal).reservationFee
-      : fullTotal;
-    await markBookingPaid(bookingId, reference, amountToSettle, paymentMethod);
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('currentBookingId');
     localStorage.removeItem('bookingId');
+
     paymentFlowInProgress = false;
     window.location.href = 'my-bookings.html';
+
   } catch (err) {
     console.error('Payment success handling failed:', err);
-    showError('Payment succeeded, but we could not complete the booking update. Please visit My Bookings or contact support.');
+
+    showError(
+      err.message ||
+      'Payment verification failed. Please contact support if money was deducted.'
+    );
+
     disableConfirmButton(false, 'Confirm and pay');
+
   } finally {
     resetPaymentFlowState();
   }
 }
 
-async function launchFlutterwave(amountNaira, bookingId, reference) {
-  if (window.location.protocol === 'file:') {
-    showError('Preview mode: Flutterwave checkout would open here.');
-    disableConfirmButton(false, 'Confirm and pay');
-    paymentFlowInProgress = false;
-    return;
+
+
+async function launchFlutterwave(bookingId) {
+  try {
+    const { data, error } = await supabase.functions.invoke('initialize-payment', {
+      body: { bookingId },
+    });
+
+    if (error) {
+      console.error('Payment initialization error:', error);
+      throw new Error(error.message || 'Could not start payment.');
+    }
+
+    if (!data?.success || !data?.checkoutUrl) {
+      throw new Error(data?.message || 'Flutterwave did not return a checkout link.');
+    }
+
+    window.location.assign(data.checkoutUrl);
+
+  } catch (err) {
+    console.error('Could not initialize Flutterwave payment:', err);
+    showError(err.message || 'Payment could not be started. Please try again.');
+    resetPaymentFlowState();
   }
+}
+
 
   const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
   const selectedPaymentMethod = getSelectedPaymentMethod();
@@ -681,7 +712,6 @@ async function launchFlutterwave(amountNaira, bookingId, reference) {
     disableConfirmButton(false, 'Confirm and pay');
     paymentFlowInProgress = false;
   }
-}
 
 async function init() {
   disableConfirmButton(true, 'Loading...');
@@ -858,7 +888,6 @@ async function init() {
         localStorage.setItem('currentBookingId', bookingId);
         setBookingIdInUrl(bookingId);
       }
-      const fullTotal = Number(currentBooking.total_price) || (Number(currentBooking.price_per_person || 0) * Number(currentBooking.number_of_people || 1)) + Number(currentBooking.travel_fee || 0);
       const pendingBooking = getPendingBooking();
       if (['cash', 'reserve_cash'].includes(paymentMethod)) {
         const providerId = currentBooking?.provider_id || pendingBooking?.providerId || null;
@@ -905,19 +934,7 @@ async function init() {
         return;
       }
 
-      const amountDue = paymentMethod === 'reserve_deposit'
-        ? reservationPaymentDetails(fullTotal).reservationFee
-        : fullTotal;
-      const { error: bookingUpdateError } = await supabase
-        .from('bookings')
-        .update({ total_price: fullTotal })
-        .eq('id', bookingId);
-      if (bookingUpdateError) {
-        throw new Error('Could not update your booking total before payment. Please try again.');
-      }
-      const reference = `VORABUKEEN-${bookingId}-${Date.now()}`;
-      await createPendingPayment(bookingId, amountDue, reference, paymentMethod);
-      launchFlutterwave(amountDue, bookingId, reference);
+      launchFlutterwave(bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

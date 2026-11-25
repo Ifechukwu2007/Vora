@@ -75,7 +75,7 @@
 
             <h1 class="text-3xl font-extrabold text-gray-900">List your service</h1>
         </div>
-        <form id="add-service-form" class="space-y-6">
+        <form id="add-service-form" class="space-y-6" novalidate>
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div class="mb-4 flex items-center justify-between gap-4">
                     <div>
@@ -182,10 +182,10 @@
 
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
                           <label class="flex items-center gap-3 text-sm font-semibold text-gray-700">
-                            <input type="checkbox" id="travels-to-customer" class="h-4 w-4" checked>
+                            <input type="checkbox" id="travels-to-customer" class="h-4 w-4">
                             Do you travel to customers?
                           </label>
-                          <div id="travel-options">
+                          <div id="travel-options" class="hidden">
                           <p class="mt-1 text-xs text-slate-500">Vora will calculate the fee from your service location to the customer's location.</p>
                           <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             <label class="text-sm text-gray-700">Registered country<select id="travel-base-country" disabled class="mt-1 block w-full rounded-md border border-gray-300 bg-slate-100 px-3 py-2 text-slate-600"></select></label>
