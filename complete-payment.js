@@ -220,6 +220,21 @@ function getBookingPriceDetails(pricePerPerson, numberOfPeople, travelFee, exist
   return { serviceSubtotal, serviceFee, total: serviceSubtotal + serviceFee + travelFee };
 }
 
+function getAmountDueNow(booking, paymentMethod) {
+  const pendingBooking = getPendingBooking();
+  const service = booking?.services || {};
+  const pricePerPerson = Number(booking?.price_per_person) || Number(service.price) || Number(pendingBooking?.pricePerPerson) || 0;
+  const numberOfPeople = Number(booking?.number_of_people || pendingBooking?.numberOfPeople || 1);
+  const travelFee = getTravelFeeForBooking(booking || pendingBooking, service);
+  const existingTotal = Number(booking?.total_price) || Number(pendingBooking?.totalPrice) || 0;
+  const { total } = getBookingPriceDetails(pricePerPerson, numberOfPeople, travelFee, existingTotal);
+
+  if (paymentMethod === 'reserve_deposit') {
+    return Number(pendingBooking?.reservationFee) || reservationPaymentDetails(total).reservationFee;
+  }
+  return total;
+}
+
 function renderBooking(booking) {
   const service = booking.services || {};
   const provider = booking.providers || {};
@@ -457,7 +472,7 @@ async function createPendingPayment(bookingId, amount, reference, paymentMethod 
   const { data, error } = await supabase.from('payments').insert(payload).select('*').single();
   if (error) {
     console.error('Could not create payment record:', error);
-    throw new Error('Unable to prepare the payment record. Please try again.');
+    throw new Error(`Unable to prepare the payment record: ${error.message}`);
   }
   return data;
 }
@@ -470,7 +485,14 @@ async function verifyPaymentOnServer(reference, bookingId, transactionId) {
 
     if (error) {
       console.error('Payment verification function unavailable:', error);
-      return { success: false, message: 'Payment verification is temporarily unavailable. Your booking was not marked paid.' };
+      let message = error.message || 'Payment verification could not be completed.';
+      try {
+        const responseBody = await error.context?.json();
+        if (responseBody?.message) message = responseBody.message;
+      } catch (bodyError) {
+        console.warn('Could not read payment verification error details:', bodyError);
+      }
+      return { success: false, message };
     }
 
     if (!data?.success) {
@@ -480,7 +502,7 @@ async function verifyPaymentOnServer(reference, bookingId, transactionId) {
     return data;
   } catch (err) {
     console.error('Payment verification failed:', err.message || err);
-    return { success: false, message: 'Payment could not be verified. Please try again or contact support.' };
+    return { success: false, message: err.message || 'Payment could not be verified. Please try again or contact support.' };
   }
 }
 
@@ -595,7 +617,7 @@ async function markBookingPaid(bookingId, reference, amount, paymentMethod = 'fl
 }
 
 
-async function handlePaymentSuccess(bookingId, reference, transactionId) {
+async function handlePaymentSuccess(bookingId, reference, transactionId, amount, paymentMethod) {
   paymentFlowInProgress = true;
 
   try {
@@ -612,6 +634,8 @@ async function handlePaymentSuccess(bookingId, reference, transactionId) {
         verification?.message || 'Payment verification failed.'
       );
     }
+
+    await markBookingPaid(bookingId, reference, amount, paymentMethod);
 
     localStorage.removeItem('voraPendingBooking');
     localStorage.removeItem('currentBookingId');
@@ -638,44 +662,25 @@ async function handlePaymentSuccess(bookingId, reference, transactionId) {
 
 
 async function launchFlutterwave(bookingId) {
-  try {
-    const { data, error } = await supabase.functions.invoke('initialize-payment', {
-      body: { bookingId },
-    });
-
-    if (error) {
-      console.error('Payment initialization error:', error);
-      throw new Error(error.message || 'Could not start payment.');
-    }
-
-    if (!data?.success || !data?.checkoutUrl) {
-      throw new Error(data?.message || 'Flutterwave did not return a checkout link.');
-    }
-
-    window.location.assign(data.checkoutUrl);
-
-  } catch (err) {
-    console.error('Could not initialize Flutterwave payment:', err);
-    showError(err.message || 'Payment could not be started. Please try again.');
-    resetPaymentFlowState();
-  }
-}
-
-
-  const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
-  const selectedPaymentMethod = getSelectedPaymentMethod();
   let verificationStarted = false;
-
   try {
     if (typeof window.FlutterwaveCheckout !== 'function') {
       throw new Error('Flutterwave could not be loaded. Please refresh and try again.');
     }
 
-        verificationStarted = true;
+    const paymentMethod = getSelectedPaymentMethod();
+    const amount = getAmountDueNow(currentBooking, paymentMethod);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('The payment amount is invalid. Please review your booking and try again.');
+    }
+    const reference = `vora-${bookingId}-${Date.now()}`;
+    const paymentCurrency = currentBooking?.services?.currency_code || getPendingBooking()?.currencyCode || 'NGN';
+
+    await createPendingPayment(bookingId, amount, reference, paymentMethod);
     window.FlutterwaveCheckout({
       public_key: FLUTTERWAVE_PUBLIC_KEY,
       tx_ref: reference,
-      amount: Number(amountNaira),
+      amount,
       currency: paymentCurrency,
       payment_options: 'card,account,banktransfer,ussd,mobilemoney',
       customer: {
@@ -690,6 +695,7 @@ async function launchFlutterwave(bookingId) {
       },
       meta: { booking_id: bookingId, user_id: currentUser?.id || '' },
       callback: async (response) => {
+        verificationStarted = true;
         const transactionId = response?.transaction_id;
         const transactionReference = response?.tx_ref || reference;
         if (!transactionId) {
@@ -697,21 +703,24 @@ async function launchFlutterwave(bookingId) {
           resetPaymentFlowState();
           return;
         }
-        await handlePaymentSuccess(bookingId, transactionReference, String(transactionId));
+        await handlePaymentSuccess(
+          bookingId,
+          transactionReference,
+          String(transactionId),
+          amount,
+          paymentMethod,
+        );
       },
       onclose: () => {
-        if (!verificationStarted) {
-          paymentFlowInProgress = false;
-          resetPaymentFlowState();
-        }
+        if (!verificationStarted) resetPaymentFlowState();
       },
     });
   } catch (err) {
-    console.error('Failed to start Flutterwave checkout:', err);
-    showError(err.message || 'Flutterwave checkout could not be started. Please try again.');
-    disableConfirmButton(false, 'Confirm and pay');
-    paymentFlowInProgress = false;
+    console.error('Could not start Flutterwave checkout:', err);
+    showError(err.message || 'Payment could not be started. Please try again.');
+    resetPaymentFlowState();
   }
+}
 
 async function init() {
   disableConfirmButton(true, 'Loading...');
@@ -811,7 +820,14 @@ async function init() {
     const returnedReference = getParam('tx_ref') || getParam('reference');
     const returnedTransactionId = getParam('transaction_id');
     if (returnedPayment && returnedReference && bookingId) {
-      await handlePaymentSuccess(bookingId, returnedReference, returnedTransactionId);
+      const paymentMethod = getSelectedPaymentMethod();
+      await handlePaymentSuccess(
+        bookingId,
+        returnedReference,
+        returnedTransactionId,
+        getAmountDueNow(currentBooking, paymentMethod),
+        paymentMethod,
+      );
       return;
     }
     if (getParam('status') && getParam('status') !== 'successful') {
@@ -934,7 +950,7 @@ async function init() {
         return;
       }
 
-      launchFlutterwave(bookingId);
+      await launchFlutterwave(bookingId);
     } catch (err) {
       console.error(err);
       showError(err.message || 'We could not start the payment.');

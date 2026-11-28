@@ -3,7 +3,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
 };
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: corsHeaders });
+}
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -13,15 +19,17 @@ Deno.serve(async (request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const flutterwaveSecretKey = Deno.env.get("FLUTTERWAVE_SECRET_KEY") || Deno.env.get("FLW_SECRET_KEY") || "";
-    if (!supabaseUrl || !supabaseAnonKey || !flutterwaveSecretKey) {
-      throw new Error("Payment verification is not configured.");
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !flutterwaveSecretKey) {
+      throw new Error("Payment verification is not configured. Check the Supabase and Flutterwave Edge Function secrets.");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: request.headers.get("Authorization") || "" } },
     });
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError) throw new Error("Your login could not be verified. Please sign in again.");
     if (!user) throw new Error("You must be logged in to verify payment.");
 
     const body = await request.json();
@@ -32,22 +40,37 @@ Deno.serve(async (request) => {
       throw new Error("Flutterwave transaction details are incomplete.");
     }
 
-    const { data: booking, error: bookingError } = await supabase
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: profile, error: profileError } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("uid", user.id)
+      .maybeSingle();
+    if (profileError) throw new Error("Could not verify the customer profile.");
+
+    const ownerIds = [...new Set([user.id, profile?.id].filter(Boolean))];
+    const { data: booking, error: bookingError } = await adminClient
       .from("bookings")
       .select("id, user_id")
       .eq("id", bookingId)
-      .eq("user_id", user.id)
       .maybeSingle();
-    if (bookingError || !booking) throw new Error("Booking not found.");
+    if (bookingError) throw new Error("Could not look up the booking.");
+    if (!booking || !ownerIds.includes(booking.user_id)) {
+      throw new Error("Booking not found or it does not belong to your account.");
+    }
 
-    const { data: payment, error: paymentError } = await supabase
+    const { data: payment, error: paymentError } = await adminClient
       .from("payments")
-      .select("id, amount, currency, status")
+      .select("id, amount, currency, status, user_id")
       .eq("booking_id", bookingId)
-      .eq("user_id", user.id)
       .eq("reference", reference)
       .maybeSingle();
-    if (paymentError || !payment) throw new Error("Matching payment record not found.");
+    if (paymentError) throw new Error("Could not look up the pending payment.");
+    if (!payment || !ownerIds.includes(payment.user_id)) {
+      throw new Error("Matching payment record not found for this booking.");
+    }
     if (!["pending", "success", "successful", "paid"].includes(String(payment.status).toLowerCase())) {
       throw new Error("This payment is not eligible for verification.");
     }
@@ -55,10 +78,17 @@ Deno.serve(async (request) => {
     const response = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId)}/verify`, {
       headers: { Authorization: `Bearer ${flutterwaveSecretKey}` },
     });
-    const result = await response.json();
+    const responseText = await response.text();
+    let result: any;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      throw new Error("Flutterwave returned an unreadable verification response.");
+    }
+
     const transaction = result?.data;
     if (!response.ok || result?.status !== "success" || transaction?.status !== "successful") {
-      throw new Error("Flutterwave has not confirmed this payment as successful.");
+      throw new Error(result?.message || "Flutterwave has not confirmed this payment as successful.");
     }
     if (transaction?.tx_ref !== reference) throw new Error("Flutterwave reference does not match this booking.");
     if (transaction?.currency?.toUpperCase() !== String(payment.currency || "NGN").toUpperCase()) {
@@ -71,20 +101,23 @@ Deno.serve(async (request) => {
       throw new Error("Flutterwave transaction is linked to a different booking.");
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminClient
       .from("payments")
-      .update({ status: "success", provider: "flutterwave", provider_reference: transactionId, updated_at: new Date().toISOString() })
+      .update({
+        status: "success",
+        provider: "flutterwave",
+        provider_reference: transactionId,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", payment.id);
-    if (updateError) throw new Error("Payment verified, but its payment record could not be updated.");
+    if (updateError) {
+      throw new Error(`Payment was verified, but its record could not be updated: ${updateError.message}`);
+    }
 
-    return new Response(JSON.stringify({ success: true, reference, transaction_id: transactionId }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ success: true, reference, transaction_id: transactionId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Payment verification failed.";
-    return new Response(JSON.stringify({ success: false, message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("Flutterwave payment verification failed:", message);
+    return jsonResponse({ success: false, message }, 400);
   }
 });
